@@ -1,0 +1,346 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BUILDER
+  FOUNDER
+  INVESTOR
+  ADMIN
+}
+
+enum ProjectStage {
+  IDEA
+  MVP
+  LIVE
+}
+
+enum ApplicationType {
+  BUILDER_PROGRAM
+  FOUNDER_SUPPORT
+  PARTNER
+  DEMO_DAY_PITCH
+}
+
+enum ApplicationStatus {
+  NEW
+  REVIEWING
+  ACCEPTED
+  REJECTED
+}
+
+enum PartnerCategory {
+  VC
+  CEX
+  LAUNCHPAD
+  GUILD
+  MEDIA
+  PORTFOLIO
+}
+
+enum PartnerStatus {
+  LEGACY
+  CURRENT
+}
+
+enum IntroType {
+  KOL
+  VC
+}
+
+enum RewardStatus {
+  PENDING
+  CLAIMED
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum EventType {
+  OFFICE_HOURS
+  WORKSHOP
+  FOUNDER_TALK
+  DEMO_DAY
+  COMMUNITY_MEETUP
+  AMA
+  PARTNER_SESSION
+}
+
+enum EventTrack {
+  STABLECOINS
+  FINTECH
+  INFRA
+  GTM_DISTRIBUTION
+  SECURITY
+  LEGAL_COMPLIANCE
+}
+
+enum EventFormat {
+  ONLINE
+  IN_PERSON
+  HYBRID
+}
+
+enum MeetingProvider {
+  CALENDLY
+  GOOGLE_MEET
+  ZOOM
+  OTHER
+}
+
+enum EventVisibility {
+  PUBLIC
+  MEMBERS
+  INVITE_ONLY
+}
+
+enum RsvpStatus {
+  GOING
+  INTERESTED
+  WAITLISTED
+  CANCELED
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  name               String?
+  email              String    @unique
+  emailVerified      DateTime?
+  image              String?
+  role               Role      @default(BUILDER)
+  onboardingComplete Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  accounts        Account[]
+  sessions        Session[]
+  builderProfile  BuilderProfile?
+  founderProfile  FounderProfile?
+  projects        Project[]
+  applications    Application[]
+  introRequests   IntroRequest[]
+  rewards         Reward[]
+  eventRsvps      EventRsvp[]
+  eventReminders  EventReminder[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model BuilderProfile {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  handle                String?  @unique
+  headline              String?
+  bio                   String?  @db.Text
+  skills                String[]
+  location              String?
+  github                String?
+  twitter               String?
+  website               String?
+  interests             String[]
+  publicVisible         Boolean  @default(true)
+  verifiedByWebcoinLabs Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FounderProfile {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  companyName           String?
+  roleTitle             String?
+  website               String?
+  pitchDeckUrl          String?
+  telegram              String?
+  twitter               String?
+  verifiedByWebcoinLabs Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Project {
+  id                    String       @id @default(cuid())
+  ownerUserId           String
+  name                  String
+  slug                  String?      @unique
+  tagline               String?
+  description           String?      @db.Text
+  chainFocus            String?
+  stage                 ProjectStage @default(IDEA)
+  websiteUrl            String?
+  githubUrl             String?
+  twitterUrl            String?
+  publicVisible         Boolean      @default(true)
+  verifiedByWebcoinLabs Boolean      @default(false)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+}
+
+model Application {
+  id        String            @id @default(cuid())
+  userId    String
+  type      ApplicationType
+  answers   Json
+  status    ApplicationStatus @default(NEW)
+  notes     String?           @db.Text
+  eventId   String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+}
+
+model Event {
+  id                  String           @id @default(cuid())
+  slug                String           @unique
+  title               String
+  summary             String?          @db.Text
+  description         String?          @db.Text
+  type                EventType
+  track               EventTrack?
+  format              EventFormat     @default(ONLINE)
+  visibility          EventVisibility @default(PUBLIC)
+  startAt             DateTime
+  endAt               DateTime
+  timezone            String           @default("UTC")
+  locationText        String?
+  meetingUrl          String?
+  meetingProvider     MeetingProvider?
+  coverImageUrl       String?
+  hostUserId          String?
+  partnerId           String?
+  capacity            Int?
+  isPublished        Boolean          @default(false)
+  isFeatured         Boolean          @default(false)
+  requiresApplication Boolean         @default(false)
+  recordingUrl        String?
+  notesUrl            String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  rsvps         EventRsvp[]
+  reminders     EventReminder[]
+  applications  Application[]
+}
+
+model EventRsvp {
+  id          String     @id @default(cuid())
+  eventId     String
+  userId      String
+  status      RsvpStatus  @default(GOING)
+  checkedInAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+model EventReminder {
+  id        String    @id @default(cuid())
+  eventId   String
+  userId    String
+  remindAt  DateTime
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+model Partner {
+  id        String          @id @default(cuid())
+  slug     String?          @unique
+  name      String
+  logoPath  String?
+  category  PartnerCategory
+  status    PartnerStatus   @default(LEGACY)
+  url       String?
+  featured  Boolean         @default(false)
+  sortOrder Int             @default(0)
+}
+
+model IntroRequest {
+  id              String    @id @default(cuid())
+  founderId       String
+  type            IntroType
+  requestPayload  Json      // KOL: category, budgetRange, campaignGoal; VC: category, stage, region
+  status          String    @default("PENDING") // PENDING, REVIEWING, MATCHED, CLOSED
+  notes           String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  founder User @relation(fields: [founderId], references: [id], onDelete: Cascade)
+}
+
+model Lead {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  company   String?
+  message   String   @db.Text
+  source    String?
+  createdAt DateTime @default(now())
+}
+
+model Reward {
+  id             String       @id @default(cuid())
+  userId         String?
+  externalHandle String?      // optional Telegram handle for lookup before user exists
+  label          String       // e.g. "Monsterra token"
+  amountText     String       // e.g. "100"
+  status         RewardStatus @default(PENDING)
+  claimedAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}

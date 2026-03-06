@@ -1,0 +1,192 @@
+{
+  "routes": [
+    "/",
+    "/products",
+    "/services",
+    "/network",
+    "/builders",
+    "/builders/[handleOrId]",
+    "/projects",
+    "/projects/[slugOrId]",
+    "/pitchdeck",
+    "/insights",
+    "/contact",
+    "/build",
+    "/ecosystems",
+    "/case-studies",
+    "/webcoin-labs-2-0",
+    "/login",
+    "/app",
+    "/app/profile",
+    "/app/projects",
+    "/app/projects/new",
+    "/app/apply",
+    "/app/apply/builder-program",
+    "/app/apply/founder-support",
+    "/app/applications",
+    "/app/intros",
+    "/app/intros/new",
+    "/app/rewards",
+    "/app/events",
+    "/app/events/[id]",
+    "/app/events/calendar",
+    "/app/events/mine",
+    "/app/admin",
+    "/app/admin/events",
+    "/app/admin/events/new",
+    "/app/admin/events/[id]",
+    "/app/admin/leads",
+    "/app/admin/partners",
+    "/app/admin/intros",
+    "/app/admin/moderation",
+    "/app/admin/rewards",
+    "/app/onboarding",
+    "/app/settings",
+    "/app/messages",
+    "/api/auth/[...nextauth]",
+    "/api/admin/events/[id]/export-rsvps",
+    "/api/admin/events/[id]/rsvps",
+    "/app/events/[id]/ical"
+  ],
+  "features": {
+    "homepageSections": {
+      "hero": true,
+      "trustedNetworkLogos": true,
+      "industryProblems": true,
+      "solution": true,
+      "stats": true,
+      "threePillars": true,
+      "products": true,
+      "services": true,
+      "industryFocus": true,
+      "partnerNetworkExplore": true,
+      "legacyCredibility": true,
+      "howPlatformWorks": true,
+      "insights": true,
+      "cta": true,
+      "floatingHelpWidget": true
+    },
+    "partners": {
+      "categories": ["VC", "CEX", "LAUNCHPAD", "GUILD", "MEDIA", "PORTFOLIO"],
+      "marqueeInfiniteScroll": true,
+      "watermarkBackground": true,
+      "networkPageCurrentLegacy": true,
+      "publicPaths": ["/public/network/current/", "/public/network/legacy/"]
+    },
+    "products": {
+      "sectionOnHomepage": true,
+      "seeAllLink": "/products",
+      "dedicatedPage": true
+    },
+    "services": {
+      "sectionOnHomepage": true,
+      "seeAllLink": "/services",
+      "dedicatedPage": true
+    },
+    "platform": {
+      "roleOnboarding": true,
+      "builderProfile": true,
+      "founderProfile": true,
+      "projects": true,
+      "applications": true,
+      "introRequests": true,
+      "rewards": true,
+      "calendlyBookDemo": true,
+      "calendlyOfficeHours": true
+    },
+    "admin": {
+      "dashboard": true,
+      "applications": true,
+      "partners": true,
+      "intros": true,
+      "moderation": true,
+      "rewards": true,
+      "leads": true,
+      "events": true
+    },
+    "events": {
+      "hub": true,
+      "detail": true,
+      "calendar": true,
+      "mine": true,
+      "adminCrud": true,
+      "rsvp": true,
+      "ical": true,
+      "recordingNotesFields": true,
+      "visibility": true
+    }
+  },
+  "database": {
+    "models": [
+      "Account",
+      "Session",
+      "User",
+      "VerificationToken",
+      "BuilderProfile",
+      "FounderProfile",
+      "Project",
+      "Application",
+      "Partner",
+      "IntroRequest",
+      "Lead",
+      "Reward",
+      "Event",
+      "EventRsvp",
+      "EventReminder"
+    ],
+    "enums": [
+      "Role",
+      "ProjectStage",
+      "ApplicationType",
+      "ApplicationStatus",
+      "PartnerCategory",
+      "PartnerStatus",
+      "IntroType",
+      "RewardStatus",
+      "EventType",
+      "EventTrack",
+      "EventFormat",
+      "MeetingProvider",
+      "EventVisibility",
+      "RsvpStatus"
+    ],
+    "missing": [
+      "Soft delete strategy",
+      "Partner FK on Event.partnerId (currently string)"
+    ]
+  },
+  "security": {
+    "findings": [
+      {
+        "severity": "Medium",
+        "file": "next.config.mjs",
+        "description": "No security headers (CSP, X-Frame-Options, Referrer-Policy, HSTS)",
+        "fix": "Add headers() in next.config or middleware"
+      },
+      {
+        "severity": "Low",
+        "file": "app/actions/events.ts",
+        "description": "No rate limit on RSVP or createEvent",
+        "fix": "Add rateLimit for rsvpEvent; optional for admin createEvent"
+      },
+      {
+        "severity": "Low",
+        "file": "app/(marketing)/insights",
+        "description": "No /insights/[slug] route; linked slugs 404",
+        "fix": "Add dynamic route or change links to existing pages"
+      }
+    ],
+    "missingControls": [
+      "Content-Security-Policy",
+      "X-Frame-Options",
+      "Referrer-Policy",
+      "Permissions-Policy",
+      "Strict-Transport-Security (production)",
+      "Rate limit on event RSVP",
+      "Optional: rate limit on admin event create"
+    ]
+  },
+  "todo": [
+    "app/actions/events.ts: TODO enqueue emails for T-24h and T-1h (reminder stub)"
+  ]
+}

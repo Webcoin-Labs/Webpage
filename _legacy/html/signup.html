@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="./signup.css" />
+</head>
+<body>
+    <div class="wrapper">
+        <div class="title-text">
+          <div class="title login">Login Form</div>
+          <div class="title signup">Signup Form</div>
+        </div>
+        <div class="form-container">
+          <div class="slide-controls">
+            <input type="radio" name="slide" id="login" checked>
+            <input type="radio" name="slide" id="signup">
+            <label for="login" class="slide login">Login</label>
+            <label for="signup" class="slide signup">Signup</label>
+            <div class="slider-tab"></div>
+          </div>
+          <div class="form-inner">
+            <form  class="login" method="post">
+              <div class="field">
+                <input type="text" placeholder="Email Address" id="email" name="email" required>
+              </div>
+              <div class="field">
+                <input type="password" placeholder="Password" id="password" name="password" required>
+              </div>
+              
+              <p style="margin-left: 90px;color: red;" id = "msg"></p>
+              <div class="field btn">
+                <div class="btn-layer"></div>
+                <input type="submit" value="Login" id="submit">
+                
+              </div>
+              <div class="signup-link">Not a member? <a href="">Signup now</a></div>
+            </form>
+            <form action="/" class="signup" method="POST">
+              <div class="field">
+                <input type="text" placeholder="Email Address" name ="email" passrequired>
+              </div>
+              <div class="field">
+                <input type="password" placeholder="Password" name="password" required>
+              </div>
+              <div class="field">
+                <input type="password" placeholder="Confirm password" required>
+              </div>
+              <div class="field btn">
+                <div class="btn-layer"></div>
+                <input type="submit" value="Signup">
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+  <script src="./signup.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
+  <script>
+    const socket =io();
+    const msg = document.getElementById("msg");
+    $("#submit").click((event)=>{
+        event.preventDefault();
+        const email = document.getElementById("email").value;
+        const pass = document.getElementById("password").value;
+        socket.emit("Login",{email,pass});
+    });
+    socket.on("Login",(data)=>{
+        if(data != "Email or Password is Wrong"){
+            window.location.href = "/home";
+        }
+        else{
+            msg.innerHTML = data;
+        }
+    });
+</script>
+</body>
+</html>

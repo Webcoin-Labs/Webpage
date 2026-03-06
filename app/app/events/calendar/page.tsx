@@ -1,0 +1,58 @@
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { EventsCalendarClient } from "@/components/events/EventsCalendarClient";
+
+export const metadata = {
+  title: "Calendar — Events | Webcoin Labs",
+  description: "Events calendar view.",
+};
+
+export default async function EventsCalendarPage() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Sign in to view the calendar.</p>
+      </div>
+    );
+  }
+
+  const events = await prisma.event.findMany({
+    where: {
+      isPublished: true,
+      OR: [
+        { visibility: "PUBLIC" },
+        { visibility: "MEMBERS" },
+        {
+          visibility: "INVITE_ONLY",
+          rsvps: { some: { userId: session.user.id } },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      title: true,
+      startAt: true,
+      endAt: true,
+      type: true,
+      slug: true,
+    },
+    orderBy: { startAt: "asc" },
+  });
+
+  return (
+    <div className="space-y-6">
+      <Link
+        href="/app/events"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="w-4 h-4" /> Back to Events
+      </Link>
+      <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
+      <EventsCalendarClient events={events} />
+    </div>
+  );
+}
