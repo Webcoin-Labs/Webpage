@@ -2,6 +2,8 @@ import { getServerSession, NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
 
@@ -17,6 +19,36 @@ export const authOptions: NextAuthOptions = {
             clientId: process.env.GITHUB_CLIENT_ID!,
             clientSecret: process.env.GITHUB_CLIENT_SECRET!,
         }),
+        CredentialsProvider({
+            id: "credentials",
+            name: "Email or username",
+            credentials: {
+                login: { label: "Email or username", type: "text" },
+                password: { label: "Password", type: "password" },
+            },
+            async authorize(credentials) {
+                if (!credentials?.login || !credentials?.password) return null;
+                const user = await prisma.user.findFirst({
+                    where: {
+                        OR: [
+                            { email: credentials.login.trim().toLowerCase() },
+                            { username: credentials.login.trim().toLowerCase() },
+                        ],
+                    },
+                });
+                if (!user?.password) return null;
+                const ok = await compare(credentials.password, user.password);
+                if (!ok) return null;
+                return {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    image: user.image,
+                    role: user.role,
+                    onboardingComplete: user.onboardingComplete,
+                } as { id: string; name: string | null; email: string; image: string | null; role: Role; onboardingComplete: boolean };
+            },
+        }),
     ],
     session: {
         strategy: "jwt",
@@ -29,16 +61,17 @@ export const authOptions: NextAuthOptions = {
                 token.id = user.id;
                 token.onboardingComplete = u.onboardingComplete ?? false;
             }
-            // Refresh role and onboarding from DB when needed
-            if (token.email) {
+            // Refresh role and onboarding from DB when needed (works for OAuth and credentials)
+            if (token.id) {
                 const dbUser = await prisma.user.findUnique({
-                    where: { email: token.email },
-                    select: { role: true, id: true, onboardingComplete: true },
+                    where: { id: token.id as string },
+                    select: { role: true, id: true, onboardingComplete: true, email: true },
                 });
                 if (dbUser) {
-                    token.role = token.role ?? dbUser.role;
+                    token.role = dbUser.role;
                     token.id = dbUser.id;
                     token.onboardingComplete = dbUser.onboardingComplete;
+                    if (dbUser.email) token.email = dbUser.email;
                 }
             }
             return token;

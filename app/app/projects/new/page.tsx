@@ -31,6 +31,7 @@ export default function NewProjectPage() {
         <div className="py-8 max-w-lg">
             <h1 className="text-2xl font-bold mb-2">New Project</h1>
             <p className="text-muted-foreground mb-8">Create a project profile to share with the Webcoin Labs team.</p>
+            <p className="text-xs text-muted-foreground mb-6">Standard plan allows one active project. Premium will unlock multiple companies.</p>
 
             <form onSubmit={handleSubmit} className="space-y-5 p-6 rounded-xl border border-border/50 bg-card">
                 <div>

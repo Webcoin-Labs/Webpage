@@ -15,91 +15,79 @@ import {
 const problems = [
   {
     icon: Users,
-    title: "Fragmented builder ecosystem",
-    desc: "Developers, founders, and projects are scattered across chains and communities.",
-  },
-  {
-    icon: TrendingDown,
-    title: "Low traction for real products",
-    desc: "Many projects fail to reach users despite strong technology.",
-  },
-  {
-    icon: ShieldAlert,
-    title: "Trust issues and scams",
-    desc: "The industry suffers from scams and low transparency.",
+    title: "Fragmented Ecosystem",
+    desc: "Builders, capital, and infrastructure are scattered across disparate chains, creating massive friction for early-stage projects.",
   },
   {
     icon: Megaphone,
-    title: "Weak distribution",
-    desc: "Blockchain startups struggle with marketing, SEO, and user acquisition.",
+    title: "Distribution Roadblocks",
+    desc: "Even technically excellent products fail to find traction and product-market fit due to isolated communities and weak distribution.",
   },
   {
-    icon: Scale,
-    title: "Regulatory uncertainty",
-    desc: "Crypto and stablecoin businesses face unclear compliance rules globally.",
-  },
-  {
-    icon: Smartphone,
-    title: "Poor user experience",
-    desc: "Wallet onboarding and crypto UX are still complex for mainstream users.",
-  },
-  {
-    icon: Target,
-    title: "Lack of product-market fit",
-    desc: "Many blockchain startups fail because products are built without real demand.",
+    icon: ShieldAlert,
+    title: "Trust & Credibility Gap",
+    desc: "The industry frequently suffers from low transparency. It remains difficult for legitimate, high-quality founders to signal trust.",
   },
   {
     icon: Puzzle,
-    title: "Fragmented infrastructure",
-    desc: "Developers rely on many vendors and tools across chains, slowing development.",
+    title: "Complex Infrastructure",
+    desc: "Development relies on a fragmented web of vendors and tools, slowing down execution speed and degrading the final user experience.",
   },
 ];
 
 export function ProblemsSection() {
   return (
-    <section className="py-24 border-y border-border/50 bg-muted/20">
-      <div className="container mx-auto px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-16"
-        >
-          <p className="text-xs font-semibold text-amber-400 uppercase tracking-widest mb-3">
-            Industry challenges
-          </p>
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
-            Problems we see in the blockchain industry
-          </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Clear product messaging. Real issues. Real solutions.
-          </p>
-        </motion.div>
+    <section className="py-24 md:py-32 bg-background border-y border-border">
+      <div className="container mx-auto px-6 max-w-7xl">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-12">
+          {/* Left Column (Sticky Text) */}
+          <div className="lg:col-span-5 relative">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="sticky top-32"
+            >
+              <div className="inline-flex items-center px-3 py-1 rounded-full border border-border bg-accent text-muted-foreground text-xs font-medium mb-6">
+                The Infrastructure Gap
+              </div>
+              <h2 className="text-3xl md:text-5xl font-semibold tracking-tight text-foreground mb-6 leading-[1.15]">
+                The challenges facing modern blockchain builders.
+              </h2>
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                Despite billions in capital and immense developer talent, shipping and scaling blockchain applications remains profoundly difficult. We exist to solve these fundamental bottlenecks.
+              </p>
+            </motion.div>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-6xl mx-auto">
-          {problems.map((p, i) => {
-            const Icon = p.icon;
-            return (
-              <motion.div
-                key={p.title}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.04 }}
-                className="group p-5 rounded-xl border border-border/50 bg-card/80 hover:border-amber-500/30 hover:shadow-lg hover:shadow-amber-500/5 hover:scale-[1.02] transition-all duration-300"
-              >
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center mb-3 group-hover:bg-amber-500/20 transition-colors">
-                  <Icon className="w-5 h-5 text-amber-400" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-1.5 text-sm">
-                  {p.title}
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {p.desc}
-                </p>
-              </motion.div>
-            );
-          })}
+          {/* Right Column (Stacked Cards) */}
+          <div className="lg:col-span-7 flex flex-col gap-6">
+            {problems.map((p, i) => {
+              const Icon = p.icon;
+              return (
+                <motion.div
+                  key={p.title}
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, margin: "-100px" }}
+                  transition={{ delay: i * 0.1 }}
+                  className="group p-8 rounded-2xl border border-border bg-card hover:bg-accent/50 hover:shadow-soft transition-all duration-300 flex items-start gap-6"
+                >
+                  <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Icon className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-foreground mb-2">
+                      {p.title}
+                    </h3>
+                    <p className="text-base text-muted-foreground leading-relaxed">
+                      {p.desc}
+                    </p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>

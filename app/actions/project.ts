@@ -25,6 +25,12 @@ export async function createProject(formData: FormData): Promise<ProjectResult> 
     if (session.user.role !== "FOUNDER" && session.user.role !== "ADMIN") {
         return { success: false, error: "Only founders can create projects" };
     }
+    if (session.user.role === "FOUNDER") {
+        const existingCount = await prisma.project.count({ where: { ownerUserId: session.user.id } });
+        if (existingCount >= 1) {
+            return { success: false, error: "Standard plan allows one active project. Upgrade for more." };
+        }
+    }
 
     const raw = {
         name: formData.get("name") as string,

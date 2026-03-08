@@ -7,13 +7,15 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
 
+    const allowed = pathname === "/app/onboarding" || pathname === "/app/profile";
+
     useEffect(() => {
-        if (pathname !== "/app/onboarding") {
+        if (!allowed) {
             router.replace("/app/onboarding");
         }
-    }, [pathname, router]);
+    }, [allowed, router]);
 
-    if (pathname !== "/app/onboarding") {
+    if (!allowed) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <p className="text-muted-foreground text-sm">Redirecting...</p>

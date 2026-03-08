@@ -45,9 +45,9 @@ export function HeroBackground() {
                     const dy = particles[i].y - particles[j].y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     if (dist < 130) {
-                        const alpha = (1 - dist / 130) * 0.12;
+                        const alpha = (1 - dist / 130) * 0.08;
                         ctx.beginPath();
-                        ctx.strokeStyle = `rgba(34,211,238,${alpha})`;
+                        ctx.strokeStyle = `rgba(139,92,246,${alpha})`;
                         ctx.lineWidth = 0.5;
                         ctx.moveTo(particles[i].x, particles[i].y);
                         ctx.lineTo(particles[j].x, particles[j].y);
@@ -60,7 +60,7 @@ export function HeroBackground() {
             particles.forEach((p) => {
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(34,211,238,${p.opacity})`;
+                ctx.fillStyle = `rgba(139,92,246,${p.opacity * 0.5})`;
                 ctx.fill();
 
                 p.x += p.vx;
@@ -90,8 +90,8 @@ export function HeroBackground() {
                 style={{ width: "100%", height: "100%" }}
             />
             {/* Radial glow top center */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-gradient-radial from-cyan-500/10 to-transparent rounded-full blur-3xl" />
-            <div className="absolute top-20 right-1/4 w-[300px] h-[300px] bg-gradient-radial from-violet-500/8 to-transparent rounded-full blur-3xl" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-gradient-radial from-primary/5 to-transparent rounded-full blur-3xl" />
+            <div className="absolute top-20 right-1/4 w-[300px] h-[300px] bg-gradient-radial from-primary/5 to-transparent rounded-full blur-3xl" />
         </div>
     );
 }

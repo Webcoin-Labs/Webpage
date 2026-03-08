@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-const roleSchema = ["BUILDER", "FOUNDER", "INVESTOR"] as const;
+const roleSchema = ["BUILDER", "FOUNDER", "INVESTOR", "ADMIN"] as const;
 
 export type OnboardingResult = { success: true } | { success: false; error: string };
 
@@ -16,11 +16,13 @@ export async function completeOnboarding(role: string): Promise<OnboardingResult
     return { success: false, error: "Invalid role" };
   }
 
+  const shouldComplete = role === "ADMIN";
+
   await prisma.user.update({
     where: { id: session.user.id },
     data: {
-      role: role as "BUILDER" | "FOUNDER" | "INVESTOR",
-      onboardingComplete: true,
+      role: role as "BUILDER" | "FOUNDER" | "INVESTOR" | "ADMIN",
+      onboardingComplete: shouldComplete,
     },
   });
 

@@ -30,7 +30,7 @@ export default async function AppLayout({
             <AppSidebar user={session.user} />
             <main className="flex-1 ml-0 md:ml-64 min-h-screen">
                 <div className="h-16 border-b border-border/50 flex items-center px-6 md:hidden">
-                    <span className="font-bold gradient-text">Webcoin Labs</span>
+                    <span className="font-bold text-foreground">Webcoin Labs</span>
                 </div>
                 <div className="p-6 max-w-5xl mx-auto relative">{children}</div>
             <AppHelpWidget />

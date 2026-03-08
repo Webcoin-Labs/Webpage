@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { AuthProvider } from "@/components/providers/AuthProvider";
@@ -7,24 +7,35 @@ import { CalendlyProvider } from "@/components/providers/CalendlyProvider";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-const inter = Inter({ subsets: ["latin"] });
+const spaceGrotesk = Space_Grotesk({
+    subsets: ["latin"],
+    variable: "--font-sans",
+    display: "swap",
+});
+
+const plexMono = IBM_Plex_Mono({
+    subsets: ["latin"],
+    weight: ["400", "500", "600"],
+    variable: "--font-mono",
+    display: "swap",
+});
 
 export const metadata: Metadata = {
     metadataBase: new URL("https://webcoinlabs.com"),
     title: {
-        default: "Webcoin Labs 2.0 — Builder-First Innovation Hub",
+        default: "Webcoin Labs - Blockchain founder-builder network",
         template: "%s | Webcoin Labs",
     },
     description:
-        "Formerly Webcoin Capital. Rebuilt for the new era: infrastructure, programs, and support for builders and founders in Web3.",
+        "Webcoin Labs connects founders and builders, accelerates product development, and delivers funding readiness with AI-powered analysis and ecosystem access.",
     keywords: [
         "web3",
         "blockchain",
-        "builder programs",
+        "builder ecosystem",
         "founder support",
         "ecosystem partnerships",
-        "innovation hub",
-        "venture studio",
+        "token launch",
+        "growth",
     ],
     authors: [{ name: "Webcoin Labs" }],
     openGraph: {
@@ -32,23 +43,23 @@ export const metadata: Metadata = {
         locale: "en_US",
         url: "https://webcoinlabs.com",
         siteName: "Webcoin Labs",
-        title: "Webcoin Labs 2.0 — Builder-First Innovation Hub",
+        title: "Webcoin Labs - Blockchain founder-builder network",
         description:
-            "Formerly Webcoin Capital. Rebuilt for the new era: infrastructure, programs, and support for builders and founders in Web3.",
+            "Webcoin Labs connects founders and builders, accelerates product development, and delivers funding readiness with AI-powered analysis and ecosystem access.",
         images: [
             {
                 url: "/og-image.png",
                 width: 1200,
                 height: 630,
-                alt: "Webcoin Labs 2.0",
+                alt: "Webcoin Labs",
             },
         ],
     },
     twitter: {
         card: "summary_large_image",
-        title: "Webcoin Labs 2.0 — Builder-First Innovation Hub",
+        title: "Webcoin Labs - Blockchain founder-builder network",
         description:
-            "Formerly Webcoin Capital. Rebuilt for the new era.",
+            "Webcoin Labs connects founders and builders, accelerates product development, and delivers funding readiness with AI-powered analysis and ecosystem access.",
         images: ["/og-image.png"],
     },
     robots: {
@@ -73,7 +84,7 @@ export default async function RootLayout({
 
     return (
         <html lang="en" suppressHydrationWarning>
-            <body className={inter.className}>
+            <body className={`${spaceGrotesk.variable} ${plexMono.variable} font-sans`}>
                 <ThemeProvider
                     attribute="class"
                     defaultTheme="dark"
@@ -81,8 +92,8 @@ export default async function RootLayout({
                     disableTransitionOnChange
                 >
                     <AuthProvider session={session}>
-                    <CalendlyProvider>{children}</CalendlyProvider>
-                </AuthProvider>
+                        <CalendlyProvider>{children}</CalendlyProvider>
+                    </AuthProvider>
                 </ThemeProvider>
             </body>
         </html>

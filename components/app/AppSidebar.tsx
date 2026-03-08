@@ -46,12 +46,10 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
             {/* Logo */}
             <div className="h-16 flex items-center px-6 border-b border-border/50">
                 <Link href="/" className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-400 to-violet-500 flex items-center justify-center text-white font-bold text-xs">
+                    <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center text-white font-bold text-xs">
                         W
                     </div>
-                    <span className="font-bold text-sm">
-                        Webcoin <span className="gradient-text">Labs</span>
-                    </span>
+                    <span className="font-bold text-sm text-foreground">Webcoin Labs</span>
                 </Link>
             </div>
 
@@ -62,7 +60,7 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={user.image} alt={user.name ?? ""} className="w-8 h-8 rounded-full" />
                     ) : (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center text-white text-xs font-bold">
+                        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
                             {user.name?.charAt(0) ?? user.email?.charAt(0) ?? "U"}
                         </div>
                     )}

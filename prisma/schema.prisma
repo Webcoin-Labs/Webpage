@@ -139,6 +139,8 @@ model User {
   email              String    @unique
   emailVerified      DateTime?
   image              String?
+  username           String?   @unique  // unique handle for login (e.g. @johndoe)
+  password           String?   @db.Text // bcrypt hash; null for OAuth-only users
   role               Role      @default(BUILDER)
   onboardingComplete Boolean   @default(false)
   createdAt          DateTime  @default(now())
@@ -148,6 +150,7 @@ model User {
   sessions        Session[]
   builderProfile  BuilderProfile?
   founderProfile  FounderProfile?
+  investorProfile InvestorProfile?
   projects        Project[]
   applications    Application[]
   introRequests   IntroRequest[]
@@ -168,13 +171,20 @@ model BuilderProfile {
   id                    String   @id @default(cuid())
   userId                String   @unique
   handle                String?  @unique
+  title                 String?
   headline              String?
   bio                   String?  @db.Text
   skills                String[]
+  preferredChains       String[] @default([])
+  openTo                String[] @default([])
   location              String?
+  timezone              String?
   github                String?
+  linkedin              String?
   twitter               String?
   website               String?
+  portfolioUrl          String?
+  experience            String?
   interests             String[]
   publicVisible         Boolean  @default(true)
   verifiedByWebcoinLabs Boolean  @default(false)
@@ -188,14 +198,38 @@ model FounderProfile {
   id                    String   @id @default(cuid())
   userId                String   @unique
   companyName           String?
+  companyDescription    String?  @db.Text
   roleTitle             String?
+  bio                   String?  @db.Text
+  location              String?
+  timezone              String?
+  projectStage          ProjectStage?
+  chainFocus            String?
+  currentNeeds          String[] @default([])
   website               String?
   pitchDeckUrl          String?
+  linkedin              String?
   telegram              String?
   twitter               String?
   verifiedByWebcoinLabs Boolean  @default(false)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model InvestorProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  firmName  String?
+  roleTitle String?
+  focus     String?
+  location  String?
+  website   String?
+  linkedin  String?
+  twitter   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -5,27 +5,54 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, LogIn, LogOut, LayoutDashboard, Calendar } from "lucide-react";
+import { Menu, X, LogOut, LayoutDashboard, ChevronDown } from "lucide-react";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { useCalendly } from "@/components/providers/CalendlyProvider";
 import { cn } from "@/lib/utils";
 
-const navLinks = [
-  { href: "/products", label: "Products" },
-  { href: "/services", label: "Services" },
+const menuGroups = [
+  {
+    label: "Products",
+    items: [
+      { href: "/products/founder-profile", title: "Founder Profile", desc: "Identity and network layer" },
+      { href: "/products/arcpay", title: "ArcPay", desc: "Payments infrastructure" },
+      { href: "/products/riddlepay", title: "RiddlePay", desc: "Engagement and rewards" },
+      { href: "/products/kreatorboard", title: "Kreatorboard", desc: "Creator dashboard (coming soon)" },
+    ],
+  },
+  {
+    label: "Solutions",
+    items: [
+      { href: "/builders", title: "For Builders", desc: "Discover projects and collaborators" },
+      { href: "/projects", title: "For Founders", desc: "Publish and grow your project" },
+      { href: "/network", title: "Ecosystem Access", desc: "Partners, launchpads, exchanges" },
+      { href: "/services", title: "Studio Support", desc: "Build, fund, distribute" },
+    ],
+  },
+  {
+    label: "Resources",
+    items: [
+      { href: "/insights", title: "Insights", desc: "Articles and market notes" },
+      { href: "/pitchdeck", title: "Pitch Decks", desc: "Company and network decks" },
+      { href: "/webcoin-labs-2-0", title: "Webcoin Labs 2.0", desc: "Vision and platform story" },
+      { href: "/contact", title: "Contact", desc: "Talk to the team" },
+    ],
+  },
+];
+
+const simpleLinks = [
   { href: "/network", label: "Network" },
-  { href: "/builders", label: "Builders" },
-  { href: "/projects", label: "Projects" },
-  { href: "/insights", label: "Insights" },
-  { href: "/pitchdeck", label: "Pitch Deck" },
+  { href: "/pricing", label: "Pricing" },
 ];
 
 export function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const openCalendly = useCalendly();
+  const showThemeToggle = pathname !== "/";
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -33,34 +60,85 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const mobileLinks = [
+    ...menuGroups.flatMap((group) => group.items.map((item) => ({ href: item.href, label: item.title }))),
+    ...simpleLinks,
+  ];
+
   return (
     <header
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
         scrolled
-          ? "bg-background/90 backdrop-blur-xl border-b border-border/50"
-          : "bg-transparent"
+          ? "bg-background/95 backdrop-blur-xl border-b border-border/60 shadow-sm"
+          : "bg-background/80 backdrop-blur-md border-b border-transparent"
       )}
     >
-      <nav className="container mx-auto px-6 h-16 flex items-center justify-between">
+      <nav
+        className="container mx-auto px-6 h-[74px] flex items-center justify-between"
+        onMouseLeave={() => setActiveDropdown(null)}
+      >
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-violet-500 flex items-center justify-center text-white font-bold text-sm">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
             W
           </div>
-          <span className="font-bold text-lg tracking-tight">
-            Webcoin <span className="gradient-text">Labs</span>
-          </span>
+          <span className="font-semibold text-lg tracking-tight text-foreground">Webcoin Labs</span>
         </Link>
 
-        <div className="hidden md:flex items-center gap-1">
-          {navLinks.map((link) => (
+        <div className="hidden lg:flex items-center gap-1">
+          {menuGroups.map((group) => {
+            const isOpen = activeDropdown === group.label;
+            return (
+              <div
+                key={group.label}
+                className="relative"
+                onMouseEnter={() => setActiveDropdown(group.label)}
+              >
+                <button
+                  type="button"
+                  className={cn(
+                    "px-3 py-2 rounded-md text-sm font-medium transition-colors inline-flex items-center gap-1",
+                    isOpen ? "text-foreground bg-accent/70" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  )}
+                >
+                  {group.label}
+                  <ChevronDown className={cn("w-4 h-4 transition-transform", isOpen && "rotate-180")} />
+                </button>
+                <AnimatePresence>
+                  {isOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      transition={{ duration: 0.18 }}
+                      className="absolute top-full left-0 mt-3 w-[460px] rounded-2xl border border-border/80 bg-background/98 backdrop-blur-xl shadow-2xl p-3"
+                    >
+                      <div className="grid grid-cols-2 gap-2">
+                        {group.items.map((item) => (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className="rounded-xl p-3 hover:bg-accent/60 transition-colors"
+                          >
+                            <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{item.desc}</p>
+                          </Link>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
+          {simpleLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               className={cn(
                 "px-3 py-2 rounded-md text-sm font-medium transition-colors",
                 pathname === link.href
-                  ? "text-foreground bg-accent"
+                  ? "text-foreground bg-accent/70"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
               )}
             >
@@ -69,27 +147,26 @@ export function Navbar() {
           ))}
         </div>
 
-        <div className="hidden md:flex items-center gap-3">
-          <ThemeToggle />
+        <div className="hidden lg:flex items-center gap-3">
+          {showThemeToggle && <ThemeToggle />}
           <button
             onClick={openCalendly}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border hover:border-cyan-500/40 text-sm font-medium transition-colors"
+            className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            <Calendar className="w-4 h-4" />
-            Book Demo
+            Talk to sales
           </button>
           {session ? (
             <div className="flex items-center gap-2">
               <Link
                 href="/app"
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-sm font-medium border border-cyan-500/20 transition-all"
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 transition-colors flex items-center gap-1.5"
               >
                 <LayoutDashboard className="w-4 h-4" />
                 Launch App
               </Link>
               <button
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -100,20 +177,20 @@ export function Navbar() {
                 href="/login"
                 className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                Sign In
+                  Log in
               </Link>
               <Link
                 href="/app"
-                className="px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-violet-500 text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 transition-colors"
               >
-                Launch App
+                Get started
               </Link>
             </>
           )}
         </div>
 
-        <div className="flex items-center gap-2 md:hidden">
-          <ThemeToggle />
+        <div className="flex items-center gap-2 lg:hidden">
+          {showThemeToggle && <ThemeToggle />}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="p-2 rounded-md text-muted-foreground hover:text-foreground"
@@ -129,10 +206,10 @@ export function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-background/95 backdrop-blur-xl border-b border-border/50"
+            className="lg:hidden bg-background/95 backdrop-blur-xl border-b border-border/50"
           >
             <div className="container mx-auto px-6 py-4 flex flex-col gap-1">
-              {navLinks.map((link) => (
+              {mobileLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
@@ -144,9 +221,9 @@ export function Navbar() {
               ))}
               <button
                 onClick={() => { openCalendly(); setMenuOpen(false); }}
-                className="px-4 py-2.5 rounded-lg text-sm text-cyan-400 hover:bg-cyan-500/10 flex items-center gap-2"
+                className="px-4 py-2.5 rounded-lg text-sm font-medium border border-border hover:bg-accent text-center"
               >
-                <Calendar className="w-4 h-4" /> Book Demo
+                Talk to sales
               </button>
               <div className="pt-2 border-t border-border mt-2 flex flex-col gap-2">
                 {session ? (
@@ -154,13 +231,13 @@ export function Navbar() {
                     <Link
                       href="/app"
                       onClick={() => setMenuOpen(false)}
-                      className="px-4 py-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-sm font-medium text-center"
+                      className="px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium text-center"
                     >
                       Launch App
                     </Link>
                     <button
                       onClick={() => signOut({ callbackUrl: "/" })}
-                      className="px-4 py-2.5 rounded-lg text-sm text-muted-foreground text-center"
+                      className="px-4 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-accent text-center"
                     >
                       Sign Out
                     </button>
@@ -170,16 +247,16 @@ export function Navbar() {
                     <Link
                       href="/login"
                       onClick={() => setMenuOpen(false)}
-                      className="px-4 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground text-center"
+                      className="px-4 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent text-center"
                     >
-                      Sign In
+                      Log in
                     </Link>
                     <Link
                       href="/app"
                       onClick={() => setMenuOpen(false)}
-                      className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-cyan-500 to-violet-500 text-white text-sm font-semibold text-center"
+                      className="px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium text-center"
                     >
-                      Launch App
+                      Get started
                     </Link>
                   </>
                 )}

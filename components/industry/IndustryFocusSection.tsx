@@ -23,42 +23,42 @@ const verticals = [
 
 export function IndustryFocusSection() {
   return (
-    <section className="py-24 border-b border-border/50">
-      <div className="container mx-auto px-6">
+    <section className="py-24 bg-background border-b border-border">
+      <div className="container mx-auto px-6 max-w-7xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <p className="text-xs font-semibold text-amber-400 uppercase tracking-widest mb-3">
-            Focus
-          </p>
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
+          <div className="inline-flex items-center px-3 py-1 rounded-full border border-border bg-accent text-muted-foreground text-xs font-medium mb-6">
+            Core Verticals
+          </div>
+          <h2 className="text-3xl md:text-5xl font-semibold tracking-tight text-foreground mb-4">
             Focused on the future of finance
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Three verticals where Webcoin Labs adds the most value.
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            The three verticals where Webcoin Labs adds the most infrastructural value.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {verticals.map((v, i) => {
             const Icon = v.icon;
             return (
               <motion.div
                 key={v.title}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="p-8 rounded-2xl border border-border/50 bg-card/80 hover:border-amber-500/30 hover:shadow-xl hover:shadow-amber-500/5 transition-all duration-300"
+                className="group p-8 rounded-2xl border border-border bg-card hover:shadow-soft transition-all duration-300"
               >
-                <div className="w-14 h-14 rounded-xl bg-amber-500/10 flex items-center justify-center mb-6">
-                  <Icon className="w-7 h-7 text-amber-400" />
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform">
+                  <Icon className="w-6 h-6" />
                 </div>
-                <h3 className="text-xl font-bold text-foreground mb-3">{v.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{v.desc}</p>
+                <h3 className="text-xl font-semibold text-foreground mb-3">{v.title}</h3>
+                <p className="text-base text-muted-foreground leading-relaxed">{v.desc}</p>
               </motion.div>
             );
           })}

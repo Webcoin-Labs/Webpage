@@ -18,13 +18,13 @@ const nextConfig = {
         // If you later add analytics/widgets, add their domains explicitly here.
         const csp = [
             "default-src 'self'",
-            // Next.js/Tailwind can require inline styles. Avoid adding remote styles unless needed.
-            "style-src 'self' 'unsafe-inline' https://assets.calendly.com",
+            // Next.js/Tailwind + Google Fonts (globals.css @import). Blocking fonts can break initial render.
+            "style-src 'self' 'unsafe-inline' https://assets.calendly.com https://fonts.googleapis.com",
             // Next.js may inline small scripts; Calendly uses scripts from assets.calendly.com.
-            "script-src 'self' 'unsafe-inline' https://assets.calendly.com https://calendly.com",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://assets.calendly.com https://calendly.com",
             // Allow images from self + data/blob + configured remote image hosts.
             "img-src 'self' data: blob: https: https://lh3.googleusercontent.com https://avatars.githubusercontent.com https://res.cloudinary.com",
-            "font-src 'self' data:",
+            "font-src 'self' data: https://fonts.gstatic.com",
             // Calendly iframe + any other embedded frames must be allowed explicitly.
             "frame-src 'self' https://calendly.com https://*.calendly.com",
             "connect-src 'self' https://calendly.com https://*.calendly.com https://assets.calendly.com",

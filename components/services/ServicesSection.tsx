@@ -27,26 +27,26 @@ const services = [
 
 export function ServicesSection() {
   return (
-    <section className="py-24 border-y border-border/50 bg-muted/20">
-      <div className="container mx-auto px-6">
+    <section className="py-24 bg-muted/30 border-b border-border">
+      <div className="container mx-auto px-6 max-w-7xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <p className="text-xs font-semibold text-cyan-400 uppercase tracking-widest mb-3">
+          <div className="inline-flex items-center px-3 py-1 rounded-full border border-border bg-background text-muted-foreground text-xs font-medium mb-6">
             What we provide
-          </p>
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
+          </div>
+          <h2 className="text-3xl md:text-5xl font-semibold tracking-tight text-foreground mb-4">
             Services
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Venture studio support, capital readiness, ecosystem access, and more. Historically and now.
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Venture studio support, capital readiness, ecosystem access, and growth engineering.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {services.map((s, i) => {
             const Icon = s.icon;
             return (
@@ -59,17 +59,15 @@ export function ServicesSection() {
               >
                 <Link
                   href={s.href}
-                  className="group flex items-center gap-4 p-4 rounded-xl border border-border/50 bg-card/80 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/5 hover:scale-[1.02] transition-all duration-300"
+                  className="group flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/40 hover:shadow-sm hover:bg-accent/50 transition-all duration-300"
                 >
-                  <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center flex-shrink-0 group-hover:bg-cyan-500/20 transition-colors">
-                    <Icon className="w-5 h-5 text-cyan-400" />
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 text-primary group-hover:bg-primary/20 transition-colors">
+                    <Icon className="w-5 h-5" />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground text-sm">{s.title}</h3>
-                    <span className="text-xs text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                      Explore <ArrowRight className="w-3 h-3" />
-                    </span>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground text-sm group-hover:text-primary transition-colors">{s.title}</h3>
                   </div>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground/50 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
                 </Link>
               </motion.div>
             );
@@ -84,7 +82,7 @@ export function ServicesSection() {
         >
           <Link
             href="/services"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-cyan-500/30 hover:bg-cyan-500/10 text-cyan-400 font-medium text-sm transition-all"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-border bg-background hover:bg-accent text-foreground font-medium text-sm shadow-sm transition-all"
           >
             See all services <ArrowRight className="w-4 h-4" />
           </Link>

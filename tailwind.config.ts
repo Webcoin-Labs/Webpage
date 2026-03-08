@@ -75,13 +75,26 @@ const config: Config = {
                     500: "#f59e0b",
                 },
             },
+            boxShadow: {
+                "soft": "0 8px 30px rgba(0, 0, 0, 0.04)",
+                "soft-hover": "0 12px 40px rgba(0, 0, 0, 0.08)",
+                "glass": "0 4px 20px rgba(0, 0, 0, 0.03)",
+                "glass-hover": "0 8px 30px rgba(0, 0, 0, 0.06)",
+            },
             borderRadius: {
                 lg: "var(--radius)",
                 md: "calc(var(--radius) - 2px)",
                 sm: "calc(var(--radius) - 4px)",
             },
             fontFamily: {
-                sans: ["Inter", "system-ui", "sans-serif"],
+                sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+                mono: [
+                    "var(--font-mono)",
+                    "ui-monospace",
+                    "SFMono-Regular",
+                    "Menlo",
+                    "monospace",
+                ],
             },
             keyframes: {
                 "accordion-down": {
