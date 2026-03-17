@@ -4,6 +4,9 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { AnimatedSection } from "@/components/common/AnimatedSection";
 import type { BuilderProfile, User } from "@prisma/client";
+import { getBuilderAffiliation } from "@/lib/affiliation";
+import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag";
+import { ProfileAvatar } from "@/components/common/ProfileAvatar";
 
 type BuilderWithUser = BuilderProfile & { user: Pick<User, "id" | "name" | "image"> };
 
@@ -27,7 +30,7 @@ export function BuildersDirectoryClient({ initialBuilders }: { initialBuilders: 
         if (!matchName && !matchHandle && !matchBio && !matchSkills && !matchInterests) return false;
       }
       if (skillFilter && !b.skills.some((s) => s.toLowerCase().includes(skillFilter.toLowerCase()))) return false;
-      if (chainFilter && !b.interests.some((i) => i.toLowerCase().includes(chainFilter.toLowerCase())) && !b.bio?.toLowerCase().includes(chainFilter.toLowerCase())) return false;
+      if (chainFilter && !b.preferredChains.some((i) => i.toLowerCase().includes(chainFilter.toLowerCase())) && !b.bio?.toLowerCase().includes(chainFilter.toLowerCase())) return false;
       return true;
     });
   }, [initialBuilders, search, skillFilter, chainFilter]);
@@ -67,23 +70,27 @@ export function BuildersDirectoryClient({ initialBuilders }: { initialBuilders: 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map((builder, i) => (
+        {filtered.map((builder, i) => {
+          const affiliation = getBuilderAffiliation(builder);
+          return (
           <AnimatedSection key={builder.id} delay={i * 0.03}>
             <Link
               href={builder.handle ? `/builders/${builder.handle}` : `/builders/${builder.user.id}`}
               className="block p-6 rounded-xl border border-border/50 bg-card hover:border-cyan-500/30 hover:bg-accent/20 transition-all h-full"
             >
               <div className="flex items-start gap-4 mb-3">
-                {builder.user.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={builder.user.image} alt="" className="w-12 h-12 rounded-full object-cover" />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500/20 to-violet-500/20 flex items-center justify-center text-lg font-bold text-cyan-400">
-                    {builder.user.name?.charAt(0) ?? "?"}
-                  </div>
-                )}
+                <ProfileAvatar
+                  src={builder.user.image}
+                  alt={builder.user.name ?? "Builder"}
+                  fallback={builder.user.name?.charAt(0) ?? "?"}
+                  className="h-12 w-12 rounded-full"
+                  fallbackClassName="bg-gradient-to-br from-cyan-500/20 to-violet-500/20 text-lg text-cyan-300"
+                />
                 <div className="min-w-0 flex-1">
-                  <h2 className="font-semibold truncate">{builder.user.name ?? "Builder"}</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-semibold truncate">{builder.user.name ?? "Builder"}</h2>
+                    <ProfileAffiliationTag label={affiliation.label} variant={affiliation.variant} />
+                  </div>
                   {builder.headline && <p className="text-xs text-muted-foreground truncate">{builder.headline}</p>}
                 </div>
               </div>
@@ -105,7 +112,8 @@ export function BuildersDirectoryClient({ initialBuilders }: { initialBuilders: 
               )}
             </Link>
           </AnimatedSection>
-        ))}
+          );
+        })}
       </div>
 
       {filtered.length === 0 && (

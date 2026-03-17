@@ -61,6 +61,98 @@ enum RewardStatus {
   CLAIMED
 }
 
+enum PitchDeckUploadStatus {
+  RECEIVED
+  STORED
+  UPLOADED
+  FAILED
+}
+
+enum PitchDeckProcessingStatus {
+  QUEUED
+  EXTRACTING
+  ANALYZING
+  COMPLETED
+  FAILED
+}
+
+enum AIReportStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum DeckType {
+  web3
+  web2
+  unclear
+}
+
+enum JobRoleType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  FREELANCE
+  INTERNSHIP
+  COFOUNDER
+}
+
+enum JobLocationType {
+  REMOTE
+  HYBRID
+  ONSITE
+}
+
+enum JobPostStatus {
+  OPEN
+  CLOSED
+  DRAFT
+}
+
+enum JobApplicationStatus {
+  APPLIED
+  REVIEWING
+  SHORTLISTED
+  REJECTED
+  HIRED
+}
+
+enum HiringInterestStatus {
+  NEW
+  REVIEWING
+  CONTACTED
+  ARCHIVED
+}
+
+enum UploadAssetType {
+  AVATAR
+  COMPANY_LOGO
+  PITCH_DECK
+  OTHER
+}
+
+enum UploadModerationStatus {
+  ACTIVE
+  FLAGGED
+  QUARANTINED
+  REMOVED
+  FAILED
+  REPROCESSING
+}
+
+enum UploadModerationAction {
+  CREATED
+  FLAGGED
+  QUARANTINED
+  RESTORED
+  REMOVED
+  REPROCESSING_STARTED
+  REPROCESSING_SUCCEEDED
+  REPROCESSING_FAILED
+  NOTE_UPDATED
+}
+
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -139,6 +231,12 @@ model User {
   email              String    @unique
   emailVerified      DateTime?
   image              String?
+  imageStorageKey    String?
+  imageMimeType      String?
+  imageSize          Int?
+  imageWidth         Int?
+  imageHeight        Int?
+  imageOriginalName  String?
   username           String?   @unique  // unique handle for login (e.g. @johndoe)
   password           String?   @db.Text // bcrypt hash; null for OAuth-only users
   role               Role      @default(BUILDER)
@@ -153,10 +251,20 @@ model User {
   investorProfile InvestorProfile?
   projects        Project[]
   applications    Application[]
-  introRequests   IntroRequest[]
+  introRequests   IntroRequest[]  @relation("IntroFounder")
+  introTargets    IntroRequest[]  @relation("IntroTargetUser")
   rewards         Reward[]
   eventRsvps      EventRsvp[]
   eventReminders  EventReminder[]
+  pitchDecks      PitchDeck[]
+  jobPosts        JobPost[]
+  jobApplications JobApplication[]
+  hiringInterestsReceived HiringInterest[] @relation("FounderHiringInterests")
+  hiringInterestsSent     HiringInterest[] @relation("BuilderHiringInterests")
+  ownedUploadAssets       UploadAsset[]         @relation("UploadAssetOwner")
+  moderatedUploadAssets   UploadAsset[]         @relation("UploadAssetModerator")
+  avatarUploadAsset       UploadAsset?          @relation("UserAvatarAsset")
+  uploadModerationLogs    UploadModerationLog[] @relation("UploadModerationActor")
 }
 
 model VerificationToken {
@@ -173,6 +281,9 @@ model BuilderProfile {
   handle                String?  @unique
   title                 String?
   headline              String?
+  affiliation           String?
+  independent           Boolean  @default(false)
+  openToWork            Boolean  @default(true)
   bio                   String?  @db.Text
   skills                String[]
   preferredChains       String[] @default([])
@@ -197,12 +308,20 @@ model BuilderProfile {
 model FounderProfile {
   id                    String   @id @default(cuid())
   userId                String   @unique
+  companyLogoUrl        String?
+  companyLogoStorageKey String?
+  companyLogoMimeType   String?
+  companyLogoSize       Int?
+  companyLogoWidth      Int?
+  companyLogoHeight     Int?
+  companyLogoOriginalName String?
   companyName           String?
   companyDescription    String?  @db.Text
   roleTitle             String?
   bio                   String?  @db.Text
   location              String?
   timezone              String?
+  isHiring              Boolean  @default(false)
   projectStage          ProjectStage?
   chainFocus            String?
   currentNeeds          String[] @default([])
@@ -216,6 +335,9 @@ model FounderProfile {
   updatedAt             DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pitchDecks PitchDeck[]
+  hiringInterests HiringInterest[]
+  logoUploadAsset UploadAsset? @relation("FounderLogoAsset")
 }
 
 model InvestorProfile {
@@ -252,6 +374,9 @@ model Project {
   updatedAt             DateTime     @updatedAt
 
   owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  sourceIntros IntroRequest[]
+  pitchDecks   PitchDeck[]
+  jobPosts     JobPost[]
 }
 
 model Application {
@@ -341,6 +466,7 @@ model Partner {
   url       String?
   featured  Boolean         @default(false)
   sortOrder Int             @default(0)
+  introRequests IntroRequest[]
 }
 
 model IntroRequest {
@@ -350,10 +476,17 @@ model IntroRequest {
   requestPayload  Json      // KOL: category, budgetRange, campaignGoal; VC: category, stage, region
   status          String    @default("PENDING") // PENDING, REVIEWING, MATCHED, CLOSED
   notes           String?   @db.Text
+  sourceProjectId String?
+  targetUserId    String?
+  targetPartnerId String?
+  contextSummary  String?   @db.Text
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  founder User @relation(fields: [founderId], references: [id], onDelete: Cascade)
+  founder      User     @relation("IntroFounder", fields: [founderId], references: [id], onDelete: Cascade)
+  sourceProject Project? @relation(fields: [sourceProjectId], references: [id], onDelete: SetNull)
+  targetUser   User?    @relation("IntroTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+  targetPartner Partner? @relation(fields: [targetPartnerId], references: [id], onDelete: SetNull)
 }
 
 model Lead {
@@ -363,6 +496,7 @@ model Lead {
   company   String?
   message   String   @db.Text
   source    String?
+  metadata  Json?
   createdAt DateTime @default(now())
 }
 
@@ -377,4 +511,185 @@ model Reward {
   createdAt      DateTime     @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model PitchDeck {
+  id               String                @id @default(cuid())
+  userId           String
+  founderProfileId String?
+  projectId        String?
+  fileUrl          String
+  storageKey       String?
+  originalFileName String
+  fileType         String
+  fileSize         Int
+  uploadStatus     PitchDeckUploadStatus @default(RECEIVED)
+  processingStatus PitchDeckProcessingStatus @default(QUEUED)
+  analysisProvider String?
+  extractedText    String?               @db.Text
+  extractionError  String?               @db.Text
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  founderProfile FounderProfile? @relation(fields: [founderProfileId], references: [id], onDelete: SetNull)
+  project       Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  reports       AIReport[]
+  uploadAsset   UploadAsset?   @relation("PitchDeckUploadAsset")
+}
+
+model AIReport {
+  id                        String         @id @default(cuid())
+  pitchDeckId               String
+  status                    AIReportStatus @default(QUEUED)
+  modelName                 String?
+  deckType                  DeckType?      @default(unclear)
+  clarityScore              Int?
+  completenessScore         Int?
+  investorReadinessScore    Int?
+  marketPositioningSummary  String?        @db.Text
+  productThesis             String?        @db.Text
+  businessModelSummary      String?        @db.Text
+  problemSummary            String?        @db.Text
+  solutionSummary           String?        @db.Text
+  targetCustomerSummary     String?        @db.Text
+  tractionSummary           String?        @db.Text
+  tokenModelSummary         String?        @db.Text
+  goToMarketSummary         String?        @db.Text
+  fundingReadinessNotes     String?        @db.Text
+  strengths                 Json?
+  gtmGaps                   Json?
+  risks                     Json?
+  nextSteps                 Json?
+  missingInformation        Json?
+  confidenceNotes           String?        @db.Text
+  rawJson                   Json?
+  errorMessage              String?        @db.Text
+  createdAt                 DateTime       @default(now())
+  updatedAt                 DateTime       @updatedAt
+
+  pitchDeck PitchDeck @relation(fields: [pitchDeckId], references: [id], onDelete: Cascade)
+
+  @@index([pitchDeckId, createdAt])
+}
+
+model UploadAsset {
+  id                String                 @id @default(cuid())
+  assetType         UploadAssetType
+  status            UploadModerationStatus @default(ACTIVE)
+  fileUrl           String
+  storageKey        String?                @unique
+  mimeType          String?
+  fileSize          Int?
+  width             Int?
+  height            Int?
+  originalName      String?
+  ownerUserId       String?
+  userId            String?                @unique
+  founderProfileId  String?                @unique
+  pitchDeckId       String?                @unique
+  relatedEntityType String?
+  relatedEntityId   String?
+  moderationReason  String?
+  moderationNote    String?                @db.Text
+  moderatedByUserId String?
+  moderatedAt       DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  ownerUser       User?                @relation("UploadAssetOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  moderatedByUser User?                @relation("UploadAssetModerator", fields: [moderatedByUserId], references: [id], onDelete: SetNull)
+  user            User?                @relation("UserAvatarAsset", fields: [userId], references: [id], onDelete: SetNull)
+  founderProfile  FounderProfile?      @relation("FounderLogoAsset", fields: [founderProfileId], references: [id], onDelete: SetNull)
+  pitchDeck       PitchDeck?           @relation("PitchDeckUploadAsset", fields: [pitchDeckId], references: [id], onDelete: SetNull)
+  logs            UploadModerationLog[]
+
+  @@index([assetType, status, createdAt])
+  @@index([ownerUserId, createdAt])
+  @@index([status, updatedAt])
+}
+
+model UploadModerationLog {
+  id         String                 @id @default(cuid())
+  uploadAssetId String
+  action     UploadModerationAction
+  fromStatus UploadModerationStatus?
+  toStatus   UploadModerationStatus?
+  reason     String?
+  note       String?                @db.Text
+  actedByUserId String?
+  createdAt  DateTime               @default(now())
+
+  uploadAsset UploadAsset @relation(fields: [uploadAssetId], references: [id], onDelete: Cascade)
+  actedByUser User?       @relation("UploadModerationActor", fields: [actedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([uploadAssetId, createdAt])
+  @@index([action, createdAt])
+}
+
+model HiringInterest {
+  id                  String               @id @default(cuid())
+  founderId           String
+  founderProfileId    String?
+  builderUserId       String?
+  name                String
+  email               String
+  skills              String
+  portfolioUrl        String?
+  message             String?              @db.Text
+  source              String?
+  founderNameSnapshot String?
+  companyNameSnapshot String?
+  status              HiringInterestStatus @default(NEW)
+  adminNotes          String?              @db.Text
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  founder       User           @relation("FounderHiringInterests", fields: [founderId], references: [id], onDelete: Cascade)
+  founderProfile FounderProfile? @relation(fields: [founderProfileId], references: [id], onDelete: SetNull)
+  builderUser   User?          @relation("BuilderHiringInterests", fields: [builderUserId], references: [id], onDelete: SetNull)
+
+  @@index([founderId, createdAt])
+  @@index([builderUserId, createdAt])
+  @@index([status, createdAt])
+}
+
+model JobPost {
+  id              String          @id @default(cuid())
+  title           String
+  company         String
+  description     String          @db.Text
+  roleType        JobRoleType
+  locationType    JobLocationType
+  chainFocus      String?
+  skillsRequired  String[]        @default([])
+  compensation    String?
+  status          JobPostStatus   @default(OPEN)
+  createdByUserId String
+  projectId       String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  createdBy    User             @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  project      Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  applications JobApplication[]
+
+  @@index([status, createdAt])
+}
+
+model JobApplication {
+  id         String               @id @default(cuid())
+  jobId      String
+  userId     String
+  message    String               @db.Text
+  resumeUrl  String?
+  status     JobApplicationStatus @default(APPLIED)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  job  JobPost @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, userId])
+  @@index([userId, createdAt])
 }

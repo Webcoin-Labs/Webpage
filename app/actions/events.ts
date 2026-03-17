@@ -6,7 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { EventType, EventTrack, EventFormat, MeetingProvider, EventVisibility, RsvpStatus } from "@prisma/client";
-import { rateLimit, rateLimitKey } from "@/lib/rateLimit";
+import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
+import { logger } from "@/lib/logger";
+import { dispatchEventReminder } from "@/lib/notifications/eventReminders";
 
 const eventSchema = z.object({
   title: z.string().min(1),
@@ -43,7 +45,7 @@ function slugify(s: string): string {
 export async function createEvent(formData: FormData) {
   const session = await getServerSession(authOptions);
   if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
-  const rl = rateLimit(rateLimitKey(session.user.id, "admin-event-create"), 30, 60_000);
+  const rl = await rateLimitAsync(rateLimitKey(session.user.id, "admin-event-create"), 30, 60_000);
   if (!rl.ok) throw new Error("Too many event changes. Please wait a minute and try again.");
 
   const raw = Object.fromEntries(formData.entries());
@@ -96,7 +98,7 @@ export async function createEvent(formData: FormData) {
 export async function updateEvent(id: string, formData: FormData) {
   const session = await getServerSession(authOptions);
   if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
-  const rl = rateLimit(rateLimitKey(session.user.id, "admin-event-update"), 60, 60_000);
+  const rl = await rateLimitAsync(rateLimitKey(session.user.id, "admin-event-update"), 60, 60_000);
   if (!rl.ok) throw new Error("Too many event changes. Please wait a minute and try again.");
 
   const raw = Object.fromEntries(formData.entries());
@@ -144,7 +146,7 @@ export async function updateEvent(id: string, formData: FormData) {
 export async function deleteEvent(id: string) {
   const session = await getServerSession(authOptions);
   if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
-  const rl = rateLimit(rateLimitKey(session.user.id, "admin-event-delete"), 20, 60_000);
+  const rl = await rateLimitAsync(rateLimitKey(session.user.id, "admin-event-delete"), 20, 60_000);
   if (!rl.ok) throw new Error("Too many event changes. Please wait a minute and try again.");
   await prisma.event.delete({ where: { id } });
   revalidatePath("/app/events");
@@ -154,7 +156,7 @@ export async function deleteEvent(id: string) {
 export async function rsvpEvent(eventId: string, status: RsvpStatus) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Sign in to RSVP");
-  const rl = rateLimit(rateLimitKey(session.user.id, "event-rsvp"), 10, 60_000);
+  const rl = await rateLimitAsync(rateLimitKey(session.user.id, "event-rsvp"), 10, 60_000);
   if (!rl.ok) throw new Error("Too many RSVP attempts. Please wait a minute and try again.");
 
   await prisma.eventRsvp.upsert({
@@ -172,7 +174,7 @@ export async function rsvpEvent(eventId: string, status: RsvpStatus) {
 export async function cancelRsvp(eventId: string) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
-  const rl = rateLimit(rateLimitKey(session.user.id, "event-cancel-rsvp"), 20, 60_000);
+  const rl = await rateLimitAsync(rateLimitKey(session.user.id, "event-cancel-rsvp"), 20, 60_000);
   if (!rl.ok) throw new Error("Too many requests. Please wait a minute and try again.");
   await prisma.eventRsvp.deleteMany({
     where: { eventId, userId: session.user.id },
@@ -185,7 +187,7 @@ export async function cancelRsvp(eventId: string) {
 export async function checkInAttendee(rsvpId: string) {
   const session = await getServerSession(authOptions);
   if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
-  const rl = rateLimit(rateLimitKey(session.user.id, "admin-event-checkin"), 120, 60_000);
+  const rl = await rateLimitAsync(rateLimitKey(session.user.id, "admin-event-checkin"), 120, 60_000);
   if (!rl.ok) throw new Error("Too many requests. Please wait a minute and try again.");
   await prisma.eventRsvp.update({
     where: { id: rsvpId },
@@ -197,7 +199,7 @@ export async function checkInAttendee(rsvpId: string) {
 export async function setEventReminder(eventId: string, remindAt: Date) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
-  const rl = rateLimit(rateLimitKey(session.user.id, "event-reminder"), 10, 60_000);
+  const rl = await rateLimitAsync(rateLimitKey(session.user.id, "event-reminder"), 10, 60_000);
   if (!rl.ok) throw new Error("Too many reminder changes. Please wait a minute and try again.");
   await prisma.eventReminder.upsert({
     where: { eventId_userId: { eventId, userId: session.user.id } },
@@ -207,12 +209,119 @@ export async function setEventReminder(eventId: string, remindAt: Date) {
   revalidatePath("/app/events/" + eventId);
 }
 
-// Stub: send reminders (TODO: cron or queue)
-export async function sendRemindersForEvent(_eventId: string) {
+export async function sendRemindersForEvent(eventId: string) {
   const session = await getServerSession(authOptions);
   if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
-  const rl = rateLimit(rateLimitKey(session.user.id, "admin-event-reminders"), 30, 60_000);
+  const rl = await rateLimitAsync(rateLimitKey(session.user.id, "admin-event-reminders"), 30, 60_000);
   if (!rl.ok) throw new Error("Too many requests. Please wait a minute and try again.");
-  // TODO: enqueue emails for T-24h and T-1h
+
+  const reminders = await prisma.eventReminder.findMany({
+    where: {
+      eventId,
+      sentAt: null,
+    },
+    include: {
+      event: {
+        select: { id: true, title: true, startAt: true },
+      },
+      user: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+    orderBy: { remindAt: "asc" },
+    take: 200,
+  });
+
+  for (const reminder of reminders) {
+    const dispatch = await dispatchEventReminder({
+      reminderId: reminder.id,
+      toEmail: reminder.user.email,
+      toName: reminder.user.name,
+      eventId: reminder.event.id,
+      eventTitle: reminder.event.title,
+      eventStartAt: reminder.event.startAt,
+    });
+    if (!dispatch.delivered) {
+      logger.warn({
+        scope: "events.sendRemindersForEvent",
+        message: "Reminder dispatch failed.",
+        data: {
+          reminderId: reminder.id,
+          eventId: reminder.event.id,
+          userId: reminder.user.id,
+          provider: dispatch.provider,
+          error: dispatch.error,
+        },
+      });
+      continue;
+    }
+    await prisma.eventReminder.update({
+      where: { id: reminder.id },
+      data: { sentAt: new Date() },
+    });
+  }
+
   revalidatePath("/app/admin/events");
+}
+
+export async function processDueEventReminders(limit = 200) {
+  const session = await getServerSession(authOptions);
+  if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
+  const rl = await rateLimitAsync(rateLimitKey(session.user.id, "admin-event-reminder-drain"), 20, 60_000);
+  if (!rl.ok) throw new Error("Too many reminder jobs. Please retry in a minute.");
+  return processDueEventRemindersBySystem(limit);
+}
+
+export async function processDueEventRemindersBySystem(limit = 200) {
+  const dueReminders = await prisma.eventReminder.findMany({
+    where: {
+      sentAt: null,
+      remindAt: { lte: new Date() },
+    },
+    include: {
+      event: {
+        select: { id: true, title: true, startAt: true },
+      },
+      user: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+    orderBy: { remindAt: "asc" },
+    take: Math.min(Math.max(limit, 1), 500),
+  });
+
+  let delivered = 0;
+  let failed = 0;
+  for (const reminder of dueReminders) {
+    const dispatch = await dispatchEventReminder({
+      reminderId: reminder.id,
+      toEmail: reminder.user.email,
+      toName: reminder.user.name,
+      eventId: reminder.event.id,
+      eventTitle: reminder.event.title,
+      eventStartAt: reminder.event.startAt,
+    });
+    if (!dispatch.delivered) {
+      failed += 1;
+      logger.warn({
+        scope: "events.processDueEventReminders",
+        message: "Due reminder dispatch failed.",
+        data: {
+          reminderId: reminder.id,
+          eventId: reminder.event.id,
+          userId: reminder.user.id,
+          error: dispatch.error,
+        },
+      });
+      continue;
+    }
+    delivered += 1;
+    await prisma.eventReminder.update({
+      where: { id: reminder.id },
+      data: { sentAt: new Date() },
+    });
+  }
+
+  revalidatePath("/app/admin/events");
+  return { scanned: dueReminders.length, delivered, failed };
 }

@@ -13,7 +13,20 @@ export default async function AdminIntrosPage() {
   if (session?.user.role !== "ADMIN") redirect("/app");
 
   const requests = await prisma.introRequest.findMany({
-    include: { founder: { select: { id: true, name: true, email: true } } },
+    include: {
+      founder: { select: { id: true, name: true, email: true } },
+      sourceProject: { select: { name: true } },
+      targetUser: {
+        select: {
+          name: true,
+          email: true,
+          builderProfile: {
+            select: { affiliation: true, independent: true, openToWork: true },
+          },
+        },
+      },
+      targetPartner: { select: { name: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 

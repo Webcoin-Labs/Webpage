@@ -4,8 +4,17 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { AnimatedSection } from "@/components/common/AnimatedSection";
 import type { Project, User } from "@prisma/client";
+import { getFounderAffiliation } from "@/lib/affiliation";
+import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag";
 
-type ProjectWithOwner = Project & { owner: Pick<User, "id" | "name"> };
+type ProjectWithOwner = Project & {
+  owner: Pick<User, "id" | "name"> & {
+    founderProfile?: {
+      companyName?: string | null;
+      isHiring?: boolean;
+    } | null;
+  };
+};
 
 const STAGES = ["IDEA", "MVP", "LIVE"] as const;
 const STAGE_LABELS: Record<string, string> = { IDEA: "Idea", MVP: "MVP", LIVE: "Live" };
@@ -72,7 +81,9 @@ export function ProjectsDirectoryClient({ initialProjects }: { initialProjects: 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map((project, i) => (
+        {filtered.map((project, i) => {
+          const founderAffiliation = getFounderAffiliation(project.owner.founderProfile);
+          return (
           <AnimatedSection key={project.id} delay={i * 0.03}>
             <Link
               href={project.slug ? `/projects/${project.slug}` : `/projects/${project.id}`}
@@ -80,6 +91,20 @@ export function ProjectsDirectoryClient({ initialProjects }: { initialProjects: 
             >
               <h2 className="font-semibold text-lg mb-1">{project.name}</h2>
               {project.tagline && <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{project.tagline}</p>}
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <p className="text-xs text-muted-foreground">{project.owner.name ?? "Founder"}</p>
+                {founderAffiliation ? (
+                  <ProfileAffiliationTag
+                    label={founderAffiliation.label}
+                    variant="founder"
+                  />
+                ) : null}
+                {project.owner.founderProfile?.isHiring ? (
+                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-200">
+                    Hiring
+                  </span>
+                ) : null}
+              </div>
               <div className="flex flex-wrap gap-2 mb-2">
                 <span className={`text-xs px-2 py-0.5 rounded-full border ${
                   project.stage === "LIVE" ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20" :
@@ -94,7 +119,8 @@ export function ProjectsDirectoryClient({ initialProjects }: { initialProjects: 
               </div>
             </Link>
           </AnimatedSection>
-        ))}
+          );
+        })}
       </div>
 
       {filtered.length === 0 && (

@@ -3,8 +3,12 @@
 import { useTransition, useState } from "react";
 import { setBuilderVisibility, setBuilderVerified } from "@/app/actions/admin";
 import type { BuilderProfile, User } from "@prisma/client";
+import { getBuilderAffiliation } from "@/lib/affiliation";
+import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag";
 
-type BuilderWithUser = BuilderProfile & { user: Pick<User, "name" | "email"> };
+type BuilderWithUser = BuilderProfile & {
+  user: Pick<User, "name" | "email" | "image" | "imageStorageKey" | "imageMimeType" | "imageSize">;
+};
 
 export function ModerationBuilders({ builders }: { builders: BuilderWithUser[] }) {
   const [isPending, startTransition] = useTransition();
@@ -26,11 +30,21 @@ export function ModerationBuilders({ builders }: { builders: BuilderWithUser[] }
         <p className="text-sm text-muted-foreground">No builder profiles yet.</p>
       ) : (
         <div className="space-y-2">
-          {builders.map((b) => (
+          {builders.map((b) => {
+            const affiliation = getBuilderAffiliation(b);
+            return (
             <div key={b.id} className="p-4 rounded-xl border border-border/50 bg-card flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <p className="font-medium text-sm">{b.user.name ?? b.user.email}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium text-sm">{b.user.name ?? b.user.email}</p>
+                  <ProfileAffiliationTag label={affiliation.label} variant={affiliation.variant} />
+                </div>
                 <p className="text-xs text-muted-foreground">{b.handle ?? b.id}</p>
+                {b.user.image ? (
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {b.user.imageStorageKey ? "Uploaded image" : "External image"} • {b.user.imageMimeType ?? "unknown"} • {b.user.imageSize ? `${Math.round(b.user.imageSize / 1024)}KB` : "size n/a"}
+                  </p>
+                ) : null}
               </div>
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -55,7 +69,8 @@ export function ModerationBuilders({ builders }: { builders: BuilderWithUser[] }
                 </label>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

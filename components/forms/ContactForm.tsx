@@ -30,7 +30,7 @@ export function ContactForm() {
                 </div>
                 <h3 className="font-bold text-lg">Message sent!</h3>
                 <p className="text-sm text-muted-foreground">
-                    We'll be in touch within 3–5 business days.
+                    We&apos;ll be in touch within 3–5 business days.
                 </p>
             </div>
         );

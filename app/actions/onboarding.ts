@@ -15,13 +15,17 @@ export async function completeOnboarding(role: string): Promise<OnboardingResult
   if (!roleSchema.includes(role as (typeof roleSchema)[number])) {
     return { success: false, error: "Invalid role" };
   }
+  const requestedRole = role as (typeof roleSchema)[number];
+  if (requestedRole === "ADMIN" && session.user.role !== "ADMIN") {
+    return { success: false, error: "Unauthorized role selection." };
+  }
 
-  const shouldComplete = role === "ADMIN";
+  const shouldComplete = requestedRole === "ADMIN";
 
   await prisma.user.update({
     where: { id: session.user.id },
     data: {
-      role: role as "BUILDER" | "FOUNDER" | "INVESTOR" | "ADMIN",
+      role: requestedRole,
       onboardingComplete: shouldComplete,
     },
   });

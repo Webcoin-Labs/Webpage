@@ -23,7 +23,7 @@ export function PitchDeckHubClient() {
   if (success) {
     return (
       <p className="text-sm text-emerald-300 font-medium">
-        You're on the list. We'll notify you when the deck is available.
+        You&apos;re on the list. We&apos;ll notify you when the deck is available.
       </p>
     );
   }
@@ -49,7 +49,7 @@ export function PitchDeckHubClient() {
         disabled={pending}
         className="w-full px-4 py-3 rounded-xl bg-emerald-500/20 text-emerald-300 font-medium text-sm hover:bg-emerald-500/30 transition-colors disabled:opacity-60"
       >
-        {pending ? "Sending..." : "Notify me"}
+        {pending ? "Sending..." : "Get deck updates"}
       </button>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </form>

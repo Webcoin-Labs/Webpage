@@ -12,7 +12,15 @@ export const metadata: Metadata = {
 async function getProjects() {
   return prisma.project.findMany({
     where: { publicVisible: true },
-    include: { owner: { select: { id: true, name: true } } },
+    include: {
+      owner: {
+        select: {
+          id: true,
+          name: true,
+          founderProfile: { select: { companyName: true, isHiring: true } },
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 }

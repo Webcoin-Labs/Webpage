@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 
 const projectSchema = z.object({
     name: z.string().min(2, "Project name required"),
@@ -25,12 +26,9 @@ export async function createProject(formData: FormData): Promise<ProjectResult> 
     if (session.user.role !== "FOUNDER" && session.user.role !== "ADMIN") {
         return { success: false, error: "Only founders can create projects" };
     }
-    if (session.user.role === "FOUNDER") {
-        const existingCount = await prisma.project.count({ where: { ownerUserId: session.user.id } });
-        if (existingCount >= 1) {
-            return { success: false, error: "Standard plan allows one active project. Upgrade for more." };
-        }
-    }
+
+    const rl = await rateLimitAsync(rateLimitKey(session.user.id, "project-create"), 12, 60_000);
+    if (!rl.ok) return { success: false, error: "Too many project creations. Please wait and try again." };
 
     const raw = {
         name: formData.get("name") as string,

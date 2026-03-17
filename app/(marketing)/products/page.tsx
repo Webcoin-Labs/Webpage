@@ -4,7 +4,7 @@ import { ArrowLeft, User, CreditCard, Gamepad2, LayoutDashboard, ArrowRight } fr
 import { AnimatedSection } from "@/components/common/AnimatedSection";
 
 export const metadata: Metadata = {
-  title: "Products — Webcoin Labs",
+  title: "Products - Webcoin Labs",
   description:
     "Infrastructure products built to help founders launch, grow, and scale blockchain projects. Founder Profile, ArcPay, RiddlePay, Kreatorboard.",
 };
@@ -41,76 +41,74 @@ const products = [
   {
     icon: LayoutDashboard,
     label: "Creator Infrastructure",
-    badge: "Coming Soon",
+    badge: "Live Beta",
     title: "Kreatorboard",
-    desc: "Creator and KOL operations dashboard (in development). Manage influencer campaigns, track performance, and organize growth workflows.",
+    desc: "Creator and KOL operations dashboard for campaign management, performance tracking, and structured growth workflows.",
     href: "/products/kreatorboard",
-    cta: "Notify Me",
-    ctaHref: "/contact",
+    cta: "Open KOL Premium",
+    ctaHref: "/app/kols-premium",
   },
 ];
 
 export default function ProductsPage() {
   return (
-    <div className="min-h-screen pt-24 pb-20">
-      <div className="container mx-auto px-6 max-w-5xl">
+    <div className="min-h-screen pb-20 pt-24">
+      <div className="container mx-auto max-w-5xl px-6">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8"
+          className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="w-4 h-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> Back
         </Link>
 
-        <AnimatedSection className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-4">
+        <AnimatedSection className="mb-16 text-center">
+          <h1 className="mb-4 text-4xl font-bold tracking-tight text-foreground md:text-5xl">
             Products Built by Webcoin Labs
           </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
+          <p className="mx-auto max-w-2xl text-muted-foreground">
             Infrastructure products built to help founders launch, grow, and scale blockchain projects.
           </p>
         </AnimatedSection>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
           {products.map((p, i) => {
             const Icon = p.icon;
             return (
               <AnimatedSection key={p.title} delay={i * 0.05}>
-                <div className="h-full p-6 rounded-2xl border border-border/50 bg-card/80 hover:border-cyan-500/20 hover:shadow-soft transition-all">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400">
-                      <Icon className="w-6 h-6" />
+                <div className="h-full rounded-2xl border border-border/50 bg-card/80 p-6 transition-all hover:border-cyan-500/20 hover:shadow-soft">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400">
+                      <Icon className="h-6 w-6" />
                     </div>
                     {p.badge && (
-                      <span className="px-2.5 py-1 rounded-md border border-cyan-500/40 bg-cyan-500/10 text-cyan-400 text-xs font-medium">
+                      <span className="rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-1 text-xs font-medium text-cyan-400">
                         {p.badge}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
-                    {p.label}
-                  </p>
-                  <h2 className="text-xl font-bold text-foreground mb-2">{p.title}</h2>
-                  <p className="text-sm text-muted-foreground mb-6">{p.desc}</p>
+                  <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">{p.label}</p>
+                  <h2 className="mb-2 text-xl font-bold text-foreground">{p.title}</h2>
+                  <p className="mb-6 text-sm text-muted-foreground">{p.desc}</p>
                   <div className="flex flex-wrap gap-2">
                     <Link
                       href={p.href}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-accent transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
                     >
-                      Read More <ArrowRight className="w-4 h-4" />
+                      Read More <ArrowRight className="h-4 w-4" />
                     </Link>
                     {p.ctaExternal ? (
                       <a
                         href={p.ctaExternal}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500/10 text-cyan-400 text-sm font-medium hover:bg-cyan-500/20 transition-colors"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-400 transition-colors hover:bg-cyan-500/20"
                       >
                         {p.cta}
                       </a>
                     ) : (
                       <Link
                         href={p.ctaHref!}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-500/90 transition-colors"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-cyan-500/90"
                       >
                         {p.cta}
                       </Link>

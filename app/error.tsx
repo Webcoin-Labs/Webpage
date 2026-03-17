@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 
 export default function ErrorPage({
   error,
@@ -9,6 +10,10 @@ export default function ErrorPage({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    console.error("[app-error-boundary]", { message: error.message, digest: error.digest });
+  }, [error]);
+
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className="max-w-md w-full rounded-2xl border border-border/50 bg-card p-6 text-center">
@@ -35,6 +40,7 @@ export default function ErrorPage({
         {process.env.NODE_ENV !== "production" && (
           <p className="mt-6 text-xs text-muted-foreground break-words">
             {error.message}
+            {error.digest ? ` | digest: ${error.digest}` : ""}
           </p>
         )}
       </div>

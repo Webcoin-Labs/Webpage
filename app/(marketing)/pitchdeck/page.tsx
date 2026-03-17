@@ -1,26 +1,60 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, FileDown } from "lucide-react";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { PitchDeckHubClient } from "@/components/pitchdeck/PitchDeckHubClient";
+import { PitchDeckUploadForm } from "@/components/pitchdeck/PitchDeckUploadForm";
+import { RetryAnalysisButton } from "@/components/pitchdeck/RetryAnalysisButton";
 
 export const metadata: Metadata = {
   title: "Pitch Deck AI Review - Webcoin Labs",
   description: "Upload a pitch deck and receive a free AI-generated readiness report.",
 };
 
-const reportSections = [
-  "Clarity score",
-  "Market positioning summary",
-  "Product thesis summary",
-  "Risks / missing areas",
-  "Funding readiness notes",
-  "GTM gaps",
-  "Suggested next steps",
-];
-
 const SERVICES_PDF = "/pitchdeck/webcoin-services-2023.pdf";
 
-export default function PitchDeckHubPage() {
+export default async function PitchDeckHubPage() {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
+
+  const [projects, recentDecks] = await Promise.all([
+    userId
+      ? prisma.project.findMany({
+          where: { ownerUserId: userId },
+          select: { id: true, name: true },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        })
+      : Promise.resolve([]),
+    userId
+      ? prisma.pitchDeck.findMany({
+          where: {
+            userId,
+            OR: [
+              { uploadAsset: { is: null } },
+              {
+                uploadAsset: {
+                  is: { status: { in: ["ACTIVE", "FLAGGED", "REPROCESSING"] } },
+                },
+              },
+            ],
+          },
+          include: {
+            reports: { orderBy: { createdAt: "desc" }, take: 1 },
+            uploadAsset: { select: { status: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 8,
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const latestReport = recentDecks[0]?.reports[0] ?? null;
+  const latestDeck = recentDecks[0] ?? null;
+  const reportCompleted = latestReport?.status === "COMPLETED";
+
   return (
     <div className="min-h-screen pt-24 pb-20">
       <div className="container mx-auto px-6 max-w-5xl">
@@ -45,35 +79,191 @@ export default function PitchDeckHubPage() {
           <div className="rounded-3xl border border-border bg-card p-8">
             <h2 className="text-lg font-semibold">Pitch Deck Upload</h2>
             <p className="text-sm text-muted-foreground mt-2">
-              Upload a PDF or share a link. Processing is mocked for now.
+              Upload a PDF and receive a structured analysis report.
             </p>
-            <form className="mt-6 space-y-4">
-              <input
-                className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm"
-                placeholder="Deck link (Google Drive, Notion, Dropbox)"
-              />
-              <div className="rounded-lg border border-dashed border-border/80 bg-background px-4 py-6 text-sm text-muted-foreground">
-                Drag and drop PDF (coming soon)
+            {userId ? (
+              <PitchDeckUploadForm projects={projects} />
+            ) : (
+              <div className="mt-6 rounded-xl border border-border/60 bg-background p-4 text-sm text-muted-foreground">
+                Please{" "}
+                <Link href="/login" className="text-blue-300">
+                  sign in
+                </Link>{" "}
+                as a founder to upload and analyze a deck.
               </div>
-              <button type="button" className="w-full rounded-lg bg-blue-500 text-white py-3 text-sm font-medium hover:bg-blue-500/90">
-                Upload & Run AI Review
-              </button>
-            </form>
+            )}
           </div>
 
           <div className="rounded-3xl border border-border bg-black p-8 text-emerald-200">
             <div className="text-xs uppercase tracking-[0.2em] text-emerald-300">AI report preview</div>
-            <div className="mt-6 space-y-3 text-sm">
-              {reportSections.map((section) => (
-                <div key={section} className="flex items-center justify-between">
-                  <span>{section}</span>
-                  <span className="text-xs text-emerald-300">Pending</span>
+            {latestDeck && latestReport ? (
+              <div className="mt-6 space-y-4 text-sm">
+                <div className="flex items-center justify-between">
+                  <span>Upload status</span>
+                  <span className="text-xs text-emerald-300">{latestDeck.uploadStatus}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Processing status</span>
+                  <span className="text-xs text-emerald-300">{latestDeck.processingStatus}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Deck type</span>
+                  <span className="text-xs text-emerald-300">{latestReport.deckType ?? "unclear"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Report status</span>
+                  <span className="text-xs text-emerald-300">{latestReport.status}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Asset moderation</span>
+                  <span className="text-xs text-emerald-300">{latestDeck.uploadAsset?.status ?? "ACTIVE"}</span>
+                </div>
+                {latestReport.status === "FAILED" ? (
+                  <div className="pt-2 border-t border-emerald-800/60 text-xs text-destructive space-y-2">
+                    <p>{latestReport.errorMessage ?? "Analysis failed."}</p>
+                    <RetryAnalysisButton pitchDeckId={latestDeck.id} />
+                  </div>
+                ) : null}
+                {reportCompleted ? (
+                  <div className="pt-2 border-t border-emerald-800/60 text-xs text-emerald-100/80 space-y-2">
+                    <p>{latestReport.marketPositioningSummary ?? "Not clearly stated in the deck."}</p>
+                    <p>{latestReport.productThesis ?? "Not clearly stated in the deck."}</p>
+                    <p>{latestReport.fundingReadinessNotes ?? "Not clearly stated in the deck."}</p>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-xs text-emerald-200/70 mt-6">
+                No report yet. Upload a deck to generate your first AI report.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {reportCompleted && latestReport ? (
+          <section className="mt-10 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-cyan-500/30 bg-card p-5">
+                <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Clarity</p>
+                <p className="text-3xl font-semibold text-cyan-300 mt-2">{latestReport.clarityScore ?? "N/A"}</p>
+              </div>
+              <div className="rounded-xl border border-blue-500/30 bg-card p-5">
+                <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Completeness</p>
+                <p className="text-3xl font-semibold text-blue-300 mt-2">
+                  {latestReport.completenessScore ?? "N/A"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-emerald-500/30 bg-card p-5">
+                <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Investor Readiness</p>
+                <p className="text-3xl font-semibold text-emerald-300 mt-2">
+                  {latestReport.investorReadinessScore ?? "N/A"}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {[
+                ["Overview", latestReport.confidenceNotes],
+                ["Problem", latestReport.problemSummary],
+                ["Solution", latestReport.solutionSummary],
+                ["Product Thesis", latestReport.productThesis],
+                ["Market Positioning", latestReport.marketPositioningSummary],
+                ["Business Model", latestReport.businessModelSummary],
+                ["Target Customer", latestReport.targetCustomerSummary],
+                ["Traction", latestReport.tractionSummary],
+                ["Token / Web3 Analysis", latestReport.tokenModelSummary],
+                ["Go-To-Market", latestReport.goToMarketSummary],
+                ["Funding Readiness", latestReport.fundingReadinessNotes],
+              ].map(([title, value]) => (
+                <div key={title} className="rounded-xl border border-border/60 bg-card p-5">
+                  <p className="text-sm font-medium">{title}</p>
+                  <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
+                    {value || "Not clearly stated in the deck."}
+                  </p>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-emerald-200/70 mt-6">Mocked output. Final report will appear here.</p>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-emerald-500/20 bg-card p-5">
+                <p className="text-sm font-medium text-emerald-300">Strengths</p>
+                <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                  {(Array.isArray(latestReport.strengths) ? latestReport.strengths : []).map((item, idx) => (
+                    <li key={`${item}-${idx}`}>- {String(item)}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-xl border border-amber-500/20 bg-card p-5">
+                <p className="text-sm font-medium text-amber-300">Risks</p>
+                <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                  {(Array.isArray(latestReport.risks) ? latestReport.risks : []).map((item, idx) => (
+                    <li key={`${item}-${idx}`}>- {String(item)}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-xl border border-blue-500/20 bg-card p-5">
+                <p className="text-sm font-medium text-blue-300">GTM Gaps</p>
+                <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                  {(Array.isArray(latestReport.gtmGaps) ? latestReport.gtmGaps : []).map((item, idx) => (
+                    <li key={`${item}-${idx}`}>- {String(item)}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-xl border border-cyan-500/20 bg-card p-5">
+                <p className="text-sm font-medium text-cyan-300">Next Steps</p>
+                <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                  {(Array.isArray(latestReport.nextSteps) ? latestReport.nextSteps : []).map((item, idx) => (
+                    <li key={`${item}-${idx}`}>- {String(item)}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-destructive/30 bg-card p-5">
+              <p className="text-sm font-medium text-destructive">Missing Information</p>
+              <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                {(Array.isArray(latestReport.missingInformation) ? latestReport.missingInformation : []).map(
+                  (item, idx) => (
+                    <li key={`${item}-${idx}`}>- {String(item)}</li>
+                  )
+                )}
+              </ul>
+            </div>
+          </section>
+        ) : null}
+
+        {recentDecks.length > 0 ? (
+          <div className="mt-10 rounded-2xl border border-border/50 bg-card p-6">
+            <h3 className="text-lg font-semibold">Recent analysis history</h3>
+            <div className="mt-4 space-y-3">
+              {recentDecks.map((deck) => {
+                const report = deck.reports[0];
+                return (
+                  <div
+                    key={deck.id}
+                    className="rounded-xl border border-border/50 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{deck.originalFileName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Uploaded {new Date(deck.createdAt).toLocaleString()} | Upload {deck.uploadStatus} | Process{" "}
+                        {deck.processingStatus} | Asset {deck.uploadAsset?.status ?? "ACTIVE"}
+                      </p>
+                    </div>
+                    <div className="text-xs">
+                      <span className="px-2 py-1 rounded-full border border-emerald-500/40 text-emerald-300">
+                        {report?.status ?? "QUEUED"}
+                      </span>
+                      <span className="ml-2 text-muted-foreground">
+                        Clarity: {report?.clarityScore ?? "N/A"} | Readiness: {report?.investorReadinessScore ?? "N/A"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="mt-16 border-t border-border pt-12">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
@@ -129,11 +319,11 @@ export default function PitchDeckHubPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-foreground">Founder-Builder Network Deck</h3>
-                  <p className="text-xs text-muted-foreground">Coming soon</p>
+                  <p className="text-xs text-muted-foreground">Production update stream</p>
                 </div>
               </div>
               <p className="text-sm text-muted-foreground mb-6">
-                Updated deck for the current platform. Get notified when it is ready.
+                Get notified on the latest published version and distribution updates.
               </p>
               <PitchDeckHubClient />
             </div>

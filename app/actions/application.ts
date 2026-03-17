@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { rateLimit, rateLimitKey } from "@/lib/rateLimit";
+import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 
 
 const applicationSchema = z.object({
@@ -22,7 +22,7 @@ export async function submitApplication(formData: FormData): Promise<Application
     const session = await getServerSession(authOptions);
     if (!session?.user) return { success: false, error: "Not authenticated" };
 
-    const rl = rateLimit(rateLimitKey(session.user.id, "application"), 5, 60_000);
+    const rl = await rateLimitAsync(rateLimitKey(session.user.id, "application"), 5, 60_000);
     if (!rl.ok) return { success: false, error: "Too many submissions. Please try again in a minute." };
 
     const raw = {

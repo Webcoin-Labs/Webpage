@@ -17,7 +17,7 @@ export function HomepageCTA() {
             Ready to build together?
           </h2>
           <p className="text-base text-muted-foreground mb-10">
-            Whether you're a builder looking for programs, a founder seeking support, or an ecosystem exploring partnerships — let's talk.
+            Whether you&apos;re a builder looking for programs, a founder seeking support, or an ecosystem exploring partnerships — let&apos;s talk.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button

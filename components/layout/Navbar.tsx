@@ -17,7 +17,7 @@ const menuGroups = [
       { href: "/products/founder-profile", title: "Founder Profile", desc: "Identity and network layer" },
       { href: "/products/arcpay", title: "ArcPay", desc: "Payments infrastructure" },
       { href: "/products/riddlepay", title: "RiddlePay", desc: "Engagement and rewards" },
-      { href: "/products/kreatorboard", title: "Kreatorboard", desc: "Creator dashboard (coming soon)" },
+      { href: "/products/kreatorboard", title: "Kreatorboard", desc: "Creator operations dashboard" },
     ],
   },
   {

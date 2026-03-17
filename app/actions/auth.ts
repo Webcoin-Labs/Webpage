@@ -3,8 +3,11 @@
 import { hash } from "bcryptjs";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { rateLimit, rateLimitKey } from "@/lib/rateLimit";
+import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { z } from "zod";
+import { env } from "@/lib/env";
+import { dispatchPasswordResetEmail } from "@/lib/notifications/passwordReset";
+import { logger } from "@/lib/logger";
 
 const USERNAME_REGEX = /^[a-z0-9_-]{3,30}$/;
 
@@ -48,11 +51,12 @@ export async function register(data: {
   password: string;
   name?: string;
 }): Promise<AuthResult> {
-  const key = rateLimitKey(data.email, "register");
-  const rl = rateLimit(key, 5, 60_000);
+  const normalizedEmail = data.email.trim().toLowerCase();
+  const key = rateLimitKey(normalizedEmail, "register");
+  const rl = await rateLimitAsync(key, 5, 60_000);
   if (!rl.ok) return { success: false, error: "Too many sign-up attempts. Please try again in a minute." };
 
-  const parsed = registerSchema.safeParse(data);
+  const parsed = registerSchema.safeParse({ ...data, email: normalizedEmail });
   if (!parsed.success) return { success: false, error: parsed.error.errors[0].message };
 
   const { email, username, password, name } = parsed.data;
@@ -77,11 +81,12 @@ export async function register(data: {
 }
 
 export async function requestPasswordReset(email: string): Promise<AuthResult> {
-  const key = rateLimitKey(email, "forgot-password");
-  const rl = rateLimit(key, 3, 60_000);
+  const normalizedEmail = email.trim().toLowerCase();
+  const key = rateLimitKey(normalizedEmail, "forgot-password");
+  const rl = await rateLimitAsync(key, 3, 60_000);
   if (!rl.ok) return { success: false, error: "Too many requests. Please try again in a minute." };
 
-  const parsed = forgotSchema.safeParse({ email });
+  const parsed = forgotSchema.safeParse({ email: normalizedEmail });
   if (!parsed.success) return { success: false, error: parsed.error.errors[0].message };
 
   const user = await prisma.user.findUnique({
@@ -100,14 +105,24 @@ export async function requestPasswordReset(email: string): Promise<AuthResult> {
     data: { identifier: parsed.data.email, token, expires },
   });
 
-  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const baseUrl = env.NEXTAUTH_URL || "http://localhost:3000";
   const resetLink = `${baseUrl}/login/reset-password?token=${token}&email=${encodeURIComponent(parsed.data.email)}`;
 
-  // TODO: Send email via Resend/SMTP. For dev, return link so UI can show it.
-  if (process.env.NODE_ENV !== "production") {
+  const delivery = await dispatchPasswordResetEmail({
+    toEmail: parsed.data.email,
+    resetLink,
+  });
+  if (!delivery.delivered) {
+    logger.error({
+      scope: "auth.requestPasswordReset.delivery",
+      message: "Password reset email delivery failed.",
+      data: { email: parsed.data.email, provider: delivery.provider, error: delivery.error },
+    });
+  }
+
+  if (env.NODE_ENV !== "production") {
     return { success: true, devResetLink: resetLink };
   }
-  // In production you would send email here, e.g. await sendPasswordResetEmail(parsed.data.email, resetLink);
   return { success: true };
 }
 
@@ -116,11 +131,12 @@ export async function resetPassword(data: {
   email: string;
   password: string;
 }): Promise<AuthResult> {
-  const key = rateLimitKey(data.email, "reset-password");
-  const rl = rateLimit(key, 5, 60_000);
+  const normalizedEmail = data.email.trim().toLowerCase();
+  const key = rateLimitKey(normalizedEmail, "reset-password");
+  const rl = await rateLimitAsync(key, 5, 60_000);
   if (!rl.ok) return { success: false, error: "Too many attempts. Please try again later." };
 
-  const parsed = resetSchema.safeParse(data);
+  const parsed = resetSchema.safeParse({ ...data, email: normalizedEmail });
   if (!parsed.success) return { success: false, error: parsed.error.errors[0].message };
 
   const vt = await prisma.verificationToken.findFirst({

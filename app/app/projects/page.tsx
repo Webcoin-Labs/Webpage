@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Plus, FolderKanban, ArrowRight } from "lucide-react";
+import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag";
 
 export const metadata = { title: "Projects — Webcoin Labs" };
 
@@ -11,12 +12,19 @@ const stageMap: Record<string, string> = { IDEA: "Idea", MVP: "MVP", LIVE: "Live
 export default async function ProjectsPage() {
     const session = await getServerSession(authOptions);
     const user = session!.user;
+    const isFounder = user.role === "FOUNDER" || user.role === "ADMIN";
+
+    const founderProfile = isFounder
+        ? await prisma.founderProfile.findUnique({
+            where: { userId: user.id },
+            select: { companyName: true, roleTitle: true, isHiring: true },
+        })
+        : null;
+
     const projects = await prisma.project.findMany({
         where: { ownerUserId: user.id },
         orderBy: { createdAt: "desc" },
     });
-
-    const isFounder = user.role === "FOUNDER" || user.role === "ADMIN";
 
     return (
         <div className="space-y-6 py-8">
@@ -24,6 +32,17 @@ export default async function ProjectsPage() {
                 <div>
                     <h1 className="text-2xl font-bold">Projects</h1>
                     <p className="text-muted-foreground mt-1">{isFounder ? "Your project profiles." : "Projects you're tracking."}</p>
+                    {isFounder && founderProfile?.companyName ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <ProfileAffiliationTag label={founderProfile.companyName} variant="founder" />
+                            <span className="text-xs text-muted-foreground">{founderProfile.roleTitle ?? "Founder"}</span>
+                            {founderProfile.isHiring ? (
+                                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-200">
+                                    Hiring
+                                </span>
+                            ) : null}
+                        </div>
+                    ) : null}
                 </div>
                 {isFounder && (
                     <Link href="/app/projects/new" className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-cyan-500 to-violet-500 text-white text-sm font-semibold hover:opacity-90 transition-opacity">

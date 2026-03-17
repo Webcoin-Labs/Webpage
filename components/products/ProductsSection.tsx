@@ -212,7 +212,7 @@ export function ProductsSection() {
             </div>
           </motion.div>
 
-          {/* 4. Kreatorboard — Coming Soon */}
+          {/* 4. Kreatorboard */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -225,7 +225,7 @@ export function ProductsSection() {
                   <LayoutDashboard className="w-6 h-6" />
                 </div>
                 <span className="px-2.5 py-1 rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-400 text-xs font-medium">
-                  Coming Soon
+                  Live Beta
                 </span>
               </div>
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
@@ -233,7 +233,7 @@ export function ProductsSection() {
               </p>
               <h3 className="text-xl font-semibold text-foreground mb-2">Kreatorboard</h3>
               <p className="text-sm text-muted-foreground mb-4 leading-relaxed flex-grow">
-                Kreatorboard is a creator and KOL operations dashboard currently under development. It will allow projects to manage influencer campaigns, track creator performance, and organize structured growth workflows.
+                Kreatorboard is a creator and KOL operations dashboard for campaign management, performance tracking, and structured growth workflows.
               </p>
               <ul className="text-xs text-muted-foreground space-y-1.5 mb-6">
                 {kreatorboardFeatures.map((f) => (
@@ -251,10 +251,10 @@ export function ProductsSection() {
                   Read More <ArrowRight className="w-4 h-4" />
                 </Link>
                 <Link
-                  href="/contact"
+                  href="/app/kols-premium"
                   className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-colors"
                 >
-                  Notify Me
+                  Open Module
                 </Link>
               </div>
             </div>

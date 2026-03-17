@@ -19,7 +19,7 @@ export default function ContactPage() {
                             Let&apos;s <span className="gradient-text">talk</span>
                         </h1>
                         <p className="text-muted-foreground max-w-lg mx-auto">
-                            Whether you're an ecosystem looking to partner, a founder seeking support,
+                            Whether you&apos;re an ecosystem looking to partner, a founder seeking support,
                             or a builder curious about programs — reach out.
                         </p>
                     </AnimatedSection>

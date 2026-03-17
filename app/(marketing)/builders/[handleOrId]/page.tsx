@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AnimatedSection } from "@/components/common/AnimatedSection";
 import { MapPin, Github, Twitter, Globe, BadgeCheck } from "lucide-react";
+import { getBuilderAffiliation } from "@/lib/affiliation";
+import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag";
+import { ProfileAvatar } from "@/components/common/ProfileAvatar";
 
 type Params = { params: Promise<{ handleOrId: string }> };
 
@@ -31,6 +34,7 @@ export default async function BuilderProfilePage({ params }: Params) {
   const { handleOrId } = await params;
   const profile = await getBuilder(handleOrId);
   if (!profile) notFound();
+  const affiliation = getBuilderAffiliation(profile);
 
   return (
     <div className="min-h-screen pt-24">
@@ -40,17 +44,17 @@ export default async function BuilderProfilePage({ params }: Params) {
         </AnimatedSection>
         <AnimatedSection delay={0.1} className="p-8 rounded-2xl border border-border/50 bg-card">
           <div className="flex flex-col sm:flex-row gap-6 mb-6">
-            {profile.user.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.user.image} alt="" className="w-20 h-20 rounded-full object-cover flex-shrink-0" />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-500/20 to-violet-500/20 flex items-center justify-center text-2xl font-bold text-cyan-400 flex-shrink-0">
-                {profile.user.name?.charAt(0) ?? "?"}
-              </div>
-            )}
+            <ProfileAvatar
+              src={profile.user.image}
+              alt={profile.user.name ?? "Builder"}
+              fallback={profile.user.name?.charAt(0) ?? "?"}
+              className="h-20 w-20 flex-shrink-0 rounded-full"
+              fallbackClassName="bg-gradient-to-br from-cyan-500/20 to-violet-500/20 text-2xl text-cyan-300"
+            />
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-bold">{profile.user.name ?? "Builder"}</h1>
+                <ProfileAffiliationTag label={affiliation.label} variant={affiliation.variant} />
                 {profile.verifiedByWebcoinLabs && (
                   <span className="text-cyan-400" title="Verified by Webcoin Labs"><BadgeCheck className="w-5 h-5" /></span>
                 )}

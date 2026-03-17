@@ -4,7 +4,7 @@ import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AdminApplicationsTable } from "@/components/app/AdminApplicationsTable";
-import { Mail, MessageSquare, Building2, Gift, Shield, CalendarDays } from "lucide-react";
+import { Mail, MessageSquare, Building2, Gift, Shield, CalendarDays, BriefcaseBusiness, FileText, UsersRound, DatabaseZap, Upload } from "lucide-react";
 
 export const metadata = { title: "Admin — Webcoin Labs" };
 
@@ -12,7 +12,7 @@ export default async function AdminPage() {
     const session = await getServerSession(authOptions);
     if (session?.user.role !== "ADMIN") redirect("/app");
 
-    const [applications, users, projects, buildersCount, partnersCount, leadsCount, introsCount] = await Promise.all([
+    const [applications, users, projects, buildersCount, partnersCount, leadsCount, introsCount, jobsCount, jobApplicationsCount, pitchDecksCount, reportsCount, hiringInterestCount, foundersWithLogoCount, usersWithAvatarCount, uploadAssetsCount] = await Promise.all([
         prisma.application.findMany({
             include: { user: { select: { name: true, email: true, image: true } } },
             orderBy: { createdAt: "desc" },
@@ -24,12 +24,25 @@ export default async function AdminPage() {
         prisma.partner.count(),
         prisma.lead.count(),
         prisma.introRequest.count(),
+        prisma.jobPost.count(),
+        prisma.jobApplication.count(),
+        prisma.pitchDeck.count(),
+        prisma.aIReport.count(),
+        prisma.hiringInterest.count(),
+        prisma.founderProfile.count({ where: { companyLogoUrl: { not: null } } }),
+        prisma.user.count({ where: { image: { not: null } } }),
+        prisma.uploadAsset.count(),
     ]);
 
     const adminLinks = [
         { href: "/app/admin/leads", label: "Leads", icon: Mail, count: leadsCount },
         { href: "/app/admin/intros", label: "Intro Requests", icon: MessageSquare, count: introsCount },
         { href: "/app/admin/events", label: "Events", icon: CalendarDays },
+        { href: "/app/admin/pitch-decks", label: "Pitch Decks & Reports", icon: FileText, count: pitchDecksCount },
+        { href: "/app/admin/jobs", label: "Jobs", icon: BriefcaseBusiness, count: jobsCount },
+        { href: "/app/admin/hiring-interests", label: "Hiring Interests", icon: UsersRound, count: hiringInterestCount },
+        { href: "/app/admin/uploads", label: "Uploads", icon: Upload, count: uploadAssetsCount },
+        { href: "/app/admin/storage", label: "Storage Health", icon: DatabaseZap },
         { href: "/app/admin/partners", label: "Partners", icon: Building2 },
         { href: "/app/admin/moderation", label: "Moderation", icon: Shield },
         { href: "/app/admin/rewards", label: "Rewards", icon: Gift },
@@ -63,7 +76,7 @@ export default async function AdminPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-10 gap-4">
                 <div className="p-5 rounded-xl border border-border/50 bg-card text-center">
                     <p className="text-2xl font-black gradient-text">{users}</p>
                     <p className="text-xs text-muted-foreground mt-1">Users</p>
@@ -87,6 +100,34 @@ export default async function AdminPage() {
                 <div className="p-5 rounded-xl border border-border/50 bg-card text-center">
                     <p className="text-2xl font-black gradient-text">{introsCount}</p>
                     <p className="text-xs text-muted-foreground mt-1">Intro Requests</p>
+                </div>
+                <div className="p-5 rounded-xl border border-border/50 bg-card text-center">
+                    <p className="text-2xl font-black gradient-text">{jobsCount}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Job Posts</p>
+                </div>
+                <div className="p-5 rounded-xl border border-border/50 bg-card text-center">
+                    <p className="text-2xl font-black gradient-text">{jobApplicationsCount}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Job Applications</p>
+                </div>
+                <div className="p-5 rounded-xl border border-border/50 bg-card text-center">
+                    <p className="text-2xl font-black gradient-text">{reportsCount}</p>
+                    <p className="text-xs text-muted-foreground mt-1">AI Reports</p>
+                </div>
+                <div className="p-5 rounded-xl border border-border/50 bg-card text-center">
+                    <p className="text-2xl font-black gradient-text">{hiringInterestCount}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Hiring Interests</p>
+                </div>
+                <div className="p-5 rounded-xl border border-border/50 bg-card text-center">
+                    <p className="text-2xl font-black gradient-text">{foundersWithLogoCount}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Founder Logos</p>
+                </div>
+                <div className="p-5 rounded-xl border border-border/50 bg-card text-center">
+                    <p className="text-2xl font-black gradient-text">{usersWithAvatarCount}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Profile Images</p>
+                </div>
+                <div className="p-5 rounded-xl border border-border/50 bg-card text-center">
+                    <p className="text-2xl font-black gradient-text">{uploadAssetsCount}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Upload Assets</p>
                 </div>
             </div>
 

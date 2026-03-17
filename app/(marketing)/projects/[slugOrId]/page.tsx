@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AnimatedSection } from "@/components/common/AnimatedSection";
 import { ExternalLink, Github, Twitter, BadgeCheck } from "lucide-react";
+import { getFounderAffiliation } from "@/lib/affiliation";
+import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag";
 
 type Params = { params: Promise<{ slugOrId: string }> };
 
@@ -23,7 +25,15 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 async function getProject(slugOrId: string) {
   return prisma.project.findFirst({
     where: { publicVisible: true, OR: [{ slug: slugOrId }, { id: slugOrId }] },
-    include: { owner: { select: { id: true, name: true } } },
+    include: {
+      owner: {
+        select: {
+          id: true,
+          name: true,
+          founderProfile: { select: { companyName: true, isHiring: true } },
+        },
+      },
+    },
   });
 }
 
@@ -33,6 +43,7 @@ export default async function ProjectPage({ params }: Params) {
   if (!project) notFound();
 
   const stageLabel = project.stage === "IDEA" ? "Idea" : project.stage === "MVP" ? "MVP" : "Live";
+  const founderAffiliation = getFounderAffiliation(project.owner.founderProfile);
 
   return (
     <div className="min-h-screen pt-24">
@@ -50,6 +61,15 @@ export default async function ProjectPage({ params }: Params) {
                 )}
               </div>
               {project.tagline && <p className="text-muted-foreground mt-1">{project.tagline}</p>}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <p className="text-xs text-muted-foreground">{project.owner.name ?? "Founder"}</p>
+                {founderAffiliation ? <ProfileAffiliationTag label={founderAffiliation.label} variant="founder" /> : null}
+                {project.owner.founderProfile?.isHiring ? (
+                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-200">
+                    Hiring
+                  </span>
+                ) : null}
+              </div>
             </div>
             <span className={`text-xs px-2.5 py-1 rounded-full border ${
               project.stage === "LIVE" ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20" :

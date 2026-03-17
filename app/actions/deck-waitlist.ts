@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { rateLimit, rateLimitKey } from "@/lib/rateLimit";
+import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 
 const schema = z.object({
   email: z.string().email("Invalid email address"),
@@ -12,12 +12,12 @@ const schema = z.object({
 export type DeckWaitlistResult = { success: true } | { success: false; error: string };
 
 export async function submitDeckWaitlist(formData: FormData): Promise<DeckWaitlistResult> {
-  const email = (formData.get("email") as string) || "";
-  const rl = rateLimit(rateLimitKey(email, "deck-waitlist"), 3, 60_000);
+  const email = ((formData.get("email") as string) || "").trim().toLowerCase();
+  const rl = await rateLimitAsync(rateLimitKey(email || "unknown", "deck-waitlist"), 3, 60_000);
   if (!rl.ok) return { success: false, error: "Too many requests. Please try again later." };
 
   const raw = {
-    name: (formData.get("name") as string) || "—",
+    name: ((formData.get("name") as string) || "Anonymous").trim(),
     email,
   };
   const result = schema.safeParse(raw);

@@ -19,7 +19,7 @@ export default async function AdminLeadsPage() {
         <ArrowLeft className="w-4 h-4" /> Back to Admin
       </Link>
       <h1 className="text-2xl font-bold">Leads</h1>
-      <p className="text-muted-foreground text-sm">Contact form submissions.</p>
+      <p className="text-muted-foreground text-sm">Contact, strategy call, and jobs waitlist submissions.</p>
 
       {leads.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8">No leads yet.</p>
@@ -40,7 +40,7 @@ export default async function AdminLeadsPage() {
                 </div>
                 <span className="text-xs text-muted-foreground">{new Date(lead.createdAt).toLocaleDateString()}</span>
               </div>
-              <p className="text-sm mt-3 border-t border-border/50 pt-3">{lead.message}</p>
+              <p className="text-sm mt-3 border-t border-border/50 pt-3 whitespace-pre-wrap">{lead.message}</p>
             </div>
           ))}
         </div>

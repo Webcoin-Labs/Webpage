@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { upsertInvestorProfile } from "@/app/actions/profile";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, ImagePlus } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -55,14 +55,19 @@ export function InvestorProfileForm({ initial }: Props) {
                 Share your focus areas so we can match you with relevant projects.
             </p>
             <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-xs font-medium mb-1.5">Full Name <span className="text-destructive">*</span></label>
                         <input name="fullName" required defaultValue={defaultName} placeholder="Alex Morgan" className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40" />
                     </div>
                     <div>
-                        <label className="block text-xs font-medium mb-1.5">Profile Photo URL</label>
-                        <input name="profilePhoto" type="url" defaultValue={defaultImage} placeholder="https://..." className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40" />
+                        <label className="block text-xs font-medium mb-1.5">Profile Image</label>
+                        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-background px-3 py-2.5 text-sm text-muted-foreground transition hover:border-cyan-500/40">
+                            <ImagePlus className="h-4 w-4 text-cyan-300" />
+                            Upload PNG/JPG (max 5MB)
+                            <input name="avatarFile" type="file" accept="image/png,image/jpeg,image/jpg" className="hidden" />
+                        </label>
+                        <input name="profilePhoto" type="url" defaultValue={defaultImage} placeholder="Or use external image URL" className="mt-2 w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40" />
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">

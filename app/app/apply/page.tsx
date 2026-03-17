@@ -39,7 +39,7 @@ export default function ApplyPage() {
                 </div>
                 <h2 className="text-xl font-bold mb-2">Application submitted!</h2>
                 <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-                    We review all applications within 5 business days. We'll reach out via the email on your account.
+                    We review all applications within 5 business days. We&apos;ll reach out via the email on your account.
                 </p>
             </div>
         );
@@ -48,7 +48,7 @@ export default function ApplyPage() {
     return (
         <div className="py-8 max-w-lg">
             <h1 className="text-2xl font-bold mb-2">Apply</h1>
-            <p className="text-muted-foreground mb-8">Tell us what you're working on and what kind of support you need.</p>
+            <p className="text-muted-foreground mb-8">Tell us what you&apos;re working on and what kind of support you need.</p>
 
             <form onSubmit={handleSubmit} className="space-y-6 p-6 rounded-xl border border-border/50 bg-card">
                 <div>
