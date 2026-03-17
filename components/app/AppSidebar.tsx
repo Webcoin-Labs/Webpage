@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
@@ -81,9 +82,8 @@ export function AppSidebar({
     <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-border/50 bg-card/50 backdrop-blur-xl md:flex">
       <div className="flex h-16 items-center border-b border-border/50 px-6">
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500 text-xs font-bold text-white">
-            W
-          </div>
+          <Image src="/logo/webcoinlogo.webp" alt="Webcoin Labs" width={28} height={28} className="hidden rounded-md dark:block" />
+          <Image src="/logo/webcoinlight.webp" alt="Webcoin Labs" width={28} height={28} className="rounded-md dark:hidden" />
           <span className="text-sm font-bold text-foreground">Webcoin Labs</span>
         </Link>
       </div>

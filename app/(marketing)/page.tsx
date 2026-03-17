@@ -1,10 +1,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BriefcaseBusiness, CalendarDays, Crown, UsersRound } from "lucide-react";
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  CalendarDays,
+  Crown,
+  Database,
+  FileText,
+  LineChart,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  UsersRound,
+} from "lucide-react";
 import { AnimatedSection } from "@/components/common/AnimatedSection";
 import { ProductsSection } from "@/components/products/ProductsSection";
 import { ProblemRevealGrid } from "@/components/home/ProblemRevealGrid";
 import { CapabilityRevealGrid } from "@/components/home/CapabilityRevealGrid";
+import { HeroDashboardPreview } from "@/components/home/HeroDashboardPreview";
 import { StrategyCallForm } from "@/components/forms/StrategyCallForm";
 import { prisma } from "@/lib/prisma";
 import { getBuilderAffiliation } from "@/lib/affiliation";
@@ -12,52 +25,10 @@ import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag
 import { ProfileAvatar } from "@/components/common/ProfileAvatar";
 
 export const metadata: Metadata = {
-  title: "Webcoin Labs - Blockchain founder-builder network",
+  title: "Webcoin Labs - Builder-first venture infrastructure",
   description:
-    "Webcoin Labs connects founders and builders, accelerates product development, and delivers funding readiness with AI-powered analysis and ecosystem access.",
+    "Webcoin Labs helps founders launch faster through a unified network for builders, AI readiness, distribution, and ecosystem execution.",
 };
-
-const aiFeatures = [
-  "Free pitch deck analysis",
-  "Project readiness report",
-  "Founder profile completeness scoring",
-  "Builder-founder matching recommendations",
-  "GTM checklist generation",
-  "Fundraising readiness analysis",
-  "Ecosystem-fit recommendations",
-  "Future: investor memo + launch checklist generation",
-];
-
-const testimonials = [
-  {
-    title: "Founder workspace",
-    quote: "Live profile, project, intro, and hiring flows in one shared operating layer.",
-  },
-  {
-    title: "Builder workflow",
-    quote: "Real jobs, founder hiring inboxes, and recommendation feeds with profile-based matching.",
-  },
-  {
-    title: "AI readiness engine",
-    quote: "Deck uploads, extraction, analysis, moderation, and retry logic are production routes.",
-  },
-  {
-    title: "Network execution",
-    quote: "Events, partner access, and KOL/VC intro operations are integrated with admin controls.",
-  },
-];
-
-const services = [
-  "Product strategy",
-  "MVP build support",
-  "Fundraising readiness",
-  "KOL marketing",
-  "Community growth",
-  "Launchpad support",
-  "Exchange access",
-  "Ecosystem introductions",
-  "Technical advisory",
-];
 
 const partnerWordmark = [
   "VC Networks",
@@ -68,11 +39,54 @@ const partnerWordmark = [
   "Builder Guilds",
 ];
 
-const binaryLines = Array.from({ length: 10 }, (_, i) =>
-  i % 2 === 0
-    ? "01010100110101010101010101010101010101010101"
-    : "01001010101010101010101010101010101010101010"
-);
+const demoBuilders = [
+  { name: "Alex Chen", role: "Protocol Engineer", chain: "Base, Arc", openTo: "Full-time, Advisory", affiliationLabel: "Independent", affiliationVariant: "independent" as const },
+  { name: "Jordan Lee", role: "Growth Lead", chain: "EVM, Solana", openTo: "Contract, Cofounder", affiliationLabel: "ARC Builder", affiliationVariant: "default" as const },
+  { name: "Sam Rivera", role: "Smart Contract Dev", chain: "Arc, Base", openTo: "Full-time, Part-time", affiliationLabel: "Available", affiliationVariant: "available" as const },
+];
+
+const aiOperatingCards = [
+  {
+    title: "Pitch deck extraction and scoring",
+    detail: "Built into live workflows with moderation, retries, and production-safe processing.",
+    icon: FileText,
+  },
+  {
+    title: "Fundraising readiness diagnosis",
+    detail: "Signal clarity, positioning quality, and investor-readiness risks before outreach.",
+    icon: LineChart,
+  },
+  {
+    title: "Builder-founder match recommendations",
+    detail: "Ranked matching suggestions based on profile depth, chain focus, and intent.",
+    icon: UsersRound,
+  },
+  {
+    title: "Go-to-market action plan generation",
+    detail: "Actionable execution plans for launch sequencing, positioning, and growth priorities.",
+    icon: Target,
+  },
+  {
+    title: "Founder and builder identity layer",
+    detail: "Structured identity across skills, projects, and credibility signals.",
+    icon: ShieldCheck,
+  },
+  {
+    title: "Open jobs, hiring requests, and intros",
+    detail: "Operational routing for hiring and warm network introductions in one layer.",
+    icon: BriefcaseBusiness,
+  },
+  {
+    title: "Moderated uploads and storage operations",
+    detail: "Secure asset ingestion, moderation logs, and reliable storage controls.",
+    icon: Database,
+  },
+  {
+    title: "Event operations and reminder workflows",
+    detail: "Published events, RSVP orchestration, and reminder delivery automation.",
+    icon: CalendarDays,
+  },
+];
 
 type NetworkCounts = {
   founderProfiles: number;
@@ -158,6 +172,7 @@ export default async function HomePage() {
     publishedEvents: 0,
     kolRequests: 0,
   };
+
   try {
     [featuredCurrentPartners, featuredBuilders, networkCounts] = await Promise.all([
       getFeaturedCurrentPartners(),
@@ -168,143 +183,78 @@ export default async function HomePage() {
     // DB optional
   }
 
-  const heroPanels = [
-    { label: "Founder Profiles", status: `${networkCounts.founderProfiles} live` },
-    { label: "Builder Profiles", status: `${networkCounts.builderProfiles} live` },
-    { label: "Public Projects", status: `${networkCounts.projects} indexed` },
-    { label: "Intro Requests", status: `${networkCounts.introRequests} processed` },
-    { label: "AI Reports", status: `${networkCounts.aiReports} generated` },
-    { label: "Current Partners", status: `${networkCounts.currentPartners} active` },
-  ];
-
   return (
     <div className="flex flex-col bg-background text-foreground">
       <section className="relative overflow-hidden border-b border-border">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="binary-layer">
-            {binaryLines.map((line, index) => (
-              <div key={`binary-${index}`} className="binary-row">
-                {line}
-              </div>
-            ))}
-          </div>
+          <div className="absolute inset-0 bg-[radial-gradient(1200px_600px_at_18%_0%,rgba(44,114,255,0.35),transparent_52%),radial-gradient(900px_520px_at_90%_100%,rgba(56,189,248,0.14),transparent_58%)]" />
+          <div className="absolute -left-[12%] -top-[26%] h-[720px] w-[720px] rounded-full border border-blue-300/15" />
+          <div className="absolute left-[22%] -top-[30%] h-[980px] w-[980px] rounded-full border border-blue-200/10" />
+          <div className="absolute -right-[22%] top-[14%] h-[780px] w-[780px] rounded-full border border-cyan-200/10" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(2,8,23,0.04),rgba(2,8,23,0.7))]" />
         </div>
-        <div className="absolute -top-32 right-0 h-80 w-80 rounded-full bg-blue-500/20 blur-[140px] animate-float" />
-        <div className="absolute -bottom-24 left-10 h-64 w-64 rounded-full bg-emerald-400/20 blur-[120px] animate-float" />
 
-        <div className="container mx-auto px-6 max-w-7xl relative z-10 py-24 lg:py-32">
-          <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-12 items-center">
+        <div className="container relative z-10 mx-auto max-w-7xl px-6 py-24 lg:py-32">
+          <div className="grid items-center gap-12 lg:grid-cols-[1.08fr_0.92fr]">
             <AnimatedSection>
-              <div className="inline-flex items-center px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-xs font-medium tracking-wide text-blue-300">
-                Webcoin Labs
-              </div>
-              <h1 className="text-4xl md:text-6xl font-semibold tracking-tight mt-6 leading-[1.05]">
-                <span className="block text-foreground">Where blockchain founders and builders</span>
-                <span className="block text-blue-300">turn ideas into launch-ready companies.</span>
-              </h1>
-              <p className="text-lg text-muted-foreground mt-6 max-w-2xl">
-                Create founder and builder profiles, connect with the right people, build products, and get
-                AI pitch-deck analysis to become funding-ready with marketing and ecosystem support.
+              <p className="inline-flex items-center rounded-full border border-blue-300/25 bg-blue-400/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-blue-100">
+                Builder-first venture infrastructure
               </p>
-              <div className="mt-8 flex flex-wrap gap-4">
+              <h1 className="mt-6 text-4xl font-semibold leading-[1.03] tracking-tight md:text-6xl">
+                Build real blockchain companies with the right builders, systems, and distribution.
+              </h1>
+              <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
+                Webcoin Labs gives founders and operators one operating layer to launch products, run hiring, process
+                intros, and become ecosystem-ready with AI-assisted execution.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
                 <Link
                   href="/app"
-                  className="inline-flex items-center gap-2 rounded-full bg-blue-500 text-white px-6 py-3 text-sm font-medium transition hover:bg-blue-500/90"
+                  className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 text-sm font-medium text-white transition hover:bg-blue-500"
                 >
-                  Join the Network <ArrowRight className="w-4 h-4" />
+                  Launch App <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
                   href="/contact"
-                  className="inline-flex items-center gap-2 rounded-full border border-border px-6 py-3 text-sm font-medium text-foreground hover:bg-accent transition"
+                  className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/30 px-6 py-3 text-sm font-medium text-foreground transition hover:bg-accent/70"
                 >
-                  Book a Call
+                  Talk to Sales
                 </Link>
-                <Link
-                  href="/pitchdeck"
-                  className="inline-flex items-center gap-2 text-sm text-blue-300 hover:text-blue-200"
-                >
-                  Upload Pitch Deck for Free AI Review
+                <Link href="/pitchdeck" className="inline-flex items-center gap-2 px-1 py-3 text-sm text-blue-200 hover:text-blue-100">
+                  Get free AI pitch analysis
                 </Link>
               </div>
             </AnimatedSection>
 
-            <AnimatedSection delay={0.1}>
-              <div className="rounded-3xl border border-border bg-card/80 backdrop-blur p-8 shadow-soft">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground">
-                      Network panel
-                    </p>
-                    <h3 className="text-xl font-semibold text-foreground mt-2">Platform activity</h3>
-                  </div>
-                  <span className="text-xs font-medium px-3 py-1 rounded-full border border-emerald-400/40 text-emerald-300">
-                    Live
-                  </span>
-                </div>
-                <div className="mt-8 space-y-4">
-                  {heroPanels.map((panel) => (
-                    <div key={panel.label} className="flex items-center justify-between">
-                      <div className="text-sm text-muted-foreground">{panel.label}</div>
-                      <span className="text-xs px-2.5 py-1 rounded-full border border-border/60 text-foreground">
-                        {panel.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-8 border-t border-border pt-6 text-xs text-muted-foreground">
-                  Live metrics from production data sources.
-                </div>
-              </div>
+            <AnimatedSection delay={0.08}>
+              <HeroDashboardPreview />
             </AnimatedSection>
           </div>
         </div>
       </section>
 
-      <section className="py-24 bg-muted/10 border-b border-border relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="binary-layer">
-            {binaryLines.map((line, index) => (
-              <div key={`binary-partner-${index}`} className="binary-row">
-                {line}
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="container mx-auto px-6 max-w-7xl relative z-10">
-          <AnimatedSection className="text-center max-w-3xl mx-auto">
-            <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground">
-              Partner network
-            </p>
-            <h2 className="text-3xl md:text-5xl font-semibold tracking-tight mt-4">
-              Ecosystem access that compounds distribution.
+      <section className="border-b border-border bg-muted/10 py-20">
+        <div className="container mx-auto max-w-7xl px-6">
+          <AnimatedSection className="mx-auto max-w-3xl text-center">
+            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Ecosystem access</p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">
+              Trusted by founder communities, ecosystems, and distribution partners.
             </h2>
-            <p className="text-lg text-muted-foreground mt-6">
-              Webcoin Labs connects founders and builders with VCs, launchpads, exchanges, and community partners.
-            </p>
           </AnimatedSection>
-          <div className="mt-12 relative overflow-hidden">
-            <div className="flex gap-12 w-max partner-marquee-track items-center opacity-50">
+          <div className="relative mt-10 overflow-hidden">
+            <div className="partner-marquee-track flex w-max items-center gap-12 opacity-60">
               {featuredCurrentPartners.length > 0
                 ? [...featuredCurrentPartners, ...featuredCurrentPartners].map((partner, index) => (
                     <div key={`${partner.id}-${index}`} className="flex items-center justify-center">
                       {partner.logoPath ? (
-                        <img
-                          src={partner.logoPath}
-                          alt={partner.name}
-                          className="max-h-8 w-auto object-contain grayscale"
-                        />
+                        <img src={partner.logoPath} alt={partner.name} className="max-h-8 w-auto object-contain grayscale" />
                       ) : (
-                        <span className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                          {partner.name}
-                        </span>
+                        <span className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{partner.name}</span>
                       )}
                     </div>
                   ))
                 : [...partnerWordmark, ...partnerWordmark].map((name, index) => (
-                    <div
-                      key={`${name}-${index}`}
-                      className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
-                    >
+                    <div key={`${name}-${index}`} className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                       {name}
                     </div>
                   ))}
@@ -314,268 +264,200 @@ export default async function HomePage() {
       </section>
 
       <ProblemRevealGrid />
-
       <CapabilityRevealGrid />
-
       <ProductsSection />
 
-      <section className="py-24 border-b border-border relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="binary-layer">
-            {binaryLines.map((line, index) => (
-              <div key={`binary-ai-${index}`} className="binary-row">
-                {line}
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="absolute top-10 right-10 h-64 w-64 rounded-full bg-emerald-400/20 blur-[140px] animate-float" />
-
-        <div className="container mx-auto px-6 max-w-7xl relative z-10 grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-12 items-center">
+      <section className="border-b border-border py-24">
+        <div className="container mx-auto grid max-w-7xl gap-10 px-6 lg:grid-cols-2">
           <AnimatedSection>
-            <p className="text-xs font-mono uppercase tracking-[0.2em] text-emerald-300">
-              AI-powered founder workflow
-            </p>
-            <h2 className="text-3xl md:text-5xl font-semibold tracking-tight mt-4">
-              Practical AI that removes manual founder work.
+            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operating advantages</p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">
+              Designed for fast-moving founders and high-context builders.
             </h2>
-            <p className="text-lg text-muted-foreground mt-6">
-              Webcoin Labs uses AI to deliver clarity, readiness checks, and matching recommendations.
+            <p className="mt-5 text-lg text-muted-foreground">
+              The best Layer 1, Layer 2, and fintech platforms ship with clarity, trust signals, and operational
+              confidence. We apply the same principles to founder execution.
             </p>
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
-              {aiFeatures.map((feature) => (
-                <div key={feature} className="flex items-start gap-2">
-                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  <span>{feature}</span>
-                </div>
-              ))}
-            </div>
           </AnimatedSection>
-
-          <AnimatedSection delay={0.1}>
-            <div className="rounded-3xl border border-border bg-black text-emerald-200 p-8 shadow-soft font-mono">
-              <div className="flex items-center justify-between text-xs text-emerald-200/70">
-                <span>ai.command.center</span>
-                <span>active</span>
-              </div>
-              <div className="mt-6 text-sm space-y-2">
-                <div>&gt; deck_uploaded.pdf</div>
-                <div>&gt; analyzing market clarity...</div>
-                <div>&gt; checking founder readiness...</div>
-                <div>&gt; generating launch summary...</div>
-                <div className="text-emerald-300">&gt; report ready</div>
-                <div className="flex items-center gap-2 text-emerald-100">
-                  <span>&gt;</span>
-                  <span className="cursor-blink">_</span>
+          <AnimatedSection delay={0.06}>
+            <div className="grid gap-4">
+              <div className="rounded-2xl border border-border/70 bg-card p-5">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <ShieldCheck className="h-4 w-4 text-emerald-300" /> Credibility-first identity layer
                 </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Structured builder and founder profiles with verified context, social proof, and discoverability.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-card p-5">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Sparkles className="h-4 w-4 text-blue-300" /> Productive AI, not novelty
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  AI is integrated as a workflow multiplier across deck analysis, matching, and operational planning.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-card p-5">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <UsersRound className="h-4 w-4 text-cyan-300" /> Network execution at scale
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Hiring, intros, events, and partner coordination are unified into one production-grade command layer.
+                </p>
               </div>
             </div>
           </AnimatedSection>
         </div>
       </section>
 
-      <section className="py-24 bg-muted/10 border-b border-border">
-        <div className="container mx-auto px-6 max-w-7xl grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] gap-12 items-start">
-          <AnimatedSection>
-            <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground">
-              Find Builders and Collaborators
-            </p>
-            <h2 className="text-3xl md:text-5xl font-semibold tracking-tight mt-4">
-              Find builders and collaborators.
-            </h2>
-            <p className="text-lg text-muted-foreground mt-6">
-              Connect with developers, marketers, designers, and founders building in blockchain.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              {["Protocol", "Growth", "Product", "Design", "Security", "Ecosystem"].map((tag) => (
-                <span key={tag} className="text-xs font-medium px-3 py-1 rounded-full border border-border text-muted-foreground">
-                  {tag}
-                </span>
-              ))}
+      <section className="border-b border-border bg-muted/10 py-24">
+        <div className="container mx-auto max-w-7xl px-6">
+          <div className="rounded-3xl border border-border/70 bg-card p-6 md:p-8">
+            <AnimatedSection className="mx-auto max-w-3xl text-center">
+              <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">AI operating layer</p>
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">Actionable intelligence for founder execution.</h2>
+            </AnimatedSection>
+            <div className="mt-10 grid gap-4 md:grid-cols-2">
+              {aiOperatingCards.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <AnimatedSection key={item.title}>
+                    <div className="flex items-start gap-4 rounded-2xl border border-border/70 bg-background/60 p-5 transition-colors hover:border-border hover:bg-accent/30">
+                      <div className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-card">
+                        <Icon className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-foreground">{item.title}</div>
+                        <p className="mt-1.5 text-sm text-muted-foreground">{item.detail}</p>
+                      </div>
+                    </div>
+                  </AnimatedSection>
+                );
+              })}
             </div>
-          </AnimatedSection>
+          </div>
+        </div>
+      </section>
 
-          <AnimatedSection delay={0.1}>
-            <div className="grid grid-cols-1 gap-6">
-              {featuredBuilders.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground">
-                  No public builders yet. Create your builder profile to appear in discovery.
-                </div>
-              ) : (
-                featuredBuilders.map((builder) => {
-                  const affiliation = getBuilderAffiliation(builder);
-                  const name = builder.user.name ?? "Builder";
-                  const role = builder.title ?? builder.headline ?? "Builder";
-                  const chain = builder.preferredChains.join(", ") || "Multi-chain";
-                  const openTo = builder.openTo.join(", ") || "Collaboration";
-                  return (
-                    <div key={builder.id} className="rounded-2xl border border-border bg-card p-6">
+      <section className="border-b border-border py-24">
+        <div className="container mx-auto grid max-w-7xl items-start gap-10 px-6 lg:grid-cols-[0.95fr_1.05fr]">
+          <AnimatedSection>
+            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Builder discovery</p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">Find serious builders faster.</h2>
+            <p className="mt-5 text-lg text-muted-foreground">
+              Discover builders by role, chain, and collaboration intent. Match execution speed with product ambition.
+            </p>
+          </AnimatedSection>
+          <AnimatedSection delay={0.08}>
+            <div className="grid grid-cols-1 gap-5">
+              {featuredBuilders.length > 0
+                ? featuredBuilders.map((builder) => {
+                    const affiliation = getBuilderAffiliation(builder);
+                    const name = builder.user.name ?? "Builder";
+                    const role = builder.title ?? builder.headline ?? "Builder";
+                    const chain = builder.preferredChains.join(", ") || "Multi-chain";
+                    const openTo = builder.openTo.join(", ") || "Collaboration";
+                    return (
+                      <div key={builder.id} className="rounded-2xl border border-border/70 bg-card p-6">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <ProfileAvatar
+                                src={builder.user.image}
+                                alt={name}
+                                fallback={name.charAt(0)}
+                                className="h-8 w-8 rounded-full"
+                                fallbackClassName="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 text-xs text-cyan-200"
+                              />
+                              <div className="text-sm font-semibold text-foreground">{name}</div>
+                              <ProfileAffiliationTag label={affiliation.label} variant={affiliation.variant} />
+                            </div>
+                            <div className="mt-1 text-xs text-muted-foreground">{role}</div>
+                            <div className="mt-2 text-xs text-muted-foreground">Chain expertise: {chain}</div>
+                            <div className="mt-2 text-xs text-emerald-300">Open to: {openTo}</div>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <Link href="/app/hiring" className="rounded-full bg-blue-600 px-4 py-2 text-center text-xs font-medium text-white transition hover:bg-blue-500">
+                              Connect
+                            </Link>
+                            <Link
+                              href={builder.handle ? `/builders/${builder.handle}` : `/builders/${builder.user.id}`}
+                              className="rounded-full border border-border px-4 py-2 text-center text-xs font-medium text-foreground transition hover:bg-accent"
+                            >
+                              View Profile
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                : demoBuilders.map((builder, idx) => (
+                    <div key={`demo-${idx}`} className="rounded-2xl border border-border/70 bg-card p-6">
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <div className="flex items-center gap-2">
                             <ProfileAvatar
-                              src={builder.user.image}
-                              alt={name}
-                              fallback={name.charAt(0)}
+                              src={null}
+                              alt={builder.name}
+                              fallback={builder.name.charAt(0)}
                               className="h-8 w-8 rounded-full"
                               fallbackClassName="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 text-xs text-cyan-200"
                             />
-                            <div className="text-sm font-semibold text-foreground">{name}</div>
-                            <ProfileAffiliationTag label={affiliation.label} variant={affiliation.variant} />
+                            <div className="text-sm font-semibold text-foreground">{builder.name}</div>
+                            <ProfileAffiliationTag label={builder.affiliationLabel} variant={builder.affiliationVariant} />
                           </div>
-                          <div className="mt-1 text-xs text-muted-foreground">{role}</div>
-                          <div className="mt-2 text-xs text-muted-foreground">Blockchain expertise: {chain}</div>
-                          <div className="mt-2 text-xs text-emerald-300">Open to: {openTo}</div>
+                          <div className="mt-1 text-xs text-muted-foreground">{builder.role}</div>
+                          <div className="mt-2 text-xs text-muted-foreground">Chain expertise: {builder.chain}</div>
+                          <div className="mt-2 text-xs text-emerald-300">Open to: {builder.openTo}</div>
                         </div>
                         <div className="flex flex-col gap-2">
-                          <Link
-                            href="/app/hiring"
-                            className="rounded-full bg-blue-500 px-4 py-2 text-center text-xs font-medium text-white transition hover:bg-blue-500/90"
-                          >
+                          <Link href="/app/hiring" className="rounded-full bg-blue-600 px-4 py-2 text-center text-xs font-medium text-white transition hover:bg-blue-500">
                             Connect
                           </Link>
-                          <Link
-                            href={builder.handle ? `/builders/${builder.handle}` : `/builders/${builder.user.id}`}
-                            className="rounded-full border border-border px-4 py-2 text-center text-xs font-medium text-foreground transition hover:bg-accent"
-                          >
+                          <Link href="/builders" className="rounded-full border border-border px-4 py-2 text-center text-xs font-medium text-foreground transition hover:bg-accent">
                             View Profile
                           </Link>
                         </div>
                       </div>
                     </div>
-                  );
-                })
-              )}
-            </div>
-          </AnimatedSection>
-        </div>
-      </section>
-
-      <section className="py-24 border-b border-border">
-        <div className="container mx-auto px-6 max-w-7xl grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-12 items-center">
-          <AnimatedSection>
-            <p className="text-xs font-mono uppercase tracking-[0.2em] text-blue-300">
-              Blockchain finance thesis
-            </p>
-            <h2 className="text-4xl md:text-6xl font-semibold tracking-tight mt-4">
-              Stablecoin rails are changing how projects move money.
-            </h2>
-            <p className="text-lg text-muted-foreground mt-6 max-w-2xl">
-              Faster global movement of value, lower transaction costs, programmable settlement, and better treasury workflows are opening new opportunities for founders.
-            </p>
-          </AnimatedSection>
-          <AnimatedSection delay={0.1}>
-            <div className="rounded-3xl border border-border bg-card p-8 shadow-soft">
-              <div className="text-sm font-medium text-emerald-300">Move value globally</div>
-              <div className="text-sm font-medium text-emerald-300 mt-2">Lower settlement costs</div>
-              <div className="text-sm font-medium text-emerald-300 mt-2">Programmable treasury rails</div>
-              <div className="text-sm font-medium text-emerald-300 mt-2">Launch-ready finance stacks</div>
-            </div>
-          </AnimatedSection>
-        </div>
-      </section>
-
-      <section className="py-24 border-b border-border">
-        <div className="container mx-auto px-6 max-w-7xl">
-          <AnimatedSection className="text-center max-w-3xl mx-auto">
-            <p className="text-xs font-mono uppercase tracking-[0.2em] text-blue-300">
-              What founders and builders say
-            </p>
-            <h2 className="text-3xl md:text-5xl font-semibold tracking-tight mt-4">
-              What founders and builders say
-            </h2>
-          </AnimatedSection>
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {testimonials.map((testimonial) => (
-              <AnimatedSection key={testimonial.title}>
-                <div className="rounded-2xl border border-border bg-card p-6 h-full">
-                  <div className="text-sm font-semibold text-foreground">{testimonial.title}</div>
-                  <p className="text-sm text-muted-foreground mt-4 leading-relaxed">
-                    {testimonial.quote}
-                  </p>
-                </div>
-              </AnimatedSection>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-24 bg-muted/10 border-b border-border relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="binary-layer">
-            {binaryLines.map((line, index) => (
-              <div key={`binary-services-${index}`} className="binary-row">
-                {line}
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="container mx-auto px-6 max-w-7xl relative z-10">
-          <AnimatedSection className="max-w-3xl">
-            <p className="text-xs font-mono uppercase tracking-[0.2em] text-emerald-300">
-              Services
-            </p>
-            <h2 className="text-3xl md:text-5xl font-semibold tracking-tight mt-4">
-              Terminal-grade execution
-            </h2>
-          </AnimatedSection>
-          <AnimatedSection delay={0.1}>
-            <div className="mt-10 rounded-3xl border border-border bg-black text-emerald-200 p-8 shadow-soft font-mono">
-              <div className="flex items-center justify-between text-xs text-emerald-200/70">
-                <span>webcoin.services</span>
-                <span>active</span>
-              </div>
-              <div className="mt-6 text-sm">
-                <div className="text-emerald-200">$ webcoin services</div>
-                <div className="mt-4 space-y-2">
-                  {services.map((service) => (
-                    <div key={service} className="text-emerald-100">
-                      &gt; {service}
-                    </div>
                   ))}
-                  <div className="flex items-center gap-2 text-emerald-100">
-                    <span>&gt;</span>
-                    <span className="cursor-blink">_</span>
-                  </div>
-                </div>
-              </div>
             </div>
           </AnimatedSection>
         </div>
       </section>
 
-      <section className="py-20 border-b border-border">
-        <div className="container mx-auto px-6 max-w-7xl">
+      <section className="border-b border-border py-20">
+        <div className="container mx-auto max-w-7xl px-6">
           <AnimatedSection>
-            <div className="rounded-2xl border border-border bg-card p-8">
-              <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground">Inside the app</p>
+            <div className="rounded-2xl border border-border/70 bg-card p-8">
+              <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Inside the app</p>
               <h3 className="mt-3 text-2xl font-semibold">Live platform modules</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                The production app includes hiring, jobs, events, intro operations, and a dedicated KOL premium workspace.
+                Production modules for hiring, jobs, events, intros, and KOL workflows.
               </p>
               <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-4">
-                <Link href="/app/jobs" className="rounded-xl border border-border/60 bg-background p-4 hover:bg-accent/40">
+                <Link href="/app/jobs" className="rounded-xl border border-border/60 bg-background p-4 transition hover:bg-accent/40">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <BriefcaseBusiness className="h-4 w-4 text-cyan-300" />
                     Jobs
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">{networkCounts.openJobs} open roles</p>
                 </Link>
-                <Link href="/app/hiring" className="rounded-xl border border-border/60 bg-background p-4 hover:bg-accent/40">
+                <Link href="/app/hiring" className="rounded-xl border border-border/60 bg-background p-4 transition hover:bg-accent/40">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <UsersRound className="h-4 w-4 text-emerald-300" />
                     Hiring
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">{networkCounts.hiringFounders} founders hiring</p>
                 </Link>
-                <Link href="/app/events" className="rounded-xl border border-border/60 bg-background p-4 hover:bg-accent/40">
+                <Link href="/app/events" className="rounded-xl border border-border/60 bg-background p-4 transition hover:bg-accent/40">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <CalendarDays className="h-4 w-4 text-blue-300" />
                     Events
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">{networkCounts.publishedEvents} published events</p>
                 </Link>
-                <Link href="/app/kols-premium" className="rounded-xl border border-border/60 bg-background p-4 hover:bg-accent/40">
+                <Link href="/app/kols-premium" className="rounded-xl border border-border/60 bg-background p-4 transition hover:bg-accent/40">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <Crown className="h-4 w-4 text-amber-300" />
                     KOL Premium
@@ -588,16 +470,16 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="py-24 border-b border-border">
-        <div className="container mx-auto px-6 max-w-6xl">
-          <AnimatedSection className="text-center max-w-2xl mx-auto">
-            <p className="text-xs font-mono uppercase tracking-[0.2em] text-blue-300">Book a strategy call</p>
-            <h2 className="text-3xl md:text-5xl font-semibold tracking-tight mt-4">Book a strategy call</h2>
-            <p className="text-lg text-muted-foreground mt-4">
-              Share your project and we will map the right path for funding, product, and distribution.
+      <section className="border-b border-border py-24">
+        <div className="container mx-auto max-w-6xl px-6">
+          <AnimatedSection className="mx-auto max-w-2xl text-center">
+            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Book a strategy call</p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">Design your launch roadmap with Webcoin Labs.</h2>
+            <p className="mt-4 text-lg text-muted-foreground">
+              Share your current stage, goals, and blockers. We will map a focused path for product, ecosystem, and growth execution.
             </p>
           </AnimatedSection>
-          <AnimatedSection delay={0.1}>
+          <AnimatedSection delay={0.08}>
             <StrategyCallForm />
           </AnimatedSection>
         </div>

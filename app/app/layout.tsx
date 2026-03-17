@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import Image from "next/image";
 import { authOptions } from "@/lib/auth";
 import { AppMobileNav, AppSidebar } from "@/components/app/AppSidebar";
 import { OnboardingGuard } from "@/components/app/OnboardingGuard";
@@ -66,7 +67,8 @@ export default async function AppLayout({
       <main className="ml-0 min-h-screen flex-1 md:ml-64">
         <div className="flex h-16 items-center border-b border-border/50 px-6 md:hidden">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500 text-xs font-bold text-white">W</div>
+            <Image src="/logo/webcoinlogo.webp" alt="Webcoin Labs" width={28} height={28} className="hidden rounded-md dark:block" />
+            <Image src="/logo/webcoinlight.webp" alt="Webcoin Labs" width={28} height={28} className="rounded-md dark:hidden" />
             <span className="font-bold text-foreground">Webcoin Labs</span>
           </div>
         </div>

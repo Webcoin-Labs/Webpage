@@ -123,7 +123,7 @@ function AbstractBackdrop({ variant }: { variant: "graph" | "nodes" | "blueprint
 
 const problems = [
   {
-    shortTitle: "Capital inefficiency",
+    shortTitle: "Capital Gaps",
     sublabel: "Wrong investors, manual decks, cold outreach",
     detail:
       "Founders spend too long chasing the wrong investors, preparing decks manually, and navigating fundraising without a warm network.",
@@ -132,7 +132,7 @@ const problems = [
     backdrop: <AbstractBackdrop variant="graph" />,
   },
   {
-    shortTitle: "Finding the right builders",
+    shortTitle: "Builder Discovery",
     sublabel: "Trusted talent with blockchain experience",
     detail:
       "Great ideas stall when founders cannot quickly find trusted developers, operators, designers, and contributors with relevant blockchain experience.",
@@ -141,7 +141,7 @@ const problems = [
     backdrop: <AbstractBackdrop variant="nodes" />,
   },
   {
-    shortTitle: "From pitch to product",
+    shortTitle: "Pitch to Product",
     sublabel: "Execution support and builder relationships",
     detail:
       "Turning a concept into a launch-ready product requires execution support, technical guidance, and the right builder relationships.",
@@ -150,7 +150,7 @@ const problems = [
     backdrop: <AbstractBackdrop variant="blueprint" />,
   },
   {
-    shortTitle: "Launch without growth",
+    shortTitle: "Growth Deficit",
     sublabel: "Attention, community, creator support",
     detail:
       "Many projects can launch, but few know how to drive sustained attention, community growth, creator support, and meaningful user traction.",
@@ -159,7 +159,7 @@ const problems = [
     backdrop: <AbstractBackdrop variant="signal" />,
   },
   {
-    shortTitle: "Closed access networks",
+    shortTitle: "Closed Networks",
     sublabel: "Launchpads, exchanges, ecosystem partners",
     detail:
       "Launchpads, exchanges, strategic partners, and ecosystem teams are often difficult to access without the right introductions and credibility.",
@@ -168,7 +168,7 @@ const problems = [
     backdrop: <AbstractBackdrop variant="gateway" />,
   },
   {
-    shortTitle: "Too much founder busywork",
+    shortTitle: "Founder Overload",
     sublabel: "Decks, readiness, GTM, partner prep",
     detail:
       "Deck reviews, readiness analysis, GTM planning, and partner preparation often consume time that should be spent shipping product.",
@@ -180,26 +180,28 @@ const problems = [
 
 export function ProblemRevealGrid() {
   return (
-    <section className="py-28 border-b border-border relative overflow-hidden">
+    <section className="py-24 border-b border-border relative overflow-hidden bg-muted/10">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute left-[8%] top-[10%] h-52 w-52 rounded-full bg-cyan-500/10 blur-[90px]" />
-        <div className="absolute right-[10%] bottom-[8%] h-56 w-56 rounded-full bg-violet-500/10 blur-[100px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(148,163,184,0.09),transparent_55%)]" />
       </div>
       <div className="container mx-auto px-6 max-w-7xl relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }}
-          className="max-w-4xl mb-14"
+          className="max-w-3xl mb-12"
         >
-          <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground">
-            Problems blockchain founders actually face
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            Founder pain points
           </p>
-          <h2 className="text-4xl md:text-6xl font-semibold tracking-tight mt-5 text-foreground leading-[1.05]">
-            Problems blockchain founders actually face
+          <h2 className="text-3xl md:text-5xl font-semibold tracking-tight mt-4 text-foreground leading-[1.08]">
+            Core founder problems.
           </h2>
+          <p className="mt-4 text-base text-muted-foreground">
+            Fundraising, hiring, product, growth, and network bottlenecks.
+          </p>
         </motion.div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {problems.map((p, i) => (
             <motion.div
               key={p.shortTitle}

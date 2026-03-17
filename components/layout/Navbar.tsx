@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, LogOut, LayoutDashboard, ChevronDown } from "lucide-react";
-import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { useCalendly } from "@/components/providers/CalendlyProvider";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +16,7 @@ const menuGroups = [
     items: [
       { href: "/products/founder-profile", title: "Founder Profile", desc: "Identity and network layer" },
       { href: "/products/arcpay", title: "ArcPay", desc: "Payments infrastructure" },
-      { href: "/products/riddlepay", title: "RiddlePay", desc: "Engagement and rewards" },
+      { href: "/app", title: "Arc Builder Card", desc: "SBT identity and mint flow" },
       { href: "/products/kreatorboard", title: "Kreatorboard", desc: "Creator operations dashboard" },
     ],
   },
@@ -52,7 +52,6 @@ export function Navbar() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const openCalendly = useCalendly();
-  const showThemeToggle = pathname !== "/";
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -75,14 +74,11 @@ export function Navbar() {
       )}
     >
       <nav
-        className="container mx-auto px-6 h-[74px] flex items-center justify-between"
+        className="container mx-auto px-6 h-[76px] flex items-center justify-between"
         onMouseLeave={() => setActiveDropdown(null)}
       >
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
-            W
-          </div>
-          <span className="font-semibold text-lg tracking-tight text-foreground">Webcoin Labs</span>
+        <Link href="/" className="flex items-center justify-center group" aria-label="Webcoin Labs home">
+          <Image src="/logo/webcoinlogo.webp" alt="Webcoin Labs" width={40} height={40} className="rounded-lg" />
         </Link>
 
         <div className="hidden lg:flex items-center gap-1">
@@ -111,7 +107,7 @@ export function Navbar() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 8 }}
                       transition={{ duration: 0.18 }}
-                      className="absolute top-full left-0 mt-3 w-[460px] rounded-2xl border border-border/80 bg-background/98 backdrop-blur-xl shadow-2xl p-3"
+                      className="absolute top-full left-0 mt-3 w-[460px] rounded-2xl border border-border/80 bg-background/98 backdrop-blur-xl shadow-[0_24px_48px_-28px_rgba(2,6,23,0.85)] p-3"
                     >
                       <div className="grid grid-cols-2 gap-2">
                         {group.items.map((item) => (
@@ -148,7 +144,6 @@ export function Navbar() {
         </div>
 
         <div className="hidden lg:flex items-center gap-3">
-          {showThemeToggle && <ThemeToggle />}
           <button
             onClick={openCalendly}
             className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -159,7 +154,7 @@ export function Navbar() {
             <div className="flex items-center gap-2">
               <Link
                 href="/app"
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 transition-colors flex items-center gap-1.5"
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 transition-colors flex items-center gap-1.5 shadow-[0_10px_24px_-16px_rgba(37,99,235,0.95)]"
               >
                 <LayoutDashboard className="w-4 h-4" />
                 Launch App
@@ -181,7 +176,7 @@ export function Navbar() {
               </Link>
               <Link
                 href="/app"
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 transition-colors"
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 transition-colors shadow-[0_10px_24px_-16px_rgba(37,99,235,0.95)]"
               >
                 Get started
               </Link>
@@ -190,7 +185,6 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-2 lg:hidden">
-          {showThemeToggle && <ThemeToggle />}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="p-2 rounded-md text-muted-foreground hover:text-foreground"

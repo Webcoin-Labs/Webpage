@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, User, CreditCard, Gamepad2, LayoutDashboard } from "lucide-react";
+import { ArrowRight, User, CreditCard, IdCard, LayoutDashboard } from "lucide-react";
 
 const founderFeatures = [
   "Founder identity profile",
@@ -22,10 +22,11 @@ const arcpayFeatures = [
   "Future-ready settlement systems",
 ];
 
-const riddlepayFeatures = [
-  "Gamified rewards",
-  "User engagement campaigns",
-  "Interactive participation systems",
+const arcBuilderCardFeatures = [
+  "Arc developer verification",
+  "Soulbound NFT builder identity",
+  "One-click on-chain mint flow",
+  "Portable reputation credential",
 ];
 
 const kreatorboardFeatures = [
@@ -36,8 +37,8 @@ const kreatorboardFeatures = [
 
 function ArcBuilderBadge() {
   return (
-    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-400 text-xs font-medium">
-      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border/70 bg-background text-foreground text-xs font-medium">
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
       ARC Builder
     </div>
   );
@@ -47,8 +48,7 @@ export function ProductsSection() {
   return (
     <section className="py-24 border-b border-border bg-background relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-0 w-96 h-96 rounded-full bg-cyan-500/5 blur-[100px]" />
-        <div className="absolute bottom-1/4 right-0 w-80 h-80 rounded-full bg-violet-500/5 blur-[80px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(148,163,184,0.06),transparent_55%)]" />
       </div>
 
       <div className="container mx-auto px-6 max-w-7xl relative z-10">
@@ -56,17 +56,20 @@ export function ProductsSection() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
+          className="text-center mb-14"
         >
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground mb-3">
+            Product suite
+          </p>
           <h2 className="text-3xl md:text-5xl font-semibold tracking-tight text-foreground mb-4">
             Products Built by Webcoin Labs
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Infrastructure products built to help founders launch, grow, and scale blockchain projects.
+          <p className="text-base md:text-lg text-muted-foreground max-w-3xl mx-auto">
+            A focused operating stack for founders: identity, payments, on-chain credentials, and creator-led growth.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 lg:gap-6">
           {/* 1. Founder Profile — PRIMARY */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -75,43 +78,43 @@ export function ProductsSection() {
             transition={{ delay: 0 }}
             className="lg:col-span-1"
           >
-            <div className="group h-full flex flex-col p-6 lg:p-8 rounded-2xl border border-cyan-500/20 bg-card/80 backdrop-blur-sm shadow-[0_0_40px_-12px_rgba(34,211,238,0.15)] hover:shadow-[0_0_50px_-10px_rgba(34,211,238,0.2)] hover:border-cyan-500/30 transition-all duration-300 hover:-translate-y-0.5">
+            <div className="group h-full min-h-[540px] flex flex-col p-6 lg:p-7 rounded-2xl border border-border/70 bg-card transition-colors duration-300 hover:border-border">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-cyan-500/15 flex items-center justify-center text-cyan-400 group-hover:bg-cyan-500/20 transition-colors">
+                <div className="w-11 h-11 rounded-lg bg-accent flex items-center justify-center text-foreground transition-colors">
                   <User className="w-6 h-6" />
                 </div>
-                <span className="px-2.5 py-1 rounded-md border border-cyan-500/40 bg-cyan-500/10 text-cyan-400 text-xs font-medium">
+                <span className="px-2.5 py-1 rounded-md border border-border/70 bg-background text-foreground text-xs font-medium">
                   Core Platform
                 </span>
               </div>
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-1">
                 Network Infrastructure
               </p>
               <h3 className="text-xl font-semibold text-foreground mb-2">Founder Profile</h3>
-              <p className="text-sm text-muted-foreground mb-4 leading-relaxed flex-grow">
+              <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
                 Founder Profile is the identity layer of Webcoin Labs. It allows founders and builders to create verified profiles, showcase projects, connect with collaborators, and unlock ecosystem opportunities.
               </p>
               <ul className="text-xs text-muted-foreground space-y-1.5 mb-6">
                 {founderFeatures.slice(0, 4).map((f) => (
                   <li key={f} className="flex items-center gap-2">
-                    <span className="w-1 h-1 rounded-full bg-cyan-400" />
+                    <span className="w-1 h-1 rounded-full bg-blue-500" />
                     {f}
                   </li>
                 ))}
               </ul>
-              <p className="text-xs text-cyan-400/90 mb-6">
+              <p className="text-xs text-muted-foreground mb-5">
                 Creating a profile unlocks the Webcoin Labs builder network.
               </p>
-              <div className="flex flex-wrap gap-2 mt-auto">
+              <div className="mt-auto flex flex-col gap-2">
                 <Link
                   href="/app"
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-500/90 transition-colors"
+                  className="inline-flex w-full items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 transition-colors"
                 >
                   Create Profile
                 </Link>
                 <Link
                   href="/products/founder-profile"
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border bg-transparent text-sm font-medium text-foreground hover:bg-accent transition-colors"
+                  className="inline-flex w-full items-center justify-center gap-1.5 px-4 py-2.5 rounded-full border border-border bg-background text-sm font-medium text-foreground hover:bg-accent transition-colors"
                 >
                   Read More <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -126,18 +129,18 @@ export function ProductsSection() {
             viewport={{ once: true }}
             transition={{ delay: 0.05 }}
           >
-            <div className="group h-full flex flex-col p-6 lg:p-8 rounded-2xl border border-border bg-card/80 backdrop-blur-sm hover:shadow-[0_0_30px_-10px_rgba(139,92,246,0.1)] hover:border-violet-500/20 transition-all duration-300 hover:-translate-y-0.5">
+            <div className="group h-full min-h-[540px] flex flex-col p-6 lg:p-7 rounded-2xl border border-border/70 bg-card transition-colors duration-300 hover:border-border">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-violet-500/15 flex items-center justify-center text-violet-400">
+                <div className="w-11 h-11 rounded-lg bg-accent flex items-center justify-center text-foreground">
                   <CreditCard className="w-6 h-6" />
                 </div>
                 <ArcBuilderBadge />
               </div>
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-1">
                 Payments Infrastructure
               </p>
               <h3 className="text-xl font-semibold text-foreground mb-2">ArcPay</h3>
-              <p className="text-sm text-muted-foreground mb-4 leading-relaxed flex-grow">
+              <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
                 ArcPay is a payment gateway and merchant infrastructure built on Arc. It enables blockchain-native payments, merchant checkout flows, and programmable settlement infrastructure.
               </p>
               <ul className="text-xs text-muted-foreground space-y-1.5 mb-6">
@@ -148,10 +151,10 @@ export function ProductsSection() {
                   </li>
                 ))}
               </ul>
-              <div className="flex flex-wrap gap-2 mt-auto">
+              <div className="mt-auto flex flex-col gap-2">
                 <Link
                   href="/products/arcpay"
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-accent transition-colors"
+                  className="inline-flex w-full items-center justify-center gap-1.5 px-4 py-2.5 rounded-full border border-border bg-background text-sm font-medium text-foreground hover:bg-accent transition-colors"
                 >
                   Read More <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -159,7 +162,7 @@ export function ProductsSection() {
                   href="https://arcpay.io"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-violet-500/10 text-violet-400 text-sm font-medium hover:bg-violet-500/20 transition-colors"
+                  className="inline-flex w-full items-center justify-center gap-1.5 px-4 py-2.5 rounded-full border border-border/70 bg-background text-foreground text-sm font-medium hover:bg-accent transition-colors"
                 >
                   Launch Website
                 </a>
@@ -167,47 +170,46 @@ export function ProductsSection() {
             </div>
           </motion.div>
 
-          {/* 3. RiddlePay */}
+          {/* 3. Arc Builder Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
           >
-            <div className="group h-full flex flex-col p-6 lg:p-8 rounded-2xl border border-border bg-card/80 backdrop-blur-sm hover:shadow-[0_0_30px_-10px_rgba(34,197,94,0.1)] hover:border-emerald-500/20 transition-all duration-300 hover:-translate-y-0.5">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-400 mb-4">
-                <Gamepad2 className="w-6 h-6" />
+            <div className="group h-full min-h-[540px] flex flex-col p-6 lg:p-7 rounded-2xl border border-border/70 bg-card transition-colors duration-300 hover:border-border">
+              <div className="w-11 h-11 rounded-lg bg-accent flex items-center justify-center text-foreground mb-4">
+                <IdCard className="w-6 h-6" />
               </div>
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
-                Engagement Infrastructure
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-1">
+                On-Chain Identity Infrastructure
               </p>
-              <h3 className="text-xl font-semibold text-foreground mb-2">RiddlePay</h3>
-              <p className="text-sm text-muted-foreground mb-4 leading-relaxed flex-grow">
-                RiddlePay is a gamified engagement and rewards platform designed to increase participation and interaction across blockchain communities and products.
+              <h3 className="text-xl font-semibold text-foreground mb-2">Generate your Arc Builder Card</h3>
+              <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                A next-gen builder identity product for the Arc ecosystem. Developers and builders can generate their
+                Arc Builder Card, mint an SBT NFT, and create a verifiable on-chain proof of contribution.
               </p>
               <ul className="text-xs text-muted-foreground space-y-1.5 mb-6">
-                {riddlepayFeatures.map((f) => (
+                {arcBuilderCardFeatures.map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <span className="w-1 h-1 rounded-full bg-emerald-400" />
                     {f}
                   </li>
                 ))}
               </ul>
-              <div className="flex flex-wrap gap-2 mt-auto">
+              <div className="mt-auto flex flex-col gap-2">
                 <Link
-                  href="/products/riddlepay"
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-accent transition-colors"
+                  href="/app"
+                  className="inline-flex w-full items-center justify-center gap-1.5 px-4 py-2.5 rounded-full border border-border bg-background text-sm font-medium text-foreground hover:bg-accent transition-colors"
                 >
-                  Read More <ArrowRight className="w-4 h-4" />
+                  Generate Card <ArrowRight className="w-4 h-4" />
                 </Link>
-                <a
-                  href="https://riddlepay.io"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 text-sm font-medium hover:bg-emerald-500/20 transition-colors"
+                <Link
+                  href="/contact"
+                  className="inline-flex w-full items-center justify-center gap-1.5 px-4 py-2.5 rounded-full border border-border/70 bg-background text-foreground text-sm font-medium hover:bg-accent transition-colors"
                 >
-                  Launch Website
-                </a>
+                  Join Waitlist
+                </Link>
               </div>
             </div>
           </motion.div>
@@ -219,20 +221,20 @@ export function ProductsSection() {
             viewport={{ once: true }}
             transition={{ delay: 0.15 }}
           >
-            <div className="group h-full flex flex-col p-6 lg:p-8 rounded-2xl border border-border bg-card/60 backdrop-blur-sm hover:shadow-soft hover:border-amber-500/20 transition-all duration-300 hover:-translate-y-0.5">
+            <div className="group h-full min-h-[540px] flex flex-col p-6 lg:p-7 rounded-2xl border border-border/70 bg-card transition-colors duration-300 hover:border-border">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-400">
+                <div className="w-11 h-11 rounded-lg bg-accent flex items-center justify-center text-foreground">
                   <LayoutDashboard className="w-6 h-6" />
                 </div>
-                <span className="px-2.5 py-1 rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-400 text-xs font-medium">
+                <span className="px-2.5 py-1 rounded-md border border-border/70 bg-background text-foreground text-xs font-medium">
                   Live Beta
                 </span>
               </div>
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-1">
                 Creator Infrastructure
               </p>
               <h3 className="text-xl font-semibold text-foreground mb-2">Kreatorboard</h3>
-              <p className="text-sm text-muted-foreground mb-4 leading-relaxed flex-grow">
+              <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
                 Kreatorboard is a creator and KOL operations dashboard for campaign management, performance tracking, and structured growth workflows.
               </p>
               <ul className="text-xs text-muted-foreground space-y-1.5 mb-6">
@@ -243,16 +245,16 @@ export function ProductsSection() {
                   </li>
                 ))}
               </ul>
-              <div className="flex flex-wrap gap-2 mt-auto">
+              <div className="mt-auto flex flex-col gap-2">
                 <Link
                   href="/products/kreatorboard"
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-accent transition-colors"
+                  className="inline-flex w-full items-center justify-center gap-1.5 px-4 py-2.5 rounded-full border border-border bg-background text-sm font-medium text-foreground hover:bg-accent transition-colors"
                 >
                   Read More <ArrowRight className="w-4 h-4" />
                 </Link>
                 <Link
                   href="/app/kols-premium"
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-colors"
+                  className="inline-flex w-full items-center justify-center gap-1.5 px-4 py-2.5 rounded-full border border-border/70 bg-background text-foreground text-sm font-medium hover:bg-accent transition-colors"
                 >
                   Open Module
                 </Link>

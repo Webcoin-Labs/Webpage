@@ -30,11 +30,19 @@ type CapabilityCardProps = BaseProps & {
 export type InteractiveRevealCardProps = ProblemCardProps | CapabilityCardProps;
 
 const accentStyles = {
-  cyan: "border-cyan-400/30 shadow-[0_0_30px_-10px_rgba(34,211,238,0.28)]",
-  emerald: "border-emerald-400/30 shadow-[0_0_30px_-10px_rgba(52,211,153,0.28)]",
-  violet: "border-violet-400/30 shadow-[0_0_30px_-10px_rgba(139,92,246,0.28)]",
-  amber: "border-amber-400/30 shadow-[0_0_30px_-10px_rgba(245,158,11,0.28)]",
-  blue: "border-blue-400/30 shadow-[0_0_30px_-10px_rgba(59,130,246,0.28)]",
+  cyan: "border-cyan-400/40",
+  emerald: "border-emerald-400/40",
+  violet: "border-violet-400/40",
+  amber: "border-amber-400/40",
+  blue: "border-blue-400/40",
+};
+
+const accentHeaderStyles = {
+  cyan: "from-cyan-400/10 to-transparent",
+  emerald: "from-emerald-400/10 to-transparent",
+  violet: "from-violet-400/10 to-transparent",
+  amber: "from-amber-400/10 to-transparent",
+  blue: "from-blue-400/10 to-transparent",
 };
 
 export function InteractiveRevealCard(props: InteractiveRevealCardProps) {
@@ -81,6 +89,7 @@ export function InteractiveRevealCard(props: InteractiveRevealCardProps) {
   );
 
   const accent = accentStyles[accentColor];
+  const headerTint = accentHeaderStyles[accentColor];
 
   const isProblem = props.variant === "problem";
   const triggerId = isProblem
@@ -100,16 +109,16 @@ export function InteractiveRevealCard(props: InteractiveRevealCardProps) {
       onHoverEnd={() => setIsHovered(false)}
       className={`
         relative rounded-2xl border overflow-hidden isolate
-        bg-gradient-to-b from-slate-900/85 via-slate-950/90 to-slate-950/95 backdrop-blur-sm
-        transition-all duration-300
-        ${expanded ? `border-opacity-100 ${accent}` : "border-border hover:border-border/80"}
-        ${expanded || isHovered ? "translate-y-[-3px] scale-[1.01]" : "translate-y-0 scale-100"}
+        bg-card transition-all duration-300
+        ${expanded ? `${accent} shadow-[0_12px_40px_-22px_rgba(15,23,42,0.75)]` : "border-border/70"}
+        ${expanded || isHovered ? "translate-y-[-2px]" : "translate-y-0"}
         ${className}
       `}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_60%_at_80%_15%,rgba(56,189,248,0.08),transparent_70%)]" />
+      <div className={`pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b ${headerTint}`} />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(148,163,184,0.04),transparent_45%)]" />
       {backgroundIllustration && (
-        <div className="pointer-events-none absolute inset-0 opacity-[0.12]">
+        <div className="pointer-events-none absolute inset-0 opacity-[0.08]">
           {backgroundIllustration}
         </div>
       )}
@@ -122,10 +131,10 @@ export function InteractiveRevealCard(props: InteractiveRevealCardProps) {
         id={triggerId}
         className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-2xl"
       >
-        <div className="p-6 min-h-[136px] flex flex-col relative z-10">
+        <div className="p-6 min-h-[156px] flex flex-col relative z-10">
           {isProblem ? (
             <>
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-3">
                 <motion.div
                   animate={
                     expanded || isHovered
@@ -136,18 +145,23 @@ export function InteractiveRevealCard(props: InteractiveRevealCardProps) {
                       : { boxShadow: "0 0 0 rgba(0,0,0,0)", scale: 1 }
                   }
                   transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-300 shrink-0 border border-cyan-500/30"
+                  className="w-11 h-11 rounded-lg bg-accent flex items-center justify-center text-foreground shrink-0 border border-border/70"
                 >
                   {props.icon}
                 </motion.div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-lg font-bold text-foreground leading-tight">
+                  <h3 className="text-lg font-semibold text-foreground leading-tight">
                     {props.shortTitle}
                   </h3>
                   {props.sublabel && (
-                    <p className="text-xs text-slate-300/80 mt-1">{props.sublabel}</p>
+                    <p className="text-sm text-muted-foreground mt-1.5">{props.sublabel}</p>
                   )}
                 </div>
+                {backgroundIllustration ? (
+                  <div className="hidden md:block h-12 w-20 shrink-0 rounded-lg border border-border/70 bg-background/50 p-1 overflow-hidden">
+                    <div className="h-full w-full opacity-70">{backgroundIllustration}</div>
+                  </div>
+                ) : null}
               </div>
               <AnimatePresence initial={false}>
                 {expanded && (
@@ -161,7 +175,7 @@ export function InteractiveRevealCard(props: InteractiveRevealCardProps) {
                     transition={{ duration: TRANSITION_MS / 1000, ease: [0.25, 0.46, 0.45, 0.94] }}
                     className="overflow-hidden"
                   >
-                    <p className="text-sm text-slate-300 mt-4 pt-4 border-t border-slate-700/70 leading-relaxed">
+                    <p className="text-sm text-muted-foreground mt-4 pt-4 border-t border-border/70 leading-relaxed">
                       {detail}
                     </p>
                   </motion.div>
@@ -170,7 +184,7 @@ export function InteractiveRevealCard(props: InteractiveRevealCardProps) {
             </>
           ) : (
             <>
-              <span className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+              <span className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
                 {props.word}
               </span>
               <AnimatePresence initial={false}>
@@ -185,7 +199,7 @@ export function InteractiveRevealCard(props: InteractiveRevealCardProps) {
                     transition={{ duration: TRANSITION_MS / 1000, ease: [0.25, 0.46, 0.45, 0.94] }}
                     className="overflow-hidden"
                   >
-                    <p className="text-sm text-slate-300 mt-4 pt-4 border-t border-slate-700/70 leading-relaxed">
+                    <p className="text-sm text-muted-foreground mt-4 pt-4 border-t border-border/70 leading-relaxed">
                       {detail}
                     </p>
                   </motion.div>
