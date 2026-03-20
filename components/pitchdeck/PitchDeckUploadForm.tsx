@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, UploadCloud, CheckCircle2 } from "lucide-react";
+import { Loader2, UploadCloud, CheckCircle2, FileText } from "lucide-react";
 import { submitPitchDeck } from "@/app/actions/pitchdeck";
 
 type ProjectOption = { id: string; name: string };
@@ -10,6 +10,7 @@ export function PitchDeckUploadForm({ projects }: { projects: ProjectOption[] })
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [fileName, setFileName] = useState("");
 
   return (
     <form
@@ -24,6 +25,7 @@ export function PitchDeckUploadForm({ projects }: { projects: ProjectOption[] })
           if (result.success) {
             setSuccessMessage("Upload complete. Your AI report has been generated.");
             form.reset();
+            setFileName("");
           } else {
             setError(result.error);
           }
@@ -46,15 +48,30 @@ export function PitchDeckUploadForm({ projects }: { projects: ProjectOption[] })
         </select>
       ) : null}
 
-      <label className="rounded-lg border border-dashed border-border/80 bg-background px-4 py-6 text-sm text-muted-foreground flex flex-col items-center justify-center gap-2 cursor-pointer">
-        <UploadCloud className="h-5 w-5 text-blue-300" />
-        <span>Upload PDF or DOCX pitch deck (max 14MB)</span>
+      <label className="rounded-lg border border-dashed border-border/80 bg-background px-4 py-6 text-sm text-muted-foreground flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-blue-400/60 transition-colors">
+        {fileName ? (
+          <>
+            <FileText className="h-5 w-5 text-blue-400" />
+            <span className="text-blue-300 font-medium truncate max-w-full">{fileName}</span>
+            <span className="text-xs text-muted-foreground/70">Click to change file</span>
+          </>
+        ) : (
+          <>
+            <UploadCloud className="h-5 w-5 text-blue-300" />
+            <span>Upload PDF or DOCX pitch deck (max 14MB)</span>
+          </>
+        )}
         <input
           type="file"
           name="file"
           accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           required
           className="hidden"
+          onChange={(e) => {
+            const selected = e.target.files?.[0];
+            setFileName(selected?.name ?? "");
+            setError("");
+          }}
         />
       </label>
 

@@ -21,7 +21,7 @@ const ALLOWED_MIME = new Set([
 ]);
 
 const payloadSchema = z.object({
-  projectId: z.string().cuid().optional().or(z.literal("")),
+  projectId: z.union([z.string().cuid(), z.literal(""), z.null(), z.undefined()]),
 });
 
 export type PitchDeckActionResult =

@@ -84,7 +84,7 @@ export class GeminiPitchAnalysisProvider implements PitchAnalysisProvider {
 
   async analyze(input: AnalyzePitchDeckInput): Promise<AnalyzePitchDeckResult> {
     const apiKey = env.GEMINI_API_KEY;
-    const modelName = env.GEMINI_MODEL ?? "gemini-1.5-pro";
+    const modelName = env.GEMINI_MODEL ?? "gemini-2.5-flash";
     if (!apiKey) {
       throw new Error("GEMINI_API_KEY is missing.");
     }

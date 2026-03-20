@@ -21,6 +21,14 @@ const nextConfig = {
         domains: configuredImageDomains,
     },
     experimental: {
+        serverComponentsExternalPackages: [
+            "@prisma/client",
+            ".prisma/client",
+            "pdf-parse",
+            "pdfjs-dist",
+            "@napi-rs/canvas",
+            "mammoth",
+        ],
         serverActions: {
             bodySizeLimit: "8mb",
             allowedOrigins: ["localhost:3000", "webcoinlabs.com", "app.webcoinlabs.com"],

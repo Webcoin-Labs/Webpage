@@ -51,8 +51,11 @@ export default async function PitchDeckHubPage() {
       : Promise.resolve([]),
   ]);
 
-  const latestReport = recentDecks[0]?.reports[0] ?? null;
-  const latestDeck = recentDecks[0] ?? null;
+  const successfulDeck = recentDecks.find(
+    (d) => d.reports[0]?.status === "COMPLETED"
+  );
+  const latestDeck = successfulDeck ?? null;
+  const latestReport = successfulDeck?.reports[0] ?? null;
   const reportCompleted = latestReport?.status === "COMPLETED";
 
   return (
