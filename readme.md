@@ -1,301 +1,138 @@
 # Webcoin Labs
 
-Webcoin Labs is a production-grade blockchain operating system with three role workspaces:
+Webcoin Labs is a venture operating platform that helps founders, builders, investors, and ecosystem teams work in one place.
 
-- Founder OS
-- Builder OS
-- Investor OS
+Instead of fragmented tools, Webcoin Labs gives users one shared system for profile identity, discovery, collaboration, pitch intelligence, and execution workflows.
 
-This repository implements a multi-role, wallet-aware Next.js application with public profile routing, role-aware onboarding, investor application pipelines, premium quotas, and extension-ready integration architecture.
+## What Webcoin Labs Includes
 
-## Shared Graph Refactor Status
+- Founder workspace for venture setup, readiness, and investor pipeline
+- Builder workspace for proof of work, visibility, and opportunity matching
+- Investor workspace for discovery, diligence, and decision flow
+- Admin controls for curation, moderation, routing, and auditability
+- Public profile layer for founder, builder, and investor discovery
 
-Webcoin Labs is currently running a phased-compat refactor:
-- shared policy layer added (`server/policies/authz.ts`)
-- typed service contracts added (`server/services/contracts.ts`)
-- additive domain services introduced for identity, venture, discovery, applications, scoring, integrations, diligence, and admin routing
-- public profile selector hardening added (`server/selectors/public-profile.selectors.ts`)
-- transparent scoring engine added (`features/scoring/engine.ts` + `server/services/scoring.service.ts`)
-- placeholder-only authenticated surfaces replaced with data-backed pages (`/app/events`, `/app/kreatorboard`)
+## Who It Is For
 
-## Architecture Docs
+- Founders launching and scaling Web3/Web2 products
+- Builders looking for high-signal teams and projects
+- Investors managing deal flow and founder evaluation
+- Ecosystem partners supporting launches and distribution
 
-- `docs/architecture.md`
-- `docs/domain-model.md`
-- `docs/roles-and-permissions.md`
-- `docs/scoring-system.md`
-- `docs/integrations.md`
-- `docs/admin-os.md`
+## How The Platform Works
 
-## Stack
+```mermaid
+flowchart LR
+    A[Public Site] --> B[Sign In / Onboarding]
+    B --> C[Workspace Selection]
+    C --> D[Founder OS]
+    C --> E[Builder OS]
+    C --> F[Investor OS]
+    D --> G[Pitch Deck + Readiness]
+    E --> H[Proof of Work + Availability]
+    F --> I[Diligence + Deal Flow]
+    G --> J[Introductions / Applications]
+    H --> J
+    I --> J
+    J --> K[Admin Review + Routing]
+```
 
-- Next.js App Router + TypeScript
-- Tailwind CSS + Framer Motion
-- Prisma + PostgreSQL
-- NextAuth
-- Server Actions for secure mutations
-
-## Founder OS expansion (schema)
+## High-Level System Design
 
-- Hardening SQL: `prisma/migrations/20260321133000_founder_os_expansion_hardening/migration.sql`
-- Optional one-command apply: `pnpm db:apply:founder-hardening`
-
-## Canonical graph (schema)
-
-- Migration: `prisma/migrations/20260323070000_add_canonical_graph_foundation/migration.sql`
-- Optional backfill: `pnpm db:backfill:canonical`
+```mermaid
+flowchart TB
+    U[Users] --> FE[Next.js Web App]
+    FE --> AUTH[NextAuth]
+    FE --> API[Server Actions / API Routes]
+    API --> DB[(PostgreSQL + Prisma)]
+    API --> AI[Gemini Analysis Services]
+    API --> STORAGE[Cloudflare R2 / Local Storage]
+    API --> JOBS[Internal Jobs + Queues]
+    API --> AUDIT[Audit + Moderation]
+```
 
-## Final Information Architecture
+## Live Surfaces
 
-### Primary Product Surfaces
+- Marketing: `https://webcoinlabs.com`
+- App entry: `https://app.webcoinlabs.com/login`
+- App domain: `https://app.webcoinlabs.com`
 
-- Marketing/public site (`app/(marketing)/*`)
-- Authenticated app shell (`app/app/*`)
-- Public identities:
-  - `/founder/[username]`
-  - `/builder/[username]`
-  - `/investor/[username]`
-  - `/investor/[company-slug]/[username]`
-  - `/investor/[company-slug]`
-
-### Authenticated Workspace Surfaces
-
-- `/app/workspaces`: workspace selector and role switching
-- `/app/founder-os`: founder command center (existing + preserved)
-- `/app/founder-os/investor-applications`: investor outreach pipeline with quota gating
-- `/app/builder-os`: proof-of-work builder operating system
-- `/app/investor-os`: investor deal-flow and application review inbox
-- `/app/events`: future-ready placeholder (no fake data)
-
-## Route Structure (Core)
-
-### Existing Core App
-
-- `/app`
-- `/app/profile`
-- `/app/settings`
-- `/app/founder-os`
-- `/app/builder-projects`
-- `/app/events`
-- `/app/admin/*`
+### Domain Behavior
 
-### New Role/OS Routes
+- Main site stays on `webcoinlabs.com`
+- Authentication and workspace access run on `app.webcoinlabs.com`
+- `/login` from apex domain is redirected to app subdomain login
 
-- `/app/workspaces`
-- `/app/builder-os`
-- `/app/investor-os`
-- `/app/founder-os/investor-applications`
+## Core Experience
 
-### New Public Routes
+### Founder
 
-- `/founder/[username]`
-- `/builder/[username]`
-- `/investor/[[...segments]]`
+- Build founder and venture profile
+- Upload pitch deck and generate AI review
+- Manage applications, intros, and execution pipeline
 
-`/investor/[[...segments]]` resolves these patterns:
+### Builder
 
-- `/investor/[username]`
-- `/investor/[company-slug]`
-- `/investor/[company-slug]/[username]`
+- Maintain public builder profile
+- Showcase capability and project proof
+- Connect with relevant founder opportunities
 
-## Prisma Data Model (New + Preserved)
+### Investor
 
-The schema preserves existing entities and adds production entities for Webcoin OS.
-
-### New Enums
-
-- `WorkspaceType`, `WorkspaceAccessStatus`
-- `InvestorType`
-- `SubscriptionTier`, `SubscriptionStatus`
-- `WalletNetwork`, `WalletProvider`
-- `IntegrationProvider`, `IntegrationStatus`
-- `InvestorApplicationReviewStatus`
-- `MiniAppPlatform`
+- Discover high-signal founders and projects
+- Track diligence notes and decisions
+- Manage pipeline and status transitions
 
-### New Models
+### Admin
 
-- `UserWorkspace`
-- `WalletConnection`
-- `IntegrationConnection`
-- `InvestorCompany`
-- `InvestorCompanyMember`
-- `Venture`
-- `VentureMember`
-- `PitchDeckAssignment`
-- `InvestorApplication`
-- `FounderInvestorRequestQuota`
-- `PremiumSubscription`
-- `PublicProfileSettings`
-- `MiniAppMetadata`
-- `ResumeDocument`
-- `CoverLetterDraft`
-- `EmailThread`
-- `EmailMessageMeta`
-- `WorkspaceMeeting`
-- `EventsModuleState`
+- Review submissions and moderate uploads
+- Route opportunities and enforce policies
+- Track critical actions with audit trails
 
-### Existing Models Extended
+## Security and Reliability Principles
 
-- `User`: base bio/education/socials + workspace/premium/wallet/integration relations
-- `BuilderProfile`: education, stack, chain expertise, availability, intent fields
-- `FounderProfile`: founder description, education, intent, mini app links
-- `InvestorProfile`: investor type, focus arrays, check size range, company relation, visibility
-- `PitchDeck`: assignment relation support
-
-## Server Action / Mutation Plan
+- Role-based access controls across privileged paths
+- Server-side validation for sensitive actions
+- Upload moderation and status controls
+- Environment-based runtime safeguards
+- Audit events on key administrative and decision actions
 
-Implemented in `app/actions/webcoin-os.ts`:
+## For Developers (Quick Start)
 
-- `switchWorkspace`
-- `saveProfileIdentity`
-- `completeWorkspaceOnboarding`
-- `saveOnboardingIntegrations`
-- `saveWalletConnection`
-- `saveMiniAppMetadata`
-- `submitInvestorApplication`
-- `updateInvestorApplicationStatus`
-- `upsertResumeDocument`
-- `createCoverLetterDraft`
-
-Existing role/profile actions remain active and were not removed.
-
-## Onboarding Flow (Multi-step)
-
-`/app/onboarding` now runs a 5-step flow:
-
-1. Workspace selection
-2. Identity (name, username, bio, education, social links)
-3. Role-specific setup (Founder/Builder/Investor)
-4. Integrations + wallet linking (EVM/Solana)
-5. Preview + publish
-
-Behavior:
-
-- Founder and Builder can be enabled on one account
-- Investor workspace remains restricted unless investor profile exists
-
-## Public Profile System
-
-Implemented in `lib/public-profiles.ts` + public routes.
-
-- Founder pages include founder identity, ventures, and wallet visibility
-- Builder pages include stack, GitHub signal, projects, and wallet visibility
-- Investor pages support both independent and firm-affiliated URL patterns
-- Company pages list affiliated investor members
-
-## Founder OS
-
-Preserved existing founder command center and added a dedicated investor application module:
-
-- Venture/deck/investor selection
-- Founder note submission
-- Quota enforcement with tier-aware limits
-- Application status visibility
-
-## Builder OS
-
-New `/app/builder-os` includes:
-
-- Quantified profile/proof indicators
-- Portfolio and GitHub visibility
-- Resume document management
-- Cover letter draft management
-- Mini app/web3 project metadata manager
-
-## Investor OS
-
-New `/app/investor-os` includes:
-
-- Quantified pipeline summary
-- Investor identity and company context
-- Founder applications inbox with status transitions
-- Meeting and venture discovery panels
-
-## Premium Gating Logic
-
-Implemented in `submitInvestorApplication` + quota resolver:
-
-- Free founders: up to 3 applications per cycle
-- Premium founders: up to 10 applications per cycle
-- Cycle resets monthly
-- Quota state stored in `FounderInvestorRequestQuota`
-- Tier source: `PremiumSubscription`
-
-## Web3-Native Architecture
-
-- Wallet model supports EVM + Solana
-- Onboarding supports wallet connection capture
-- Public profile wallet display controlled by settings model
-- Mini app metadata model supports Base/Farcaster/Other and manifest URLs
-
-## Integrations Architecture
-
-- Integration connections tracked by provider/status/scopes/token metadata
-- Supported providers in schema/action layer:
-  - Gmail
-  - Google Calendar
-  - Notion
-  - GitHub
-  - Jira
-  - Calendly
-  - Cal.com
-  - Farcaster
-
-## Empty / Loading / Error States
-
-Implemented patterns:
-
-- Empty states across new OS pages (projects, apps, meetings, integrations)
-- Clear no-data messaging with next actions
-- Server action failures return explicit user-safe messages
-- Events surface explicitly avoids fake cards and states future expansion
-
-## No Demo Data Policy
-
-- `prisma/seed.ts` is now intentionally no-op
-- No synthetic startup/investor/builder records are seeded
-- Data is expected through real onboarding and workspace flows
-
-## Setup
-
-1. Install dependencies
+If you are contributing to the product:
 
 ```bash
 pnpm install
-```
-
-2. Generate Prisma client
-
-```bash
 pnpm db:generate
-```
-
-3. Create and apply migration(s)
-
-```bash
 pnpm db:migrate
-```
-
-4. Run development server
-
-```bash
 pnpm dev
 ```
 
-## Environment Variables
+Production build check:
 
-Keep secrets in local `.env` / `.env.local` only (never commit them). Configure at least:
+```bash
+pnpm build
+```
 
-- `DATABASE_URL`
-- `NEXTAUTH_SECRET`
-- `NEXTAUTH_URL`
-- OAuth keys as needed (`GOOGLE_*`, `GITHUB_*`)
-- Storage (`STORAGE_PROVIDER`, and either `LOCAL_STORAGE_ROOT` or R2 variables)
-- AI (`GEMINI_API_KEY`, optional `GEMINI_MODEL`) if you use pitch analysis
-- Production also requires the integration/redis fields validated in `lib/env.ts`
+## Environment Setup
 
-## Architecture Notes
+Use local environment files only (do not commit secrets):
 
-- Existing production modules are preserved unless superseded by role-specific OS surfaces.
-- New modules are additive and non-destructive.
-- Investor/founder/builder systems now have dedicated route surfaces while retaining backward compatibility with existing pages.
+- `.env`
+- `.env.local`
+
+Minimum required values are validated in `lib/env.ts`.
+
+## Repo Structure (Simple View)
+
+- `app/` - routes, pages, server actions
+- `components/` - UI and feature components
+- `lib/` - shared runtime, auth, storage, AI, utilities
+- `prisma/` - schema and migrations
+- `server/` - services, selectors, and policy layer
+
+## Contact
+
+- Website: [https://webcoinlabs.com](https://webcoinlabs.com)
+- Product access: [https://app.webcoinlabs.com/login](https://app.webcoinlabs.com/login)
+
