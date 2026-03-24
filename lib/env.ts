@@ -41,6 +41,7 @@ if (!parsed.success) {
 }
 
 const data = parsed.data;
+const isProdBuild = data.NODE_ENV === "production" && process.env.NEXT_PHASE === "phase-production-build";
 const placeholderEndpointPattern = /<\s*accountid\s*>/i;
 const normalizedR2Endpoint = data.R2_ENDPOINT?.trim()
   ? placeholderEndpointPattern.test(data.R2_ENDPOINT)
@@ -48,24 +49,26 @@ const normalizedR2Endpoint = data.R2_ENDPOINT?.trim()
     : data.R2_ENDPOINT.trim()
   : undefined;
 
-if (data.NODE_ENV === "production" && !data.NEXTAUTH_URL) {
-  throw new Error("NEXTAUTH_URL must be set in production.");
-}
+if (!isProdBuild) {
+  if (data.NODE_ENV === "production" && !data.NEXTAUTH_URL) {
+    throw new Error("NEXTAUTH_URL must be set in production.");
+  }
 
-if (data.STORAGE_PROVIDER === "r2") {
-  const required = ["R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET_NAME"] as const;
-  for (const key of required) {
-    if (!data[key]) throw new Error(`${key} must be set when STORAGE_PROVIDER=r2.`);
-  }
-  if (!normalizedR2Endpoint && !data.R2_ACCOUNT_ID) {
-    throw new Error("R2_ENDPOINT or R2_ACCOUNT_ID must be set when STORAGE_PROVIDER=r2.");
-  }
-  if (normalizedR2Endpoint) {
-    try {
-      // eslint-disable-next-line no-new
-      new URL(normalizedR2Endpoint);
-    } catch {
-      throw new Error("R2_ENDPOINT must be a valid URL when STORAGE_PROVIDER=r2.");
+  if (data.STORAGE_PROVIDER === "r2") {
+    const required = ["R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET_NAME"] as const;
+    for (const key of required) {
+      if (!data[key]) throw new Error(`${key} must be set when STORAGE_PROVIDER=r2.`);
+    }
+    if (!normalizedR2Endpoint && !data.R2_ACCOUNT_ID) {
+      throw new Error("R2_ENDPOINT or R2_ACCOUNT_ID must be set when STORAGE_PROVIDER=r2.");
+    }
+    if (normalizedR2Endpoint) {
+      try {
+        // eslint-disable-next-line no-new
+        new URL(normalizedR2Endpoint);
+      } catch {
+        throw new Error("R2_ENDPOINT must be a valid URL when STORAGE_PROVIDER=r2.");
+      }
     }
   }
 }
@@ -80,7 +83,7 @@ if (hasGitHub && (!data.GITHUB_CLIENT_ID || !data.GITHUB_CLIENT_SECRET)) {
   throw new Error("GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET must both be set.");
 }
 
-if (data.NODE_ENV === "production" && !data.GEMINI_API_KEY) {
+if (!isProdBuild && data.NODE_ENV === "production" && !data.GEMINI_API_KEY) {
   throw new Error("GEMINI_API_KEY must be set in production for pitch analysis flows.");
 }
 
