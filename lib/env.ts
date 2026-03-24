@@ -42,6 +42,7 @@ if (!parsed.success) {
 
 const data = parsed.data;
 const isProdBuild = data.NODE_ENV === "production" && process.env.NEXT_PHASE === "phase-production-build";
+const isProdRuntime = data.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build";
 const placeholderEndpointPattern = /<\s*accountid\s*>/i;
 const normalizedR2Endpoint = data.R2_ENDPOINT?.trim()
   ? placeholderEndpointPattern.test(data.R2_ENDPOINT)
@@ -54,7 +55,15 @@ if (!isProdBuild) {
     throw new Error("NEXTAUTH_URL must be set in production.");
   }
 
-  if (data.STORAGE_PROVIDER === "r2") {
+  const hasAnyR2Config =
+    Boolean(data.R2_ACCESS_KEY_ID) ||
+    Boolean(data.R2_SECRET_ACCESS_KEY) ||
+    Boolean(data.R2_BUCKET_NAME) ||
+    Boolean(data.R2_ENDPOINT) ||
+    Boolean(data.R2_ACCOUNT_ID);
+
+  // Validate R2 settings only when explicitly configured.
+  if (data.STORAGE_PROVIDER === "r2" && hasAnyR2Config) {
     const required = ["R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET_NAME"] as const;
     for (const key of required) {
       if (!data[key]) throw new Error(`${key} must be set when STORAGE_PROVIDER=r2.`);
@@ -91,23 +100,22 @@ if (data.OPENCLAW_BASE_URL && !data.OPENCLAW_API_KEY) {
   throw new Error("OPENCLAW_API_KEY must be set when OPENCLAW_BASE_URL is configured.");
 }
 
-const isProdRuntime = data.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build";
-
 if (isProdRuntime) {
-  if (!data.UPSTASH_REDIS_REST_URL || !data.UPSTASH_REDIS_REST_TOKEN) {
-    throw new Error("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set in production.");
+  // Optional integrations should not take down core pages if omitted.
+  if (data.UPSTASH_REDIS_REST_URL) {
+    try {
+      // eslint-disable-next-line no-new
+      new URL(data.UPSTASH_REDIS_REST_URL);
+    } catch {
+      throw new Error("UPSTASH_REDIS_REST_URL must be a valid URL in production.");
+    }
+    if (!data.UPSTASH_REDIS_REST_TOKEN) {
+      throw new Error("UPSTASH_REDIS_REST_TOKEN must be set when UPSTASH_REDIS_REST_URL is configured.");
+    }
   }
-  try {
-    // eslint-disable-next-line no-new
-    new URL(data.UPSTASH_REDIS_REST_URL);
-  } catch {
-    throw new Error("UPSTASH_REDIS_REST_URL must be a valid URL in production.");
-  }
-  if (!data.INTERNAL_JOBS_SECRET) {
-    throw new Error("INTERNAL_JOBS_SECRET must be set in production.");
-  }
-  if (!data.OPENCLAW_BASE_URL || !data.OPENCLAW_API_KEY || !data.APP_ENCRYPTION_SECRET) {
-    throw new Error("OPENCLAW_BASE_URL, OPENCLAW_API_KEY, and APP_ENCRYPTION_SECRET must be set in production.");
+
+  if (data.OPENCLAW_BASE_URL && (!data.OPENCLAW_API_KEY || !data.APP_ENCRYPTION_SECRET)) {
+    throw new Error("OPENCLAW_API_KEY and APP_ENCRYPTION_SECRET must be set when OPENCLAW_BASE_URL is configured.");
   }
 }
 

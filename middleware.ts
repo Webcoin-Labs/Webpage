@@ -5,6 +5,13 @@ export default withAuth(
     function middleware(req) {
         const { pathname } = req.nextUrl;
         const token = req.nextauth.token;
+        const host = (req.headers.get("host") ?? "").toLowerCase();
+
+        // Keep marketing site on apex domain, but auth UI on app subdomain.
+        if ((host === "webcoinlabs.com" || host === "www.webcoinlabs.com") && pathname.startsWith("/login")) {
+            const target = new URL(`https://app.webcoinlabs.com${pathname}${req.nextUrl.search}`);
+            return NextResponse.redirect(target);
+        }
 
         // Admin-only routes
         if (pathname.startsWith("/app/admin") && token?.role !== "ADMIN") {
@@ -30,5 +37,5 @@ export default withAuth(
 );
 
 export const config = {
-    matcher: ["/app/:path*", "/api/profiles/contact/:path*"],
+    matcher: ["/app/:path*", "/api/profiles/contact/:path*", "/login/:path*"],
 };
