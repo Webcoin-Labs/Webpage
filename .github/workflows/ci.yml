@@ -47,6 +47,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
       # CI uses a fresh ephemeral DB; sync schema directly to avoid historical
       # migration-chain drift from blocking quality checks.
       - run: pnpm prisma db push --skip-generate
@@ -109,6 +110,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
       # CI uses a fresh ephemeral DB; sync schema directly to avoid historical
       # migration-chain drift from blocking e2e smoke checks.
       - run: pnpm prisma db push --skip-generate
