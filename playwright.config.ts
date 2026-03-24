@@ -32,7 +32,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "pnpm run build && pnpm exec next start -- -p 3000",
+    command: "pnpm run build && pnpm exec next start -p 3000",
     port: 3000,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
