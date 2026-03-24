@@ -35,26 +35,15 @@ Webcoin Labs is currently running a phased-compat refactor:
 - NextAuth
 - Server Actions for secure mutations
 
-## Founder OS Expansion Hardening
+## Founder OS expansion (schema)
 
-- Detailed status, remaining work, manual ops, and timeline are tracked in:
-  - `docs/founder-os-expansion-status.md`
-- Forward-safe SQL migration for hardening changes:
-  - `prisma/migrations/20260321133000_founder_os_expansion_hardening/migration.sql`
-- One-command SQL apply helper:
-  - `pnpm db:apply:founder-hardening`
+- Hardening SQL: `prisma/migrations/20260321133000_founder_os_expansion_hardening/migration.sql`
+- Optional one-command apply: `pnpm db:apply:founder-hardening`
 
-## Canonical Graph Foundation Migration
+## Canonical graph (schema)
 
-New additive canonical models + bridges are available via:
-- `prisma/migrations/20260323070000_add_canonical_graph_foundation/migration.sql`
-
-Recommended rollout:
-1. Apply migration on staging.
-2. Run canonical backfill:
-   - `pnpm db:backfill:canonical`
-3. Validate Founder/Builder/Investor/Admin critical flows.
-4. Apply to production during low-traffic window.
+- Migration: `prisma/migrations/20260323070000_add_canonical_graph_foundation/migration.sql`
+- Optional backfill: `pnpm db:backfill:canonical`
 
 ## Final Information Architecture
 
@@ -295,13 +284,15 @@ pnpm dev
 
 ## Environment Variables
 
-Use `.env.example` as baseline and ensure these are configured:
+Keep secrets in local `.env` / `.env.local` only (never commit them). Configure at least:
 
 - `DATABASE_URL`
 - `NEXTAUTH_SECRET`
 - `NEXTAUTH_URL`
 - OAuth keys as needed (`GOOGLE_*`, `GITHUB_*`)
-- AI/storage variables depending on deployment mode
+- Storage (`STORAGE_PROVIDER`, and either `LOCAL_STORAGE_ROOT` or R2 variables)
+- AI (`GEMINI_API_KEY`, optional `GEMINI_MODEL`) if you use pitch analysis
+- Production also requires the integration/redis fields validated in `lib/env.ts`
 
 ## Architecture Notes
 
