@@ -7,6 +7,17 @@ export default withAuth(
         const token = req.nextauth.token;
         const host = (req.headers.get("host") ?? "").toLowerCase();
 
+        // Normalize accidental www prefix on the app subdomain.
+        if (host === "www.app.webcoinlabs.com") {
+            const target = new URL(`https://app.webcoinlabs.com${pathname}${req.nextUrl.search}`);
+            return NextResponse.redirect(target);
+        }
+
+        // App subdomain root should open auth entrypoint.
+        if (host === "app.webcoinlabs.com" && pathname === "/") {
+            return NextResponse.redirect(new URL("/login", req.url));
+        }
+
         // Keep marketing site on apex domain, but auth UI on app subdomain.
         if ((host === "webcoinlabs.com" || host === "www.webcoinlabs.com") && pathname.startsWith("/login")) {
             const target = new URL(`https://app.webcoinlabs.com${pathname}${req.nextUrl.search}`);
