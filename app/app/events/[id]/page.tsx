@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Calendar, Video, MapPin, Users, FileText } from "lucide-react";
@@ -19,7 +19,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const event = await prisma.event.findUnique({
+  const event = await db.event.findUnique({
     where: { id },
     select: { title: true, summary: true },
   });
@@ -38,7 +38,7 @@ export default async function EventDetailPage({
   const session = await getServerSession(authOptions);
   const { id } = await params;
 
-  const event = await prisma.event.findUnique({
+  const event = await db.event.findUnique({
     where: { id },
     include: {
       _count: { select: { rsvps: true } },

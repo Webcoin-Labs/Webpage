@@ -1,13 +1,13 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { RewardsList } from "./RewardsList";
 
 export const metadata = { title: "Rewards — Webcoin Labs" };
 
 export default async function RewardsPage() {
   const session = await getServerSession(authOptions);
-  const rewards = await prisma.reward.findMany({
+  const rewards = await db.reward.findMany({
     where: { userId: session!.user.id },
     orderBy: { createdAt: "desc" },
   });

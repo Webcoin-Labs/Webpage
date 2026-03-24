@@ -132,6 +132,41 @@ enum UploadAssetType {
   OTHER
 }
 
+enum StartupStage {
+  IDEA
+  MVP
+  EARLY
+  GROWTH
+}
+
+enum StartupChainFocus {
+  SOLANA
+  BASE
+  ETHEREUM
+  ARC
+}
+
+enum BadgeType {
+  ARC_DEVELOPER
+  SOLANA_DEVELOPER
+  ETHEREUM_DEVELOPER
+  BASE_BUILDER
+}
+
+enum InvestorIntroStatus {
+  PENDING
+  REVIEWING
+  ACCEPTED
+  DECLINED
+}
+
+enum ChatContextType {
+  GENERAL
+  HIRING
+  FUNDING
+  BUILD
+}
+
 enum UploadModerationStatus {
   ACTIVE
   FLAGGED
@@ -151,6 +186,172 @@ enum UploadModerationAction {
   REPROCESSING_SUCCEEDED
   REPROCESSING_FAILED
   NOTE_UPDATED
+}
+
+enum WorkspaceType {
+  FOUNDER_OS
+  BUILDER_OS
+  INVESTOR_OS
+}
+
+enum WorkspaceAccessStatus {
+  ENABLED
+  DISABLED
+}
+
+enum InvestorType {
+  ANGEL
+  VENTURE_FUND
+  SCOUT
+  OPERATOR_INVESTOR
+}
+
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INACTIVE
+}
+
+enum WalletNetwork {
+  EVM
+  SOLANA
+}
+
+enum WalletProvider {
+  METAMASK
+  COINBASE
+  PHANTOM
+  WALLETCONNECT
+  PRIVY_EMBEDDED
+  OTHER
+}
+
+enum IntegrationProvider {
+  GMAIL
+  GOOGLE_CALENDAR
+  NOTION
+  GITHUB
+  JIRA
+  CALENDLY
+  CAL_DOT_COM
+  FARCASTER
+}
+
+enum IntegrationStatus {
+  CONNECTED
+  DISCONNECTED
+  ERROR
+}
+
+enum InvestorApplicationReviewStatus {
+  NEW
+  REVIEWING
+  INTERESTED
+  MEETING_SCHEDULED
+  PASSED
+}
+
+enum ScoreKind {
+  FOUNDER_LAUNCH_READINESS
+  BUILDER_PROOF
+  INVESTOR_FIT_HELPER
+}
+
+enum ScoreStatus {
+  ACTIVE
+  UNDER_REVIEW
+  OVERRIDDEN
+  ARCHIVED
+}
+
+enum DiligenceStatus {
+  DRAFT
+  IN_REVIEW
+  FINAL
+  ARCHIVED
+}
+
+enum AdminAssignmentType {
+  BUILDER_TO_FOUNDER
+  FOUNDER_TO_INVESTOR
+  INVESTOR_TO_VENTURE_REVIEW
+  PROFILE_REVIEW
+  TRUST_REVIEW
+}
+
+enum AdminAssignmentStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  DISMISSED
+}
+
+enum VisibilityEntityType {
+  VENTURE
+  BUILDER_PROFILE
+  FOUNDER_PROFILE
+  INVESTOR_PROFILE
+  APPLICATION
+  PITCH_DECK
+  MEETING
+  NOTE
+}
+
+enum VisibilityAccessLevel {
+  PRIVATE
+  INTERNAL
+  SHARED
+  PUBLIC
+}
+
+enum MiniAppPlatform {
+  BASE
+  FARCASTER
+  OTHER
+}
+
+enum OpenClawConnectionStatus {
+  CONNECTED
+  ERROR
+  DISCONNECTED
+}
+
+enum TelegramWorkspaceType {
+  CHANNEL
+  GROUP
+  DM
+}
+
+enum TelegramMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum RaiseRoundStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  CLOSED
+}
+
+enum InvestorCommitmentStatus {
+  INTERESTED
+  SOFT_COMMITTED
+  REVIEWING
+  PASSED
+}
+
+enum TokenomicsUploadStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
 }
 
 model Account {
@@ -240,6 +441,9 @@ model User {
   username           String?   @unique  // unique handle for login (e.g. @johndoe)
   password           String?   @db.Text // bcrypt hash; null for OAuth-only users
   role               Role      @default(BUILDER)
+  bio                String?   @db.Text
+  educationBackground String?  @db.Text
+  socialLinks        Json?
   onboardingComplete Boolean   @default(false)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -265,6 +469,64 @@ model User {
   moderatedUploadAssets   UploadAsset[]         @relation("UploadAssetModerator")
   avatarUploadAsset       UploadAsset?          @relation("UserAvatarAsset")
   uploadModerationLogs    UploadModerationLog[] @relation("UploadModerationActor")
+  startups                Startup[]             @relation("StartupFounder")
+  founderProfileExtended  FounderProfileExtended?
+  cofounderPreferences    CofounderPreferences?
+  investor                Investor?
+  githubConnection        GithubConnection?
+  badges                  UserBadge[]
+  investorIntroRequests   InvestorIntroRequest[] @relation("InvestorIntroFounder")
+  chatThreadsCreated      ChatThread[]          @relation("ChatThreadCreator")
+  chatParticipants        ChatParticipant[]
+  chatMessages            ChatMessage[]
+  meetingLink             MeetingLink?
+  meetingsAsHost          MeetingRecord[]       @relation("MeetingHost")
+  meetingsAsAttendee      MeetingRecord[]       @relation("MeetingAttendee")
+  marketSignals           MarketSignal[]        @relation("MarketSignalAuthor")
+  founderMarketInsights   FounderMarketInsight[]
+  startupRatingsGiven     StartupRating[]       @relation("StartupRatingReviewer")
+  builderProjects         BuilderProject[]      @relation("BuilderProjects")
+  notificationsCreated    Notification[]        @relation("NotificationCreator")
+  notificationReads       NotificationRead[]
+  inviteCodesCreated      InviteOnlyCode[]      @relation("InviteCodeCreator")
+  inviteOnlyMembership    InviteOnlyMembership?
+  workspaceMemberships    UserWorkspace[]
+  walletConnections       WalletConnection[]
+  integrationConnections  IntegrationConnection[]
+  publicProfileSettings   PublicProfileSettings?
+  premiumSubscription     PremiumSubscription?
+  founderInvestorQuota    FounderInvestorRequestQuota?
+  resumeDocuments         ResumeDocument[]
+  coverLetterDrafts       CoverLetterDraft[]
+  ownedVentures           Venture[]             @relation("VentureOwner")
+  investorApplicationsSent InvestorApplication[] @relation("InvestorApplicationFounder")
+  investorApplicationsReceived InvestorApplication[] @relation("InvestorApplicationInvestor")
+  investorCompanyMemberships InvestorCompanyMember[]
+  miniApps                MiniAppMetadata[]     @relation("MiniAppOwner")
+  emailThreads            EmailThread[]
+  workspaceMeetingsHost   WorkspaceMeeting[]    @relation("WorkspaceMeetingHost")
+  workspaceMeetingsGuest  WorkspaceMeeting[]    @relation("WorkspaceMeetingGuest")
+  openClawConnection      OpenClawConnection?
+  telegramMessagesSent    TelegramMessage[]      @relation("TelegramMessageSender")
+  telegramMessagesReceived TelegramMessage[]     @relation("TelegramMessageRecipient")
+  tokenomicsModelsCreated TokenomicsModel[]      @relation("TokenomicsModelCreator")
+  tokenomicsUploads       TokenomicsUpload[]
+  investorCommitments     InvestorCommitment[]   @relation("InvestorCommitmentInvestor")
+  raiseRoundsOwned        RaiseRound[]           @relation("RaiseRoundFounder")
+  profileLinksFrom        ProfileLink[]          @relation("ProfileLinkFrom")
+  profileLinksTo          ProfileLink[]          @relation("ProfileLinkTo")
+  tokenomicsScenarioRevisions TokenomicsScenarioRevision[] @relation("TokenomicsScenarioRevisionAuthor")
+  scoreSnapshotsSubject   ScoreSnapshot[]        @relation("ScoreSnapshotSubject")
+  scoreSnapshotsOverridden ScoreSnapshot[]       @relation("ScoreSnapshotOverriddenBy")
+  diligenceMemosAuthored  DiligenceMemo[]        @relation("DiligenceMemoAuthor")
+  adminAssignmentsCreated AdminAssignment[]      @relation("AdminAssignmentCreatedBy")
+  adminAssignmentsOwned   AdminAssignment[]      @relation("AdminAssignmentAssignee")
+  adminAssignmentsFounder AdminAssignment[]      @relation("AdminAssignmentFounder")
+  adminAssignmentsBuilder AdminAssignment[]      @relation("AdminAssignmentBuilder")
+  adminAssignmentsInvestor AdminAssignment[]     @relation("AdminAssignmentInvestor")
+  visibilityRulesAllowed  VisibilityRule[]       @relation("VisibilityRuleAllowedUser")
+  visibilityRulesCreated  VisibilityRule[]       @relation("VisibilityRuleCreatedBy")
+  mutationAuditLogs       MutationAuditLog[]
 }
 
 model VerificationToken {
@@ -297,6 +559,15 @@ model BuilderProfile {
   portfolioUrl          String?
   experience            String?
   interests             String[]
+  achievements          String?  @db.Text
+  openSourceContributions String? @db.Text
+  educationBackground   String?  @db.Text
+  stack                 String[] @default([])
+  chainExpertise        String[] @default([])
+  availability          String?
+  lookingForRoles       String[] @default([])
+  coverLetterProfile    String? @db.Text
+  resumeUrl             String?
   publicVisible         Boolean  @default(true)
   verifiedByWebcoinLabs Boolean  @default(false)
   createdAt             DateTime @default(now())
@@ -325,11 +596,17 @@ model FounderProfile {
   projectStage          ProjectStage?
   chainFocus            String?
   currentNeeds          String[] @default([])
+  educationBackground   String?  @db.Text
+  founderDescription    String?  @db.Text
+  lookingFor            String[] @default([])
+  farcasterMiniAppUrl   String?
+  baseMiniAppUrl        String?
   website               String?
   pitchDeckUrl          String?
   linkedin              String?
   telegram              String?
   twitter               String?
+  publicVisible         Boolean  @default(true)
   verifiedByWebcoinLabs Boolean  @default(false)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -338,22 +615,39 @@ model FounderProfile {
   pitchDecks PitchDeck[]
   hiringInterests HiringInterest[]
   logoUploadAsset UploadAsset? @relation("FounderLogoAsset")
+
+  @@index([isHiring, updatedAt])
 }
 
 model InvestorProfile {
   id        String   @id @default(cuid())
   userId    String   @unique
+  investorType InvestorType?
+  headline  String?
   firmName  String?
+  companyId String?
   roleTitle String?
   focus     String?
   location  String?
   website   String?
   linkedin  String?
   twitter   String?
+  ticketSize String?
+  stageFocus String[] @default([])
+  chainFocus String[] @default([])
+  sectorFocus String[] @default([])
+  geography  String?
+  checkSizeMin Int?
+  checkSizeMax Int?
+  lookingFor String?
+  investmentThesis String? @db.Text
+  isPublic   Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company InvestorCompany? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  legacyInvestorRecord Investor? @relation("InvestorCanonicalProfile")
 }
 
 model Project {
@@ -368,15 +662,20 @@ model Project {
   websiteUrl            String?
   githubUrl             String?
   twitterUrl            String?
+  canonicalVentureId    String?
   publicVisible         Boolean      @default(true)
   verifiedByWebcoinLabs Boolean      @default(false)
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
   owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  canonicalVenture Venture? @relation("ProjectCanonicalVenture", fields: [canonicalVentureId], references: [id], onDelete: SetNull)
   sourceIntros IntroRequest[]
   pitchDecks   PitchDeck[]
   jobPosts     JobPost[]
+
+  @@index([ownerUserId, updatedAt])
+  @@index([canonicalVentureId])
 }
 
 model Application {
@@ -392,6 +691,8 @@ model Application {
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   event Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
 }
 
 model Event {
@@ -487,6 +788,9 @@ model IntroRequest {
   sourceProject Project? @relation(fields: [sourceProjectId], references: [id], onDelete: SetNull)
   targetUser   User?    @relation("IntroTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
   targetPartner Partner? @relation(fields: [targetPartnerId], references: [id], onDelete: SetNull)
+
+  @@index([founderId, createdAt])
+  @@index([founderId, type, updatedAt])
 }
 
 model Lead {
@@ -535,7 +839,720 @@ model PitchDeck {
   founderProfile FounderProfile? @relation(fields: [founderProfileId], references: [id], onDelete: SetNull)
   project       Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
   reports       AIReport[]
+  assignments   PitchDeckAssignment[]
+  investorApplications InvestorApplication[]
   uploadAsset   UploadAsset?   @relation("PitchDeckUploadAsset")
+
+  @@index([userId, createdAt])
+}
+
+model UserWorkspace {
+  id         String                @id @default(cuid())
+  userId     String
+  workspace  WorkspaceType
+  status     WorkspaceAccessStatus @default(ENABLED)
+  isDefault  Boolean               @default(false)
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspace])
+  @@index([workspace, status])
+}
+
+model WalletConnection {
+  id              String         @id @default(cuid())
+  userId          String
+  network         WalletNetwork
+  provider        WalletProvider
+  address         String
+  isPrimary       Boolean        @default(false)
+  verifiedAt      DateTime?
+  signatureDigest String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([network, address])
+  @@index([userId, network, createdAt])
+}
+
+model IntegrationConnection {
+  id             String            @id @default(cuid())
+  userId         String
+  provider       IntegrationProvider
+  status         IntegrationStatus @default(DISCONNECTED)
+  externalUserId String?
+  externalEmail  String?
+  scopes         String[]          @default([])
+  encryptedToken String?           @db.Text
+  refreshToken   String?           @db.Text
+  lastSyncedAt   DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([provider, status, updatedAt])
+}
+
+model InvestorCompany {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String   @unique
+  logoUrl     String?
+  description String?  @db.Text
+  website     String?
+  linkedin    String?
+  twitter     String?
+  location    String?
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members          InvestorCompanyMember[]
+  investorProfiles InvestorProfile[]
+}
+
+model InvestorCompanyMember {
+  id           String   @id @default(cuid())
+  userId       String
+  companyId    String
+  roleTitle    String?
+  isPrimary    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company InvestorCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId, createdAt])
+}
+
+model Venture {
+  id                String   @id @default(cuid())
+  ownerUserId       String
+  name              String
+  slug              String?  @unique
+  tagline           String?
+  description       String?  @db.Text
+  website           String?
+  githubUrl         String?
+  linkedin          String?
+  twitter           String?
+  chainEcosystem    String?
+  stage             String?
+  contractAddress   String?
+  docsUrl           String?
+  miniAppUrl        String?
+  farcasterAppUrl   String?
+  baseMiniAppUrl    String?
+  isPublic          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  owner       User                  @relation("VentureOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  members     VentureMember[]
+  assignments PitchDeckAssignment[]
+  applications InvestorApplication[]
+  raiseRounds RaiseRound[]
+  tokenomicsModels TokenomicsModel[]
+  scoreSnapshots ScoreSnapshot[]
+  diligenceMemos DiligenceMemo[]
+  adminAssignments AdminAssignment[]
+  legacyProjects Project[]        @relation("ProjectCanonicalVenture")
+  legacyStartups Startup[]        @relation("StartupCanonicalVenture")
+}
+
+model VentureMember {
+  id         String   @id @default(cuid())
+  ventureId  String
+  userId     String?
+  memberName String
+  role       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  venture Venture @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+
+  @@index([ventureId, createdAt])
+}
+
+model PitchDeckAssignment {
+  id          String   @id @default(cuid())
+  pitchDeckId String
+  ventureId   String
+  assignedById String
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  pitchDeck PitchDeck @relation(fields: [pitchDeckId], references: [id], onDelete: Cascade)
+  venture   Venture   @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+
+  @@unique([pitchDeckId, ventureId])
+  @@index([ventureId, createdAt])
+}
+
+model InvestorApplication {
+  id            String                          @id @default(cuid())
+  founderUserId String
+  investorUserId String
+  ventureId     String
+  pitchDeckId   String?
+  note          String?                         @db.Text
+  readinessScore Int?
+  investorFitScore Int?
+  status        InvestorApplicationReviewStatus @default(NEW)
+  createdAt     DateTime                        @default(now())
+  updatedAt     DateTime                        @updatedAt
+
+  founder  User      @relation("InvestorApplicationFounder", fields: [founderUserId], references: [id], onDelete: Cascade)
+  investor User      @relation("InvestorApplicationInvestor", fields: [investorUserId], references: [id], onDelete: Cascade)
+  venture  Venture   @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+  pitchDeck PitchDeck? @relation(fields: [pitchDeckId], references: [id], onDelete: SetNull)
+
+  @@index([founderUserId, createdAt])
+  @@index([investorUserId, status, updatedAt])
+}
+
+model ScoreSnapshot {
+  id                  String      @id @default(cuid())
+  kind                ScoreKind
+  status              ScoreStatus @default(ACTIVE)
+  label               String?
+  score               Int
+  sourceVersion       String      @default("v1")
+  factorsJson         Json
+  scoredUserId        String?
+  ventureId           String?
+  overriddenByAdminId String?
+  overrideReason      String?     @db.Text
+  computedAt          DateTime    @default(now())
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  scoredUser         User?    @relation("ScoreSnapshotSubject", fields: [scoredUserId], references: [id], onDelete: SetNull)
+  venture            Venture? @relation(fields: [ventureId], references: [id], onDelete: SetNull)
+  overriddenByAdmin  User?    @relation("ScoreSnapshotOverriddenBy", fields: [overriddenByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([kind, status, computedAt])
+  @@index([scoredUserId, kind, computedAt])
+  @@index([ventureId, kind, computedAt])
+}
+
+model DiligenceMemo {
+  id            String          @id @default(cuid())
+  ventureId      String
+  authorUserId   String
+  title          String
+  status         DiligenceStatus @default(DRAFT)
+  summary        String?         @db.Text
+  sectionsJson   Json?
+  riskFlagsJson  Json?
+  version        Int             @default(1)
+  isInternal     Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  venture Venture @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+  author  User    @relation("DiligenceMemoAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+
+  @@index([ventureId, status, updatedAt])
+  @@index([authorUserId, updatedAt])
+}
+
+model AdminAssignment {
+  id               String                @id @default(cuid())
+  type             AdminAssignmentType
+  status           AdminAssignmentStatus @default(OPEN)
+  createdByAdminId String
+  assigneeAdminId  String?
+  founderUserId    String?
+  builderUserId    String?
+  investorUserId   String?
+  ventureId        String?
+  legacyJobPostId  String?
+  note             String?               @db.Text
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  resolvedAt       DateTime?
+
+  createdByAdmin User    @relation("AdminAssignmentCreatedBy", fields: [createdByAdminId], references: [id], onDelete: Cascade)
+  assigneeAdmin  User?   @relation("AdminAssignmentAssignee", fields: [assigneeAdminId], references: [id], onDelete: SetNull)
+  founderUser    User?   @relation("AdminAssignmentFounder", fields: [founderUserId], references: [id], onDelete: SetNull)
+  builderUser    User?   @relation("AdminAssignmentBuilder", fields: [builderUserId], references: [id], onDelete: SetNull)
+  investorUser   User?   @relation("AdminAssignmentInvestor", fields: [investorUserId], references: [id], onDelete: SetNull)
+  venture        Venture? @relation(fields: [ventureId], references: [id], onDelete: SetNull)
+  legacyJobPost  JobPost? @relation(fields: [legacyJobPostId], references: [id], onDelete: SetNull)
+
+  @@index([status, type, updatedAt])
+  @@index([assigneeAdminId, status, updatedAt])
+  @@index([ventureId, status, updatedAt])
+}
+
+model VisibilityRule {
+  id               String              @id @default(cuid())
+  entityType       VisibilityEntityType
+  entityId         String
+  accessLevel      VisibilityAccessLevel
+  appliesToRole    Role?
+  allowedUserId    String?
+  createdByAdminId String?
+  reason           String?             @db.Text
+  isActive         Boolean             @default(true)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  allowedUser    User? @relation("VisibilityRuleAllowedUser", fields: [allowedUserId], references: [id], onDelete: SetNull)
+  createdByAdmin User? @relation("VisibilityRuleCreatedBy", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, isActive])
+  @@index([appliesToRole, isActive])
+  @@index([allowedUserId, isActive])
+}
+
+model FounderInvestorRequestQuota {
+  id            String           @id @default(cuid())
+  userId        String           @unique
+  cycleStart    DateTime
+  cycleEnd      DateTime
+  sentCount     Int              @default(0)
+  limitCount    Int              @default(3)
+  tierSnapshot  SubscriptionTier @default(FREE)
+  updatedAt     DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PremiumSubscription {
+  id         String             @id @default(cuid())
+  userId     String             @unique
+  tier       SubscriptionTier   @default(FREE)
+  status     SubscriptionStatus @default(INACTIVE)
+  startedAt  DateTime?
+  renewedAt  DateTime?
+  expiresAt  DateTime?
+  provider   String?
+  externalId String?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PublicProfileSettings {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  founderProfileLive Boolean  @default(true)
+  builderProfileLive Boolean  @default(true)
+  investorProfileLive Boolean @default(true)
+  showEmail          Boolean  @default(false)
+  showWallets        Boolean  @default(true)
+  showTelegramToInvestors Boolean @default(true)
+  showLinkedinToInvestors Boolean @default(true)
+  showEmailToInvestors Boolean @default(false)
+  updatedAt          DateTime @updatedAt
+  createdAt          DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MiniAppMetadata {
+  id                 String          @id @default(cuid())
+  ownerUserId        String
+  platform           MiniAppPlatform
+  sourceUrl          String
+  appName            String?
+  manifestUrl        String?
+  iconUrl            String?
+  chain              String?
+  metadataJson       Json?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  owner User @relation("MiniAppOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@index([ownerUserId, platform, updatedAt])
+}
+
+model ResumeDocument {
+  id          String   @id @default(cuid())
+  userId      String
+  fileUrl     String
+  storageKey  String?
+  fileName    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model CoverLetterDraft {
+  id             String   @id @default(cuid())
+  userId         String
+  targetRoleType String?
+  opportunityType String?
+  companyName    String?
+  content        String   @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+}
+
+model EmailThread {
+  id               String   @id @default(cuid())
+  userId           String
+  externalThreadId String
+  subject          String?
+  category         String?
+  summary          String?  @db.Text
+  provider         String?
+  lastMessageAt    DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages EmailMessageMeta[]
+
+  @@unique([userId, externalThreadId])
+  @@index([userId, updatedAt])
+}
+
+model EmailMessageMeta {
+  id             String   @id @default(cuid())
+  threadId       String
+  externalMessageId String
+  fromEmail      String?
+  snippet        String?  @db.Text
+  receivedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  thread EmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, externalMessageId])
+  @@index([threadId, createdAt])
+}
+
+model WorkspaceMeeting {
+  id            String   @id @default(cuid())
+  hostUserId    String
+  guestUserId   String?
+  provider      String?
+  externalEventId String?
+  title         String
+  scheduledAt   DateTime
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  host  User  @relation("WorkspaceMeetingHost", fields: [hostUserId], references: [id], onDelete: Cascade)
+  guest User? @relation("WorkspaceMeetingGuest", fields: [guestUserId], references: [id], onDelete: SetNull)
+
+  @@index([hostUserId, scheduledAt])
+  @@index([guestUserId, scheduledAt])
+}
+
+model EventsModuleState {
+  id            String   @id @default(cuid())
+  userId        String?  @unique
+  sectionKey    String   @default("events")
+  expansionNote String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model OpenClawConnection {
+  id                    String                    @id @default(cuid())
+  userId                String                    @unique
+  status                OpenClawConnectionStatus  @default(CONNECTED)
+  encryptedAccessToken  String?                   @db.Text
+  encryptedRefreshToken String?                   @db.Text
+  tokenExpiresAt        DateTime?
+  baseUrl               String?
+  externalWorkspaceId   String?
+  lastSyncedAt          DateTime?
+  connectedAt           DateTime                  @default(now())
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaces  TelegramWorkspace[]
+}
+
+model TelegramWorkspace {
+  id                String                @id @default(cuid())
+  connectionId      String
+  externalId        String
+  workspaceType     TelegramWorkspaceType
+  title             String?
+  username          String?
+  isSelected        Boolean               @default(true)
+  lastSyncedAt      DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  connection OpenClawConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  threads    TelegramThread[]
+
+  @@unique([connectionId, externalId])
+  @@index([connectionId, updatedAt])
+}
+
+model TelegramThread {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  externalThreadId   String
+  title              String?
+  lastMessageAt      DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  workspace TelegramWorkspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  syncState TelegramMessageSyncState?
+  messages  TelegramMessage[]
+
+  @@unique([workspaceId, externalThreadId])
+  @@index([workspaceId, updatedAt])
+}
+
+model TelegramMessageSyncState {
+  id          String   @id @default(cuid())
+  threadId    String   @unique
+  syncCursor  String?
+  lastSyncedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  thread TelegramThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+}
+
+model TelegramMessage {
+  id                String                   @id @default(cuid())
+  threadId          String
+  externalMessageId String?
+  senderUserId      String?
+  recipientUserId   String?
+  direction         TelegramMessageDirection
+  text              String                   @db.Text
+  sentAt            DateTime?
+  createdAt         DateTime                 @default(now())
+
+  thread    TelegramThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender    User?          @relation("TelegramMessageSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+  recipient User?          @relation("TelegramMessageRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
+
+  @@index([threadId, createdAt])
+  @@unique([threadId, externalMessageId])
+}
+
+model RaiseRound {
+  id             String             @id @default(cuid())
+  ventureId      String
+  founderUserId  String
+  roundName      String
+  roundType      String
+  status         RaiseRoundStatus   @default(DRAFT)
+  targetAmount   Decimal            @db.Decimal(24, 4)
+  raisedAmount   Decimal            @db.Decimal(24, 4) @default(0)
+  committedAmount Decimal           @db.Decimal(24, 4) @default(0)
+  interestedAmount Decimal          @db.Decimal(24, 4) @default(0)
+  coverageRatio  Decimal?           @db.Decimal(8, 4)
+  minTicketSize  Decimal?           @db.Decimal(24, 4)
+  maxTicketSize  Decimal?           @db.Decimal(24, 4)
+  currency       String             @default("USD")
+  runwayMonths   Int?
+  closeDate      DateTime?
+  updateNotes    String?            @db.Text
+  isActive       Boolean            @default(false)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  venture      Venture              @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+  founder      User                 @relation("RaiseRoundFounder", fields: [founderUserId], references: [id], onDelete: Cascade)
+  milestones   RaiseMilestone[]
+  builderAsks  BuilderRaiseAsk[]
+  commitments  InvestorCommitment[]
+
+  @@index([ventureId, createdAt])
+  @@index([isActive, status, updatedAt])
+}
+
+model RaiseMilestone {
+  id          String   @id @default(cuid())
+  roundId     String
+  label       String
+  amount      Decimal? @db.Decimal(24, 4)
+  targetDate  DateTime?
+  completed   Boolean  @default(false)
+  note        String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  round RaiseRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@index([roundId, createdAt])
+}
+
+model BuilderRaiseAsk {
+  id              String   @id @default(cuid())
+  roundId          String
+  roleTitle        String
+  skillTags        String[] @default([])
+  askAmount        Decimal? @db.Decimal(24, 4)
+  useOfFunds       String?  @db.Text
+  urgency          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  round RaiseRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@index([roundId, createdAt])
+}
+
+model InvestorCommitment {
+  id              String                    @id @default(cuid())
+  roundId         String
+  investorUserId  String
+  status          InvestorCommitmentStatus  @default(INTERESTED)
+  amount          Decimal?                  @db.Decimal(24, 4)
+  note            String?                   @db.Text
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  round    RaiseRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  investor User      @relation("InvestorCommitmentInvestor", fields: [investorUserId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, investorUserId])
+  @@index([investorUserId, status, updatedAt])
+}
+
+model TokenomicsModel {
+  id             String   @id @default(cuid())
+  ventureId      String
+  createdById    String
+  name           String
+  totalSupply    Decimal  @db.Decimal(38, 10)
+  tokenSymbol    String?
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  venture     Venture             @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+  createdBy   User                @relation("TokenomicsModelCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  scenarios   TokenomicsScenario[]
+  uploads     TokenomicsUpload[]
+
+  @@index([ventureId, createdAt])
+}
+
+model TokenomicsScenario {
+  id                 String   @id @default(cuid())
+  modelId            String
+  name               String
+  fdvAssumption      Decimal? @db.Decimal(24, 4)
+  circulatingSupply  Decimal? @db.Decimal(38, 10)
+  tgeDate            DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  model TokenomicsModel          @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  allocations TokenomicsAllocationRow[]
+  revisions  TokenomicsScenarioRevision[]
+
+  @@index([modelId, createdAt])
+}
+
+model TokenomicsScenarioRevision {
+  id             String   @id @default(cuid())
+  scenarioId     String
+  revisionNumber Int
+  createdById    String
+  reason         String?
+  snapshotJson   Json
+  createdAt      DateTime @default(now())
+
+  scenario  TokenomicsScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  createdBy User               @relation("TokenomicsScenarioRevisionAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@unique([scenarioId, revisionNumber])
+  @@index([scenarioId, createdAt])
+}
+
+model TokenomicsAllocationRow {
+  id                   String   @id @default(cuid())
+  scenarioId           String
+  label                String
+  percentage           Decimal? @db.Decimal(7, 4)
+  tokenAmount          Decimal? @db.Decimal(38, 10)
+  cliffMonths          Int?
+  vestingMonths        Int?
+  unlockCadence        String?
+  notes                String?  @db.Text
+  rowOrder             Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  scenario TokenomicsScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@index([scenarioId, rowOrder])
+}
+
+model TokenomicsUpload {
+  id            String               @id @default(cuid())
+  modelId       String
+  uploadedById  String
+  fileName      String?
+  fileType      String?
+  status        TokenomicsUploadStatus @default(QUEUED)
+  errorMessage  String?              @db.Text
+  payloadJson   Json?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  model      TokenomicsModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  uploadedBy User           @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([modelId, createdAt])
+  @@index([status, updatedAt])
+}
+
+model ProfileLink {
+  id           String   @id @default(cuid())
+  fromUserId   String
+  toUserId     String
+  label        String?
+  createdAt    DateTime @default(now())
+
+  fromUser User @relation("ProfileLinkFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("ProfileLinkTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId])
+  @@index([toUserId, createdAt])
+}
+
+model MutationAuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model AIReport {
@@ -673,6 +1690,7 @@ model JobPost {
   createdBy    User             @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
   project      Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
   applications JobApplication[]
+  adminAssignments AdminAssignment[]
 
   @@index([status, createdAt])
 }
@@ -692,4 +1710,365 @@ model JobApplication {
 
   @@unique([jobId, userId])
   @@index([userId, createdAt])
+}
+
+model Startup {
+  id           String           @id @default(cuid())
+  founderId    String
+  slug         String?          @unique
+  name         String
+  tagline      String?
+  description  String?          @db.Text
+  stage        StartupStage
+  chainFocus   StartupChainFocus
+  website      String?
+  twitter      String?
+  linkedin     String?
+  pitchDeckUrl String?
+  githubRepo   String?
+  problem      String?          @db.Text
+  solution     String?          @db.Text
+  traction     String?          @db.Text
+  revenue      String?
+  usersCount   Int?
+  isHiring     Boolean          @default(false)
+  canonicalVentureId String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  founder               User                   @relation("StartupFounder", fields: [founderId], references: [id], onDelete: Cascade)
+  canonicalVenture      Venture?               @relation("StartupCanonicalVenture", fields: [canonicalVentureId], references: [id], onDelete: SetNull)
+  githubActivity        StartupGithubActivity?
+  investorIntroRequests InvestorIntroRequest[]
+  chatThreads           ChatThread[]
+  meetings              MeetingRecord[]
+  marketInsights        FounderMarketInsight[]
+  ratings               StartupRating[]
+
+  @@index([founderId, createdAt])
+  @@index([stage, chainFocus, createdAt])
+  @@index([canonicalVentureId])
+}
+
+model FounderProfileExtended {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  whyThisStartup     String?  @db.Text
+  problemStatement   String?  @db.Text
+  targetUser         String?  @db.Text
+  businessModel      String?  @db.Text
+  competitors        String?  @db.Text
+  differentiation    String?  @db.Text
+  longTermVision     String?  @db.Text
+  freeTimeActivities String?  @db.Text
+  pastExperience     String?  @db.Text
+  whyYou             String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StartupRating {
+  id         String   @id @default(cuid())
+  startupId  String
+  reviewerId String
+  score      Int
+  note       String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  startup  Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  reviewer User    @relation("StartupRatingReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  @@unique([startupId, reviewerId])
+  @@index([startupId, createdAt])
+  @@index([reviewerId, createdAt])
+}
+
+model CofounderPreferences {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  roleWanted        String
+  equityExpectation String?
+  timeCommitment    String?
+  remotePreference  String?
+  skillsNeeded      String[] @default([])
+  motivation        String?  @db.Text
+  expectations      String?  @db.Text
+  workingStyle      String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GithubConnection {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  username      String
+  profileUrl    String?
+  accessMode    String   @default("mock")
+  connectedAt   DateTime @default(now())
+  lastSyncedAt  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StartupGithubActivity {
+  id                String   @id @default(cuid())
+  startupId          String   @unique
+  repoUrl            String
+  repoName           String
+  lastCommitHash     String?
+  lastCommitMessage  String?
+  lastCommitAt       DateTime?
+  commitActivityJson Json?
+  contributorsJson   Json?
+  techStack          String[] @default([])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  startup Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+}
+
+model UserBadge {
+  id         String    @id @default(cuid())
+  userId     String
+  badgeType  BadgeType
+  verified   Boolean   @default(false)
+  sourceNote String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeType])
+  @@index([badgeType, createdAt])
+}
+
+model Investor {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  canonicalInvestorProfileId String? @unique
+  fundName         String
+  investmentStage  String
+  ticketSize       String?
+  thesis           String?  @db.Text
+  chainsInterested String[] @default([])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  canonicalInvestorProfile InvestorProfile? @relation("InvestorCanonicalProfile", fields: [canonicalInvestorProfileId], references: [id], onDelete: SetNull)
+  introRequests  InvestorIntroRequest[] @relation("InvestorIntroInvestor")
+
+  @@index([canonicalInvestorProfileId])
+}
+
+model InvestorIntroRequest {
+  id                String             @id @default(cuid())
+  founderId         String
+  startupId         String
+  investorUserId    String
+  status            InvestorIntroStatus @default(PENDING)
+  generatedEmail    String?            @db.Text
+  founderNote       String?            @db.Text
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  founder  User     @relation("InvestorIntroFounder", fields: [founderId], references: [id], onDelete: Cascade)
+  startup  Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  investor Investor @relation("InvestorIntroInvestor", fields: [investorUserId], references: [userId], onDelete: Cascade)
+
+  @@index([founderId, createdAt])
+  @@index([investorUserId, createdAt])
+  @@index([startupId, createdAt])
+}
+
+model ChatThread {
+  id              String          @id @default(cuid())
+  startupId       String?
+  createdByUserId String
+  title           String
+  contextType     ChatContextType @default(GENERAL)
+  contextLabel    String?
+  inviteToken     String          @unique
+  isGroup         Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  startup     Startup?          @relation(fields: [startupId], references: [id], onDelete: SetNull)
+  creator     User              @relation("ChatThreadCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  participants ChatParticipant[]
+  messages    ChatMessage[]
+
+  @@index([createdByUserId, createdAt])
+  @@index([startupId, createdAt])
+}
+
+model ChatParticipant {
+  id        String   @id @default(cuid())
+  threadId  String
+  userId    String
+  roleLabel String?
+  joinedAt  DateTime @default(now())
+
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, userId])
+}
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  threadId   String
+  senderId   String
+  content    String   @db.Text
+  createdAt  DateTime @default(now())
+
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+}
+
+model MeetingLink {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  calendlyUrl String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MeetingRecord {
+  id             String   @id @default(cuid())
+  startupId      String?
+  hostUserId     String
+  attendeeUserId String
+  title          String
+  scheduledAt    DateTime
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  startup  Startup? @relation(fields: [startupId], references: [id], onDelete: SetNull)
+  host     User     @relation("MeetingHost", fields: [hostUserId], references: [id], onDelete: Cascade)
+  attendee User     @relation("MeetingAttendee", fields: [attendeeUserId], references: [id], onDelete: Cascade)
+
+  @@index([hostUserId, scheduledAt])
+  @@index([attendeeUserId, scheduledAt])
+}
+
+model MarketSignal {
+  id          String   @id @default(cuid())
+  createdById String?
+  source      String
+  signalType  String
+  title       String
+  summary     String   @db.Text
+  signalUrl   String?
+  createdAt   DateTime @default(now())
+
+  createdBy User? @relation("MarketSignalAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([source, createdAt])
+}
+
+model FounderMarketInsight {
+  id                   String   @id @default(cuid())
+  founderId            String
+  startupId            String?
+  founderPainPoints    String   @db.Text
+  trendingProblems     String   @db.Text
+  generatedBy          String?  @default("GEMINI")
+  sourceSignalCount    Int      @default(0)
+  createdAt            DateTime @default(now())
+
+  founder User     @relation(fields: [founderId], references: [id], onDelete: Cascade)
+  startup Startup? @relation(fields: [startupId], references: [id], onDelete: SetNull)
+
+  @@index([founderId, createdAt])
+}
+
+model BuilderProject {
+  id                      String   @id @default(cuid())
+  builderId               String
+  title                   String
+  tagline                 String?
+  description             String?  @db.Text
+  imageUrl                String?
+  achievements            String?  @db.Text
+  openSourceContributions String?  @db.Text
+  githubUrl               String?
+  liveUrl                 String?
+  techStack               String[] @default([])
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  builder User @relation("BuilderProjects", fields: [builderId], references: [id], onDelete: Cascade)
+
+  @@index([builderId, updatedAt])
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  title      String
+  message    String   @db.Text
+  featureUrl String?
+  targetRoles Role[]  @default([BUILDER, FOUNDER, INVESTOR, ADMIN])
+  createdById String?
+  createdAt  DateTime @default(now())
+
+  createdBy User? @relation("NotificationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  reads     NotificationRead[]
+
+  @@index([createdAt])
+  @@index([createdById, createdAt])
+}
+
+model NotificationRead {
+  id             String   @id @default(cuid())
+  notificationId String
+  userId         String
+  readAt         DateTime @default(now())
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([userId, readAt])
+}
+
+model InviteOnlyCode {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  label       String?
+  isActive    Boolean  @default(true)
+  maxUses     Int?
+  usedCount   Int      @default(0)
+  expiresAt   DateTime?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  createdBy   User?                 @relation("InviteCodeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  memberships InviteOnlyMembership[]
+
+  @@index([isActive, createdAt])
+}
+
+model InviteOnlyMembership {
+  id       String   @id @default(cuid())
+  userId   String   @unique
+  codeId   String
+  joinedAt DateTime @default(now())
+
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code InviteOnlyCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+
+  @@index([codeId, joinedAt])
 }

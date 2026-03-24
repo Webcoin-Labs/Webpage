@@ -70,6 +70,12 @@ export function AdminApplicationsTable({ applications }: { applications: Applica
                                 {answers.why}
                             </p>
                         )}
+                        {typeof answers?.aiFitScore === "number" ? (
+                            <p className="text-xs text-cyan-300 mt-2">AI fit score: {answers.aiFitScore}/100</p>
+                        ) : null}
+                        {typeof answers?.coverLetter === "string" && answers.coverLetter.trim() ? (
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">Cover letter: {answers.coverLetter}</p>
+                        ) : null}
                     </div>
                 );
             })}

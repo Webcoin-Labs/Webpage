@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AnimatedSection } from "@/components/common/AnimatedSection";
@@ -12,7 +12,7 @@ type Params = { params: Promise<{ handleOrId: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { handleOrId } = await params;
-  const profile = await prisma.builderProfile.findFirst({
+  const profile = await db.builderProfile.findFirst({
     where: { publicVisible: true, OR: [{ handle: handleOrId }, { user: { id: handleOrId } }] },
     include: { user: { select: { name: true } } },
   });
@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 async function getBuilder(handleOrId: string) {
-  return prisma.builderProfile.findFirst({
+  return db.builderProfile.findFirst({
     where: { publicVisible: true, OR: [{ handle: handleOrId }, { user: { id: handleOrId } }] },
     include: { user: { select: { id: true, name: true, image: true } } },
   });

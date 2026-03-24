@@ -2,7 +2,7 @@
 
 import { hash } from "bcryptjs";
 import { randomBytes } from "crypto";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { z } from "zod";
 import { env } from "@/lib/env";
@@ -62,14 +62,14 @@ export async function register(data: {
   const { email, username, password, name } = parsed.data;
 
   const [existingEmail, existingUsername] = await Promise.all([
-    prisma.user.findUnique({ where: { email } }),
-    prisma.user.findUnique({ where: { username } }),
+    db.user.findUnique({ where: { email } }),
+    db.user.findUnique({ where: { username } }),
   ]);
   if (existingEmail) return { success: false, error: "An account with this email already exists." };
   if (existingUsername) return { success: false, error: "This username is already taken." };
 
   const hashedPassword = await hash(password, 12);
-  await prisma.user.create({
+  await db.user.create({
     data: {
       email,
       username,
@@ -89,7 +89,7 @@ export async function requestPasswordReset(email: string): Promise<AuthResult> {
   const parsed = forgotSchema.safeParse({ email: normalizedEmail });
   if (!parsed.success) return { success: false, error: parsed.error.errors[0].message };
 
-  const user = await prisma.user.findUnique({
+  const user = await db.user.findUnique({
     where: { email: parsed.data.email },
   });
   // Always return success to avoid leaking whether email exists
@@ -98,10 +98,10 @@ export async function requestPasswordReset(email: string): Promise<AuthResult> {
   const token = randomBytes(32).toString("hex");
   const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-  await prisma.verificationToken.deleteMany({
+  await db.verificationToken.deleteMany({
     where: { identifier: parsed.data.email },
   });
-  await prisma.verificationToken.create({
+  await db.verificationToken.create({
     data: { identifier: parsed.data.email, token, expires },
   });
 
@@ -139,7 +139,7 @@ export async function resetPassword(data: {
   const parsed = resetSchema.safeParse({ ...data, email: normalizedEmail });
   if (!parsed.success) return { success: false, error: parsed.error.errors[0].message };
 
-  const vt = await prisma.verificationToken.findFirst({
+  const vt = await db.verificationToken.findFirst({
     where: {
       identifier: parsed.data.email,
       token: parsed.data.token,
@@ -149,11 +149,11 @@ export async function resetPassword(data: {
   if (!vt) return { success: false, error: "Invalid or expired reset link. Please request a new one." };
 
   const hashedPassword = await hash(parsed.data.password, 12);
-  await prisma.user.update({
+  await db.user.update({
     where: { email: parsed.data.email },
     data: { password: hashedPassword },
   });
-  await prisma.verificationToken.deleteMany({
+  await db.verificationToken.deleteMany({
     where: { identifier: parsed.data.email, token: parsed.data.token },
   });
   return { success: true };
@@ -162,6 +162,6 @@ export async function resetPassword(data: {
 export async function checkUsernameAvailable(username: string): Promise<boolean> {
   const normalized = username.trim().toLowerCase();
   if (normalized.length < 3 || !USERNAME_REGEX.test(normalized)) return false;
-  const existing = await prisma.user.findUnique({ where: { username: normalized } });
+  const existing = await db.user.findUnique({ where: { username: normalized } });
   return !existing;
 }

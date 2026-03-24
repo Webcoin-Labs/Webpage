@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 
 export const metadata = { title: "Pitch Decks — Admin | Webcoin Labs" };
 
@@ -11,7 +11,7 @@ export default async function AdminPitchDecksPage() {
   const session = await getServerSession(authOptions);
   if (session?.user.role !== "ADMIN") redirect("/app");
 
-  const decks = await prisma.pitchDeck.findMany({
+  const decks = await db.pitchDeck.findMany({
     include: {
       user: { select: { name: true, email: true } },
       reports: { orderBy: { createdAt: "desc" }, take: 1 },

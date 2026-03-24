@@ -1,0 +1,3 @@
+-- Restored migration file placeholder.
+-- This migration directory existed but migration.sql was missing.
+-- Keep this file to preserve migration chain integrity.

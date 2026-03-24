@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 
 const contactSchema = z.object({
@@ -32,7 +32,7 @@ export async function submitContact(formData: FormData): Promise<ContactResult> 
         return { success: false, error: result.error.errors[0].message };
     }
 
-    await prisma.lead.create({
+    await db.lead.create({
         data: {
             name: result.data.name,
             email: result.data.email,

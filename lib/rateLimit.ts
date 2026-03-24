@@ -65,6 +65,9 @@ async function rateLimitUpstash(key: string, limit: number, windowMs: number): P
 }
 
 export async function rateLimitAsync(key: string, limit = MAX_PER_WINDOW, windowMs = WINDOW_MS): Promise<RateLimitResult> {
+  if (process.env.NODE_ENV === "production" && !hasUpstashConfig()) {
+    return { ok: false, remaining: 0 };
+  }
   if (!hasUpstashConfig()) return rateLimitMemory(key, limit, windowMs);
   try {
     return await rateLimitUpstash(key, limit, windowMs);

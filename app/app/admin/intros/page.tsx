@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { ArrowLeft } from "lucide-react";
 import { AdminIntroRequestsTable } from "@/components/app/AdminIntroRequestsTable";
 
@@ -12,7 +12,7 @@ export default async function AdminIntrosPage() {
   const session = await getServerSession(authOptions);
   if (session?.user.role !== "ADMIN") redirect("/app");
 
-  const requests = await prisma.introRequest.findMany({
+  const requests = await db.introRequest.findMany({
     include: {
       founder: { select: { id: true, name: true, email: true } },
       sourceProject: { select: { name: true } },

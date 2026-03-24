@@ -18,17 +18,20 @@ if (process.env.R2_ENDPOINT) {
 
 const nextConfig = {
     images: {
-        domains: configuredImageDomains,
+        remotePatterns: configuredImageDomains.map((hostname) => ({
+            protocol: "https",
+            hostname,
+        })),
     },
+    serverExternalPackages: [
+        "@prisma/client",
+        ".prisma/client",
+        "pdf-parse",
+        "pdfjs-dist",
+        "@napi-rs/canvas",
+        "mammoth",
+    ],
     experimental: {
-        serverComponentsExternalPackages: [
-            "@prisma/client",
-            ".prisma/client",
-            "pdf-parse",
-            "pdfjs-dist",
-            "@napi-rs/canvas",
-            "mammoth",
-        ],
         serverActions: {
             bodySizeLimit: "8mb",
             allowedOrigins: ["localhost:3000", "webcoinlabs.com", "app.webcoinlabs.com"],

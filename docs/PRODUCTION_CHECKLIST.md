@@ -15,6 +15,12 @@
 - `PUBLIC_UPLOAD_ROOT`
 - AI:
 - `GEMINI_API_KEY` (required in production for pitch analysis)
+- `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` (required in production)
+- `INTERNAL_JOBS_SECRET` (required in production)
+- Founder OS expansion:
+- `OPENCLAW_BASE_URL`
+- `OPENCLAW_API_KEY`
+- `APP_ENCRYPTION_SECRET`
 - Optional OAuth pairs:
 - `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`
 - `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET`
@@ -112,4 +118,3 @@ Configured in `next.config.mjs`:
 - DB growth on `UploadModerationLog`.
 - Auth/sign-in error spikes.
 - R2/local storage latency and failure rates.
-

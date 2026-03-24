@@ -83,6 +83,20 @@ export async function dispatchEventReminder(input: {
   const result = await sendToWebhook(payload);
   if (result.delivered) return result;
 
+  if (process.env.NODE_ENV === "production") {
+    logger.error({
+      scope: "notifications.eventReminder",
+      message: "Event reminder delivery failed in production.",
+      data: payload,
+      error: result.error,
+    });
+    return {
+      delivered: false,
+      provider: "webhook",
+      error: result.error ?? "Reminder delivery failed.",
+    };
+  }
+
   logger.info({
     scope: "notifications.eventReminder",
     message: "Reminder fallback to console output.",

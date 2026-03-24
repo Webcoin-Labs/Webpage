@@ -1,6 +1,6 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { ChatSupportWidget } from "@/components/chat/ChatSupportWidget";
+import { ChatSupportWidgetClient } from "@/components/chat/ChatSupportWidgetClient";
 
 export default function MarketingLayout({
     children,
@@ -12,7 +12,7 @@ export default function MarketingLayout({
             <Navbar />
             <main className="flex-1">{children}</main>
             <Footer />
-            <ChatSupportWidget />
+            <ChatSupportWidgetClient />
         </div>
     );
 }

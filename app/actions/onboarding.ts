@@ -2,7 +2,7 @@
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { revalidatePath } from "next/cache";
 
 const roleSchema = ["BUILDER", "FOUNDER", "INVESTOR", "ADMIN"] as const;
@@ -22,7 +22,7 @@ export async function completeOnboarding(role: string): Promise<OnboardingResult
 
   const shouldComplete = requestedRole === "ADMIN";
 
-  await prisma.user.update({
+  await db.user.update({
     where: { id: session.user.id },
     data: {
       role: requestedRole,

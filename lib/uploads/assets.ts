@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { UploadAssetType, UploadModerationAction, UploadModerationStatus } from "@prisma/client";
 
 type AssetPayload = {
@@ -13,7 +13,7 @@ type AssetPayload = {
 };
 
 async function createInitialLog(uploadAssetId: string, actedByUserId?: string | null) {
-  await prisma.uploadModerationLog.create({
+  await db.uploadModerationLog.create({
     data: {
       uploadAssetId,
       action: UploadModerationAction.CREATED,
@@ -25,9 +25,9 @@ async function createInitialLog(uploadAssetId: string, actedByUserId?: string | 
 }
 
 export async function upsertAvatarUploadAsset(userId: string, payload: AssetPayload) {
-  const existing = await prisma.uploadAsset.findUnique({ where: { userId } });
+  const existing = await db.uploadAsset.findUnique({ where: { userId } });
   if (existing) {
-    return prisma.uploadAsset.update({
+    return db.uploadAsset.update({
       where: { userId },
       data: {
         assetType: UploadAssetType.AVATAR,
@@ -46,7 +46,7 @@ export async function upsertAvatarUploadAsset(userId: string, payload: AssetPayl
     });
   }
 
-  const created = await prisma.uploadAsset.create({
+  const created = await db.uploadAsset.create({
     data: {
       assetType: UploadAssetType.AVATAR,
       status: UploadModerationStatus.ACTIVE,
@@ -66,9 +66,9 @@ export async function upsertAvatarUploadAsset(userId: string, payload: AssetPayl
 }
 
 export async function upsertFounderLogoUploadAsset(founderProfileId: string, payload: AssetPayload) {
-  const existing = await prisma.uploadAsset.findUnique({ where: { founderProfileId } });
+  const existing = await db.uploadAsset.findUnique({ where: { founderProfileId } });
   if (existing) {
-    return prisma.uploadAsset.update({
+    return db.uploadAsset.update({
       where: { founderProfileId },
       data: {
         assetType: UploadAssetType.COMPANY_LOGO,
@@ -87,7 +87,7 @@ export async function upsertFounderLogoUploadAsset(founderProfileId: string, pay
     });
   }
 
-  const created = await prisma.uploadAsset.create({
+  const created = await db.uploadAsset.create({
     data: {
       assetType: UploadAssetType.COMPANY_LOGO,
       status: UploadModerationStatus.ACTIVE,
@@ -107,9 +107,9 @@ export async function upsertFounderLogoUploadAsset(founderProfileId: string, pay
 }
 
 export async function upsertPitchDeckUploadAsset(pitchDeckId: string, payload: AssetPayload) {
-  const existing = await prisma.uploadAsset.findUnique({ where: { pitchDeckId } });
+  const existing = await db.uploadAsset.findUnique({ where: { pitchDeckId } });
   if (existing) {
-    return prisma.uploadAsset.update({
+    return db.uploadAsset.update({
       where: { pitchDeckId },
       data: {
         assetType: UploadAssetType.PITCH_DECK,
@@ -127,7 +127,7 @@ export async function upsertPitchDeckUploadAsset(pitchDeckId: string, payload: A
     });
   }
 
-  const created = await prisma.uploadAsset.create({
+  const created = await db.uploadAsset.create({
     data: {
       assetType: UploadAssetType.PITCH_DECK,
       status: UploadModerationStatus.ACTIVE,

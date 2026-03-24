@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { UploadAssetType, UploadModerationStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { AdminUploadModerationTable } from "@/components/app/AdminUploadModerationTable";
 import {
   upsertAvatarUploadAsset,
@@ -25,7 +25,7 @@ const statusOptions: UploadModerationStatus[] = ["ACTIVE", "FLAGGED", "QUARANTIN
 
 async function backfillUploadAssets() {
   const [users, founders, decks] = await Promise.all([
-    prisma.user.findMany({
+    db.user.findMany({
       where: {
         image: { not: null },
         avatarUploadAsset: { is: null },
@@ -42,7 +42,7 @@ async function backfillUploadAssets() {
       },
       take: 500,
     }),
-    prisma.founderProfile.findMany({
+    db.founderProfile.findMany({
       where: {
         companyLogoUrl: { not: null },
         logoUploadAsset: { is: null },
@@ -60,7 +60,7 @@ async function backfillUploadAssets() {
       },
       take: 500,
     }),
-    prisma.pitchDeck.findMany({
+    db.pitchDeck.findMany({
       where: {
         fileUrl: { not: "" },
         uploadAsset: { is: null },
@@ -121,15 +121,16 @@ function parseFilterValue<T extends string>(value: string | undefined, options: 
   return (options as readonly string[]).includes(value) ? (value as T) : undefined;
 }
 
-export default async function AdminUploadsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function AdminUploadsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const resolvedSearchParams = await Promise.resolve(searchParams);
   const session = await getServerSession(authOptions);
   if (session?.user.role !== "ADMIN") redirect("/app");
 
   await backfillUploadAssets();
 
-  const selectedType = parseFilterValue(searchParams.type, typeOptions);
-  const selectedStatus = parseFilterValue(searchParams.status, statusOptions);
-  const searchQuery = searchParams.q?.trim() ?? "";
+  const selectedType = parseFilterValue(resolvedSearchParams.type, typeOptions);
+  const selectedStatus = parseFilterValue(resolvedSearchParams.status, statusOptions);
+  const searchQuery = resolvedSearchParams.q?.trim() ?? "";
 
   const where = {
     ...(selectedType ? { assetType: selectedType } : {}),
@@ -150,7 +151,7 @@ export default async function AdminUploadsPage({ searchParams }: { searchParams:
   };
 
   const [items, total] = await Promise.all([
-    prisma.uploadAsset.findMany({
+    db.uploadAsset.findMany({
       where,
       include: {
         ownerUser: { select: { id: true, name: true, email: true } },
@@ -183,7 +184,7 @@ export default async function AdminUploadsPage({ searchParams }: { searchParams:
       orderBy: { updatedAt: "desc" },
       take: 300,
     }),
-    prisma.uploadAsset.count({ where }),
+    db.uploadAsset.count({ where }),
   ]);
 
   return (

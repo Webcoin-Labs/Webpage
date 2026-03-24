@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import Link from "next/link";
 import { FileText, ArrowRight } from "lucide-react";
 
@@ -15,7 +15,7 @@ const statusColors: Record<string, string> = {
 
 export default async function ApplicationsPage() {
   const session = await getServerSession(authOptions);
-  const applications = await prisma.application.findMany({
+  const applications = await db.application.findMany({
     where: { userId: session!.user.id },
     orderBy: { createdAt: "desc" },
   });
@@ -53,6 +53,12 @@ export default async function ApplicationsPage() {
                     <p className="font-medium text-sm">{app.type.replace(/_/g, " ")}</p>
                     <p className="text-xs text-muted-foreground mt-1">{new Date(app.createdAt).toLocaleDateString()}</p>
                     {answers?.why && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{answers.why}</p>}
+                    {typeof answers?.aiFitScore === "number" ? (
+                      <p className="mt-2 text-xs text-cyan-300">AI fit score: {answers.aiFitScore}/100</p>
+                    ) : null}
+                    {typeof answers?.coverLetter === "string" && answers.coverLetter.trim() ? (
+                      <p className="mt-1 text-xs text-muted-foreground line-clamp-2">Cover letter: {answers.coverLetter}</p>
+                    ) : null}
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full border ${statusColors[app.status] ?? "bg-muted"}`}>
                     {app.status}

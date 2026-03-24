@@ -127,6 +127,23 @@ export async function dispatchPasswordResetEmail(payload: PasswordResetPayload):
   const webhookResult = await sendViaWebhook(payload);
   if (webhookResult.delivered) return webhookResult;
 
+  if (process.env.NODE_ENV === "production") {
+    logger.error({
+      scope: "notifications.passwordReset",
+      message: "Password reset delivery failed in production.",
+      data: {
+        toEmail: payload.toEmail,
+        resendError: resendResult.error,
+        webhookError: webhookResult.error,
+      },
+    });
+    return {
+      delivered: false,
+      provider: "webhook",
+      error: "Password reset delivery failed.",
+    };
+  }
+
   logger.info({
     scope: "notifications.passwordReset",
     message: "Password reset delivery fallback to console output.",

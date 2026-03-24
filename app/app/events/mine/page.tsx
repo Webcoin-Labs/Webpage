@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { EventCard } from "@/components/events/EventCard";
@@ -21,7 +21,7 @@ export default async function MyEventsPage() {
     );
   }
 
-  const rsvps = await prisma.eventRsvp.findMany({
+  const rsvps = await db.eventRsvp.findMany({
     where: {
       userId: session.user.id,
       status: { in: ["GOING", "INTERESTED"] },

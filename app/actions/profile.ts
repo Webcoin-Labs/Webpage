@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { optimizeAndStoreImage } from "@/lib/images/upload";
 import { getFileStorage } from "@/lib/storage";
 import {
@@ -47,6 +47,9 @@ const builderProfileSchema = z.object({
   website: urlField,
   portfolioUrl: urlField,
   interests: z.string().optional(),
+  achievements: z.string().max(2500).optional(),
+  openSourceContributions: z.string().max(2500).optional(),
+  resumeUrl: urlField,
 });
 
 const founderProfileSchema = z.object({
@@ -68,6 +71,7 @@ const founderProfileSchema = z.object({
   telegram: z.string().optional(),
   twitter: z.string().optional(),
   isHiring: z.boolean().default(false),
+  publicVisible: z.boolean().default(true),
 });
 
 const investorProfileSchema = z.object({
@@ -80,6 +84,9 @@ const investorProfileSchema = z.object({
   website: urlField,
   linkedin: urlField,
   twitter: z.string().optional(),
+  ticketSize: z.string().max(120).optional(),
+  lookingFor: z.string().max(300).optional(),
+  investmentThesis: z.string().max(2500).optional(),
 });
 
 type ProfileResult = { success: true } | { success: false; error: string };
@@ -208,12 +215,15 @@ export async function upsertBuilderProfile(formData: FormData): Promise<ProfileR
     website: getOptionalString(formData, "website") ?? "",
     portfolioUrl: getOptionalString(formData, "portfolioUrl") ?? "",
     interests: getOptionalString(formData, "interests"),
+    achievements: getOptionalString(formData, "achievements"),
+    openSourceContributions: getOptionalString(formData, "openSourceContributions"),
+    resumeUrl: getOptionalString(formData, "resumeUrl") ?? "",
   };
 
   const parsed = builderProfileSchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: parsed.error.errors[0].message };
 
-  const existingUser = await prisma.user.findUnique({
+  const existingUser = await db.user.findUnique({
     where: { id: session.user.id },
     select: { image: true, imageStorageKey: true },
   });
@@ -257,6 +267,9 @@ export async function upsertBuilderProfile(formData: FormData): Promise<ProfileR
     website: toNullableUrl(parsed.data.website),
     portfolioUrl: toNullableUrl(parsed.data.portfolioUrl),
     interests: parsed.data.interests ? splitCommaValues(parsed.data.interests) : [],
+    achievements: parsed.data.achievements || null,
+    openSourceContributions: parsed.data.openSourceContributions || null,
+    resumeUrl: toNullableUrl(parsed.data.resumeUrl),
   };
 
   const builderUpdateData: Prisma.BuilderProfileUncheckedUpdateInput = {
@@ -279,10 +292,13 @@ export async function upsertBuilderProfile(formData: FormData): Promise<ProfileR
     website: builderCreateData.website,
     portfolioUrl: builderCreateData.portfolioUrl,
     interests: builderCreateData.interests,
+    achievements: builderCreateData.achievements,
+    openSourceContributions: builderCreateData.openSourceContributions,
+    resumeUrl: builderCreateData.resumeUrl,
   };
 
   try {
-    await prisma.user.update({
+    await db.user.update({
       where: { id: session.user.id },
       data: {
         name: parsed.data.fullName.trim(),
@@ -309,7 +325,7 @@ export async function upsertBuilderProfile(formData: FormData): Promise<ProfileR
         originalName: avatarUpdate.imageOriginalName ?? null,
       });
     } else {
-      await prisma.uploadAsset.updateMany({
+      await db.uploadAsset.updateMany({
         where: { userId: session.user.id },
         data: {
           status: "REMOVED",
@@ -319,7 +335,7 @@ export async function upsertBuilderProfile(formData: FormData): Promise<ProfileR
       });
     }
 
-    await prisma.builderProfile.upsert({
+    await db.builderProfile.upsert({
       where: { userId: session.user.id },
       create: builderCreateData,
       update: builderUpdateData,
@@ -341,6 +357,7 @@ export async function upsertBuilderProfile(formData: FormData): Promise<ProfileR
   revalidatePath("/app/profile");
   revalidatePath("/builders");
   revalidatePath("/app/hiring");
+  revalidatePath("/app/builder-projects");
   return { success: true };
 }
 
@@ -372,13 +389,14 @@ export async function upsertFounderProfile(formData: FormData): Promise<ProfileR
     telegram: getOptionalString(formData, "telegram"),
     twitter: getOptionalString(formData, "twitter"),
     isHiring: getBooleanFromForm(formData, "isHiring"),
+    publicVisible: formData.has("publicVisible") ? getBooleanFromForm(formData, "publicVisible") : true,
   };
 
   const parsed = founderProfileSchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: parsed.error.errors[0].message };
 
   const [existingFounderProfile, existingUser] = await Promise.all([
-    prisma.founderProfile.findUnique({
+    db.founderProfile.findUnique({
       where: { userId: session.user.id },
       select: {
         id: true,
@@ -391,7 +409,7 @@ export async function upsertFounderProfile(formData: FormData): Promise<ProfileR
         companyLogoOriginalName: true,
       },
     }),
-    prisma.user.findUnique({
+    db.user.findUnique({
       where: { id: session.user.id },
       select: { image: true, imageStorageKey: true },
     }),
@@ -475,6 +493,7 @@ export async function upsertFounderProfile(formData: FormData): Promise<ProfileR
     linkedin: toNullableUrl(parsed.data.linkedin),
     telegram: parsed.data.telegram || null,
     twitter: parsed.data.twitter || null,
+    publicVisible: parsed.data.publicVisible,
   };
 
   const founderUpdateData: Prisma.FounderProfileUncheckedUpdateInput = {
@@ -500,10 +519,11 @@ export async function upsertFounderProfile(formData: FormData): Promise<ProfileR
     linkedin: founderCreateData.linkedin,
     telegram: founderCreateData.telegram,
     twitter: founderCreateData.twitter,
+    publicVisible: founderCreateData.publicVisible,
   };
 
   try {
-    await prisma.user.update({
+    await db.user.update({
       where: { id: session.user.id },
       data: {
         name: parsed.data.fullName.trim(),
@@ -518,7 +538,7 @@ export async function upsertFounderProfile(formData: FormData): Promise<ProfileR
       },
     });
 
-    const savedFounder = await prisma.founderProfile.upsert({
+    const savedFounder = await db.founderProfile.upsert({
       where: { userId: session.user.id },
       create: founderCreateData,
       update: founderUpdateData,
@@ -536,7 +556,7 @@ export async function upsertFounderProfile(formData: FormData): Promise<ProfileR
         originalName: avatarUpdate.imageOriginalName ?? null,
       });
     } else {
-      await prisma.uploadAsset.updateMany({
+      await db.uploadAsset.updateMany({
         where: { userId: session.user.id },
         data: {
           status: "REMOVED",
@@ -558,7 +578,7 @@ export async function upsertFounderProfile(formData: FormData): Promise<ProfileR
         originalName: savedFounder.companyLogoOriginalName ?? null,
       });
     } else {
-      await prisma.uploadAsset.updateMany({
+      await db.uploadAsset.updateMany({
         where: { founderProfileId: savedFounder.id },
         data: {
           status: "REMOVED",
@@ -582,6 +602,8 @@ export async function upsertFounderProfile(formData: FormData): Promise<ProfileR
   revalidatePath("/builders");
   revalidatePath("/projects");
   revalidatePath("/app/hiring");
+  revalidatePath("/app/founders");
+  revalidatePath("/startups");
   return { success: true };
 }
 
@@ -604,12 +626,15 @@ export async function upsertInvestorProfile(formData: FormData): Promise<Profile
     website: getOptionalString(formData, "website") ?? "",
     linkedin: getOptionalString(formData, "linkedin") ?? "",
     twitter: getOptionalString(formData, "twitter"),
+    ticketSize: getOptionalString(formData, "ticketSize"),
+    lookingFor: getOptionalString(formData, "lookingFor"),
+    investmentThesis: getOptionalString(formData, "investmentThesis"),
   };
 
   const parsed = investorProfileSchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: parsed.error.errors[0].message };
 
-  const existingUser = await prisma.user.findUnique({
+  const existingUser = await db.user.findUnique({
     where: { id: session.user.id },
     select: { image: true, imageStorageKey: true },
   });
@@ -633,7 +658,7 @@ export async function upsertInvestorProfile(formData: FormData): Promise<Profile
   }
 
   try {
-    await prisma.user.update({
+    await db.user.update({
       where: { id: session.user.id },
       data: {
         name: parsed.data.fullName.trim(),
@@ -660,7 +685,7 @@ export async function upsertInvestorProfile(formData: FormData): Promise<Profile
         originalName: avatarUpdate.imageOriginalName ?? null,
       });
     } else {
-      await prisma.uploadAsset.updateMany({
+      await db.uploadAsset.updateMany({
         where: { userId: session.user.id },
         data: {
           status: "REMOVED",
@@ -670,7 +695,7 @@ export async function upsertInvestorProfile(formData: FormData): Promise<Profile
       });
     }
 
-    await prisma.investorProfile.upsert({
+    await db.investorProfile.upsert({
       where: { userId: session.user.id },
       create: {
         userId: session.user.id,
@@ -681,6 +706,9 @@ export async function upsertInvestorProfile(formData: FormData): Promise<Profile
         website: toNullableUrl(parsed.data.website),
         linkedin: toNullableUrl(parsed.data.linkedin),
         twitter: parsed.data.twitter || null,
+        ticketSize: parsed.data.ticketSize || null,
+        lookingFor: parsed.data.lookingFor || null,
+        investmentThesis: parsed.data.investmentThesis || null,
       },
       update: {
         firmName: parsed.data.firmName.trim(),
@@ -690,6 +718,9 @@ export async function upsertInvestorProfile(formData: FormData): Promise<Profile
         website: toNullableUrl(parsed.data.website),
         linkedin: toNullableUrl(parsed.data.linkedin),
         twitter: parsed.data.twitter || null,
+        ticketSize: parsed.data.ticketSize || null,
+        lookingFor: parsed.data.lookingFor || null,
+        investmentThesis: parsed.data.investmentThesis || null,
       },
     });
   } catch (_error) {
@@ -706,3 +737,4 @@ export async function upsertInvestorProfile(formData: FormData): Promise<Profile
   revalidatePath("/app/profile");
   return { success: true };
 }
+

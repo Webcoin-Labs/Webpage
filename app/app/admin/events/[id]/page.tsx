@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { ArrowLeft } from "lucide-react";
 import { AdminEventForm } from "@/components/events/AdminEventForm";
 import { AdminEventAttendees } from "@/components/events/AdminEventAttendees";
@@ -18,7 +18,7 @@ export default async function AdminEventEditPage({
   if (session?.user.role !== "ADMIN") redirect("/app");
   const { id } = await params;
 
-  const event = await prisma.event.findUnique({
+  const event = await db.event.findUnique({
     where: { id },
     include: { _count: { select: { rsvps: true } } },
   });

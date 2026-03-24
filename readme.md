@@ -1,347 +1,310 @@
 # Webcoin Labs
 
-<p align="center">
-  <img src="public/brand/watermark.svg" alt="Webcoin Labs" width="160" />
-</p>
+Webcoin Labs is a production-grade blockchain operating system with three role workspaces:
 
-<p align="center">
-  <strong>Builder-first innovation hub and venture studio</strong><br />
-  <em>Formerly Webcoin Capital</em>
-</p>
+- Founder OS
+- Builder OS
+- Investor OS
 
-<p align="center">
-  <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js" alt="Next.js" /></a>
-  <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-5.7-blue?style=flat-square&logo=typescript" alt="TypeScript" /></a>
-  <a href="https://tailwindcss.com"><img src="https://img.shields.io/badge/Tailwind-3.4-38bdf8?style=flat-square&logo=tailwind-css" alt="Tailwind CSS" /></a>
-  <a href="https://www.prisma.io"><img src="https://img.shields.io/badge/Prisma-5.22-2D3748?style=flat-square&logo=prisma" alt="Prisma" /></a>
-  <a href="https://vercel.com"><img src="https://img.shields.io/badge/Deploy-Vercel-black?style=flat-square&logo=vercel" alt="Vercel" /></a>
-</p>
+This repository implements a multi-role, wallet-aware Next.js application with public profile routing, role-aware onboarding, investor application pipelines, premium quotas, and extension-ready integration architecture.
 
----
+## Shared Graph Refactor Status
 
-## Table of Contents
+Webcoin Labs is currently running a phased-compat refactor:
+- shared policy layer added (`server/policies/authz.ts`)
+- typed service contracts added (`server/services/contracts.ts`)
+- additive domain services introduced for identity, venture, discovery, applications, scoring, integrations, diligence, and admin routing
+- public profile selector hardening added (`server/selectors/public-profile.selectors.ts`)
+- transparent scoring engine added (`features/scoring/engine.ts` + `server/services/scoring.service.ts`)
+- placeholder-only authenticated surfaces replaced with data-backed pages (`/app/events`, `/app/kreatorboard`)
 
-- [Overview](#overview)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Screenshots](#screenshots)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Environment Variables](#environment-variables)
-- [User Roles](#user-roles)
-- [Public Routes](#public-routes)
-- [Deployment](#deployment)
-- [Legacy Notes](#legacy-notes)
+## Architecture Docs
 
----
+- `docs/architecture.md`
+- `docs/domain-model.md`
+- `docs/roles-and-permissions.md`
+- `docs/scoring-system.md`
+- `docs/integrations.md`
+- `docs/admin-os.md`
 
-## Overview
+## Stack
 
-**Webcoin Labs** connects founders and builders, accelerates product development, and delivers funding readiness with AI-powered analysis and ecosystem access. The platform provides:
+- Next.js App Router + TypeScript
+- Tailwind CSS + Framer Motion
+- Prisma + PostgreSQL
+- NextAuth
+- Server Actions for secure mutations
 
-- **Founder workspace** — Live profile, project, intro, and hiring flows in one shared operating layer.
-- **Builder workflow** — Real jobs, founder hiring inboxes, and recommendation feeds with profile-based matching.
-- **AI readiness engine** — Pitch deck uploads, extraction, Gemini-powered analysis, moderation, and retry logic.
-- **Network execution** — Events, partner access, and KOL/VC intro operations with admin controls.
+## Founder OS Expansion Hardening
 
----
+- Detailed status, remaining work, manual ops, and timeline are tracked in:
+  - `docs/founder-os-expansion-status.md`
+- Forward-safe SQL migration for hardening changes:
+  - `prisma/migrations/20260321133000_founder_os_expansion_hardening/migration.sql`
+- One-command SQL apply helper:
+  - `pnpm db:apply:founder-hardening`
 
-## Features
+## Canonical Graph Foundation Migration
 
-| Area | Capabilities |
-|------|--------------|
-| **Auth** | NextAuth.js with Google & GitHub OAuth, email/password, username login, password reset (Resend or webhook) |
-| **Profiles** | Builder (handle, skills, chains, open to work), Founder (company, projects), Investor (basic) |
-| **Projects** | Create, edit, list; filter by chain and stage (Idea / MVP / Live); public directory |
-| **Intros** | KOL and VC intro requests; admin review and targeting |
-| **Pitch decks** | Upload PDF/DOCX → extract text → AI analysis (Gemini), moderation, status tracking |
-| **Jobs** | Job posts (founders), applications (builders), roles (full-time, contract, cofounder, etc.), locations (remote, hybrid, onsite) |
-| **Hiring** | Founders post hiring interests; builders express interest; admin hiring interests dashboard |
-| **Events** | Create events (office hours, workshops, demo days), RSVP, reminders (webhook), calendar |
-| **Storage** | R2 (S3-compatible) or local; avatars, company logos, pitch deck files; upload moderation |
-| **Admin** | Applications, intros, leads, jobs, pitch decks, storage health, upload moderation, hiring interests |
+New additive canonical models + bridges are available via:
+- `prisma/migrations/20260323070000_add_canonical_graph_foundation/migration.sql`
 
-### AI & Integrations
+Recommended rollout:
+1. Apply migration on staging.
+2. Run canonical backfill:
+   - `pnpm db:backfill:canonical`
+3. Validate Founder/Builder/Investor/Admin critical flows.
+4. Apply to production during low-traffic window.
 
-- **Pitch analysis** — Google Gemini; optional async queue via internal job drain.
-- **Recommendations** — Builder–founder matching, GTM checklist, fundraising readiness.
-- **Notifications** — Event reminders, password reset (Resend or webhook).
+## Final Information Architecture
 
----
+### Primary Product Surfaces
 
-## Tech Stack
+- Marketing/public site (`app/(marketing)/*`)
+- Authenticated app shell (`app/app/*`)
+- Public identities:
+  - `/founder/[username]`
+  - `/builder/[username]`
+  - `/investor/[username]`
+  - `/investor/[company-slug]/[username]`
+  - `/investor/[company-slug]`
 
-| Layer | Technology |
-|-------|------------|
-| **Framework** | Next.js 14 (App Router) |
-| **Language** | TypeScript 5.7 |
-| **Styling** | Tailwind CSS, shadcn/ui (Radix), tailwindcss-animate |
-| **Animation** | Framer Motion, @tsparticles (hero effects) |
-| **Database** | Neon Postgres (serverless) |
-| **ORM** | Prisma 5.x |
-| **Auth** | NextAuth.js 4 (OAuth + credentials) |
-| **Storage** | Cloudflare R2 (S3-compatible) or local filesystem |
-| **AI** | Google Generative AI (Gemini) for pitch deck analysis |
-| **Deployment** | Vercel |
+### Authenticated Workspace Surfaces
 
----
+- `/app/workspaces`: workspace selector and role switching
+- `/app/founder-os`: founder command center (existing + preserved)
+- `/app/founder-os/investor-applications`: investor outreach pipeline with quota gating
+- `/app/builder-os`: proof-of-work builder operating system
+- `/app/investor-os`: investor deal-flow and application review inbox
+- `/app/events`: future-ready placeholder (no fake data)
 
-## Screenshots
+## Route Structure (Core)
 
-| Page | Description |
-|------|-------------|
-| **Homepage** | Hero, problem/solution grids, products, builder highlights, strategy call CTA |
-| **Builders** | Directory of builder profiles with skills and chain focus |
-| **Projects** | Directory of projects with filters by chain and stage |
-| **Pitch deck** | Upload form and AI-generated readiness report |
-| **App portal** | Dashboard, profile, projects, intros, jobs, hiring, events |
+### Existing Core App
 
-> Add screenshots to `docs/screenshots/` and link them here for a visual overview.
+- `/app`
+- `/app/profile`
+- `/app/settings`
+- `/app/founder-os`
+- `/app/builder-projects`
+- `/app/events`
+- `/app/admin/*`
 
----
+### New Role/OS Routes
 
-## Project Structure
+- `/app/workspaces`
+- `/app/builder-os`
+- `/app/investor-os`
+- `/app/founder-os/investor-applications`
 
-```
-webcoinlabs/
-├── app/
-│   ├── (marketing)/          # Public site
-│   │   ├── page.tsx          # Homepage
-│   │   ├── builders/         # Builder directory & profile pages
-│   │   ├── projects/         # Project directory & project pages
-│   │   ├── ecosystems/       # Ecosystem tracks (Base, Arc, …)
-│   │   ├── network/          # Partners, VCs, launchpads
-│   │   ├── products/         # ArcPay, RiddlePay, Kreatorboard, Founder Profile
-│   │   ├── pitchdeck/        # Pitch deck upload & AI review
-│   │   ├── pricing/          # Pricing tiers
-│   │   ├── contact/          # Contact form
-│   │   ├── services/         # Venture studio services
-│   │   ├── insights/         # Blog / insights
-│   │   └── case-studies/     # Case studies
-│   ├── app/                  # Authenticated portal
-│   │   ├── page.tsx          # App home
-│   │   ├── profile/          # User profile
-│   │   ├── projects/         # Create & manage projects
-│   │   ├── intros/           # Intro requests (KOL/VC)
-│   │   ├── jobs/             # Jobs board & applications
-│   │   ├── hiring/           # Hiring interests
-│   │   ├── kols-premium/     # KOLs premium
-│   │   ├── apply/            # Builder program & founder support applications
-│   │   ├── events/           # Events, calendar, RSVP
-│   │   ├── messages/         # Messages
-│   │   ├── rewards/          # Rewards
-│   │   └── admin/            # Admin dashboard (applications, intros, jobs, pitch decks, storage, moderation)
-│   ├── api/                  # API routes (auth, internal jobs drain)
-│   ├── actions/              # Server actions (auth, profile, project, intro, jobs, hiring, pitchdeck, storage, …)
-│   ├── login/                # Login, create account, forgot/reset password
-│   ├── auth/                 # Auth sign-in
-│   ├── layout.tsx
-│   ├── error.tsx
-│   └── global-error.tsx
-├── components/
-│   ├── layout/               # Navbar, Footer
-│   ├── common/               # AnimatedSection, ThemeToggle, ProfileAvatar, ProfileAffiliationTag, CompanyLogo
-│   ├── home/                 # ProblemRevealGrid, CapabilityRevealGrid
-│   ├── products/             # ProductsSection
-│   ├── pitchdeck/            # PitchDeckHubClient, PitchDeckUploadForm, RetryAnalysisButton
-│   ├── forms/                # ContactForm, JobPostForm, JobApplyForm, StrategyCallForm, HiringInterestForm
-│   ├── hiring/               # HiringInterestsTable
-│   ├── jobs/                 # JobPostForm, JobApplyForm
-│   ├── app/                  # AppSidebar, profile forms, admin tables
-│   └── providers/            # ThemeProvider, AuthProvider
-├── lib/
-│   ├── auth.ts               # NextAuth config
-│   ├── prisma.ts             # Prisma singleton
-│   ├── env.ts                # Env validation
-│   ├── rateLimit.ts          # Rate limiting (Upstash optional)
-│   ├── affiliation.ts        # Builder affiliation helpers
-│   ├── matching.ts           # Matching logic
-│   ├── recommendations.ts    # Recommendation engine
-│   ├── ai/                   # Pitch analysis, Gemini provider
-│   ├── extraction/           # Deck text extraction (PDF/DOCX)
-│   ├── storage/              # R2 & local storage
-│   ├── uploads/              # Upload asset handling
-│   └── notifications/        # Event reminders, password reset
-├── prisma/
-│   ├── schema.prisma         # Data model (User, BuilderProfile, FounderProfile, Project, Application, IntroRequest, PitchDeck, JobPost, Event, UploadAsset, …)
-│   ├── seed.ts               # Seed data
-│   └── migrations/           # SQL migrations
-├── public/
-│   ├── brand/                # Logo, watermark
-│   └── network/              # Partner logos (current, legacy)
-├── docs/                     # Production checklist, runbooks
-└── scripts/                  # Utilities
-```
+### New Public Routes
 
----
+- `/founder/[username]`
+- `/builder/[username]`
+- `/investor/[[...segments]]`
 
-## Getting Started
+`/investor/[[...segments]]` resolves these patterns:
 
-### 1. Clone and install
+- `/investor/[username]`
+- `/investor/[company-slug]`
+- `/investor/[company-slug]/[username]`
+
+## Prisma Data Model (New + Preserved)
+
+The schema preserves existing entities and adds production entities for Webcoin OS.
+
+### New Enums
+
+- `WorkspaceType`, `WorkspaceAccessStatus`
+- `InvestorType`
+- `SubscriptionTier`, `SubscriptionStatus`
+- `WalletNetwork`, `WalletProvider`
+- `IntegrationProvider`, `IntegrationStatus`
+- `InvestorApplicationReviewStatus`
+- `MiniAppPlatform`
+
+### New Models
+
+- `UserWorkspace`
+- `WalletConnection`
+- `IntegrationConnection`
+- `InvestorCompany`
+- `InvestorCompanyMember`
+- `Venture`
+- `VentureMember`
+- `PitchDeckAssignment`
+- `InvestorApplication`
+- `FounderInvestorRequestQuota`
+- `PremiumSubscription`
+- `PublicProfileSettings`
+- `MiniAppMetadata`
+- `ResumeDocument`
+- `CoverLetterDraft`
+- `EmailThread`
+- `EmailMessageMeta`
+- `WorkspaceMeeting`
+- `EventsModuleState`
+
+### Existing Models Extended
+
+- `User`: base bio/education/socials + workspace/premium/wallet/integration relations
+- `BuilderProfile`: education, stack, chain expertise, availability, intent fields
+- `FounderProfile`: founder description, education, intent, mini app links
+- `InvestorProfile`: investor type, focus arrays, check size range, company relation, visibility
+- `PitchDeck`: assignment relation support
+
+## Server Action / Mutation Plan
+
+Implemented in `app/actions/webcoin-os.ts`:
+
+- `switchWorkspace`
+- `saveProfileIdentity`
+- `completeWorkspaceOnboarding`
+- `saveOnboardingIntegrations`
+- `saveWalletConnection`
+- `saveMiniAppMetadata`
+- `submitInvestorApplication`
+- `updateInvestorApplicationStatus`
+- `upsertResumeDocument`
+- `createCoverLetterDraft`
+
+Existing role/profile actions remain active and were not removed.
+
+## Onboarding Flow (Multi-step)
+
+`/app/onboarding` now runs a 5-step flow:
+
+1. Workspace selection
+2. Identity (name, username, bio, education, social links)
+3. Role-specific setup (Founder/Builder/Investor)
+4. Integrations + wallet linking (EVM/Solana)
+5. Preview + publish
+
+Behavior:
+
+- Founder and Builder can be enabled on one account
+- Investor workspace remains restricted unless investor profile exists
+
+## Public Profile System
+
+Implemented in `lib/public-profiles.ts` + public routes.
+
+- Founder pages include founder identity, ventures, and wallet visibility
+- Builder pages include stack, GitHub signal, projects, and wallet visibility
+- Investor pages support both independent and firm-affiliated URL patterns
+- Company pages list affiliated investor members
+
+## Founder OS
+
+Preserved existing founder command center and added a dedicated investor application module:
+
+- Venture/deck/investor selection
+- Founder note submission
+- Quota enforcement with tier-aware limits
+- Application status visibility
+
+## Builder OS
+
+New `/app/builder-os` includes:
+
+- Quantified profile/proof indicators
+- Portfolio and GitHub visibility
+- Resume document management
+- Cover letter draft management
+- Mini app/web3 project metadata manager
+
+## Investor OS
+
+New `/app/investor-os` includes:
+
+- Quantified pipeline summary
+- Investor identity and company context
+- Founder applications inbox with status transitions
+- Meeting and venture discovery panels
+
+## Premium Gating Logic
+
+Implemented in `submitInvestorApplication` + quota resolver:
+
+- Free founders: up to 3 applications per cycle
+- Premium founders: up to 10 applications per cycle
+- Cycle resets monthly
+- Quota state stored in `FounderInvestorRequestQuota`
+- Tier source: `PremiumSubscription`
+
+## Web3-Native Architecture
+
+- Wallet model supports EVM + Solana
+- Onboarding supports wallet connection capture
+- Public profile wallet display controlled by settings model
+- Mini app metadata model supports Base/Farcaster/Other and manifest URLs
+
+## Integrations Architecture
+
+- Integration connections tracked by provider/status/scopes/token metadata
+- Supported providers in schema/action layer:
+  - Gmail
+  - Google Calendar
+  - Notion
+  - GitHub
+  - Jira
+  - Calendly
+  - Cal.com
+  - Farcaster
+
+## Empty / Loading / Error States
+
+Implemented patterns:
+
+- Empty states across new OS pages (projects, apps, meetings, integrations)
+- Clear no-data messaging with next actions
+- Server action failures return explicit user-safe messages
+- Events surface explicitly avoids fake cards and states future expansion
+
+## No Demo Data Policy
+
+- `prisma/seed.ts` is now intentionally no-op
+- No synthetic startup/investor/builder records are seeded
+- Data is expected through real onboarding and workspace flows
+
+## Setup
+
+1. Install dependencies
 
 ```bash
-git clone https://github.com/Webcoin-Labs/Webpage.git
-cd Webpage
 pnpm install
 ```
 
-### 2. Environment variables
-
-Copy `.env.example` to `.env.local` and fill in the values:
-
-```bash
-cp .env.example .env.local
-```
-
-See [Environment Variables](#environment-variables) for the full reference.
-
-### 3. OAuth (optional but recommended)
-
-| Provider | Setup |
-|----------|--------|
-| **Google** | [Console](https://console.cloud.google.com/apis/credentials) → OAuth 2.0 Client ID. Redirect URI: `http://localhost:3000/api/auth/callback/google` |
-| **GitHub** | [New OAuth App](https://github.com/settings/applications/new). Callback URL: `http://localhost:3000/api/auth/callback/github` |
-
-### 4. Database
+2. Generate Prisma client
 
 ```bash
 pnpm db:generate
-pnpm db:migrate
-pnpm db:seed
 ```
 
-### 5. Run locally
+3. Create and apply migration(s)
+
+```bash
+pnpm db:migrate
+```
+
+4. Run development server
 
 ```bash
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
-
----
-
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| **Database** | | |
-| `DATABASE_URL` | Yes | Neon Postgres connection string (e.g. `postgresql://...?sslmode=require`) |
-| **Auth** | | |
-| `NEXTAUTH_SECRET` | Yes | Random secret: `openssl rand -base64 32` |
-| `NEXTAUTH_URL` | Yes | `http://localhost:3000` (local) or production URL |
-| `GOOGLE_CLIENT_ID` | No | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | No | Google OAuth client secret |
-| `GITHUB_CLIENT_ID` | No | GitHub OAuth client ID |
-| `GITHUB_CLIENT_SECRET` | No | GitHub OAuth client secret |
-| **Password reset** | | |
-| `RESEND_API_KEY` | No | Resend API key (recommended for production) |
-| `PASSWORD_RESET_FROM_EMAIL` | No | Sender email (e.g. `Webcoin Labs <no-reply@webcoinlabs.com>`) |
-| `PASSWORD_RESET_WEBHOOK_URL` | No | Alternative: webhook URL for reset emails |
-| `PASSWORD_RESET_WEBHOOK_TOKEN` | No | Webhook auth token |
-| **AI (pitch analysis)** | | |
-| `GEMINI_API_KEY` | Yes (prod) | Google AI / Gemini API key |
-| `GEMINI_MODEL` | No | Model override (default: `gemini-1.5-pro`) |
-| `PITCH_ANALYSIS_QUEUE_MODE` | No | `sync` (default) or `async` (internal job drain) |
-| **Storage** | | |
-| `STORAGE_PROVIDER` | Yes | `r2` or `local` |
-| `R2_ACCOUNT_ID` | If R2 | Cloudflare account ID |
-| `R2_ACCESS_KEY_ID` | If R2 | R2 access key |
-| `R2_SECRET_ACCESS_KEY` | If R2 | R2 secret key |
-| `R2_BUCKET_NAME` | If R2 | Bucket name (e.g. `webcoinlabs-assets`) |
-| `R2_ENDPOINT` | If R2 | `https://<accountid>.r2.cloudflarestorage.com` |
-| `LOCAL_STORAGE_ROOT` | If local | Absolute path for uploads (e.g. `E:\webcoinlabs\.data`) |
-| `PUBLIC_UPLOAD_ROOT` | If local | URL path for local assets (e.g. `/uploads`) |
-| **Rate limiting** | | |
-| `UPSTASH_REDIS_REST_URL` | No | Upstash Redis REST URL |
-| `UPSTASH_REDIS_REST_TOKEN` | No | Upstash Redis REST token |
-| **Internal jobs & reminders** | | |
-| `INTERNAL_JOBS_SECRET` | If async jobs | Secret for `/api/internal/jobs/drain` |
-| `EVENT_REMINDER_WEBHOOK_URL` | No | Reminder delivery webhook |
-| `EVENT_REMINDER_WEBHOOK_TOKEN` | No | Webhook token |
-| **Observability** | | |
-| `OBSERVABILITY_SINK_URL` | No | Optional logging/observability endpoint |
-| `OBSERVABILITY_SINK_TOKEN` | No | Sink auth token |
+Use `.env.example` as baseline and ensure these are configured:
 
----
+- `DATABASE_URL`
+- `NEXTAUTH_SECRET`
+- `NEXTAUTH_URL`
+- OAuth keys as needed (`GOOGLE_*`, `GITHUB_*`)
+- AI/storage variables depending on deployment mode
 
-## User Roles
+## Architecture Notes
 
-| Role | Access |
-|------|--------|
-| `BUILDER` | Profile, apply to builder programs, jobs, hiring interests, intros |
-| `FOUNDER` | Profile, create/manage projects, apply for founder support, post jobs and hiring interests, intros |
-| `INVESTOR` | Basic portal access (future) |
-| `ADMIN` | Full access: admin dashboard (applications, intros, leads, jobs, pitch decks, storage, moderation, hiring interests) |
-
-To set a user as **ADMIN** in the database:
-
-```sql
-UPDATE "User" SET role = 'ADMIN' WHERE email = 'your@email.com';
-```
-
----
-
-## Public Routes
-
-| Path | Description |
-|------|-------------|
-| `/` | Homepage |
-| `/builders` | Builder directory |
-| `/builders/[handleOrId]` | Builder profile |
-| `/projects` | Project directory |
-| `/projects/[slugOrId]` | Project page |
-| `/ecosystems` | Ecosystem tracks |
-| `/network` | Partners, VCs, launchpads |
-| `/products` | Products overview |
-| `/products/arcpay` | ArcPay |
-| `/products/riddlepay` | RiddlePay |
-| `/products/kreatorboard` | Kreatorboard |
-| `/products/founder-profile` | Founder Profile |
-| `/pitchdeck` | Pitch deck upload & AI review |
-| `/pricing` | Pricing |
-| `/contact` | Contact form |
-| `/services` | Services |
-| `/insights` | Insights / blog |
-| `/case-studies` | Case studies |
-
----
-
-## Deployment
-
-### Vercel
-
-1. Push the repo to GitHub and import the project in [Vercel](https://vercel.com).
-2. Add all required environment variables (see [Environment Variables](#environment-variables)).
-3. Set **Build Command** to: `pnpm db:generate && pnpm build`.
-4. Deploy.
-
-After the first deploy, run migrations against your Neon database (e.g. from CI or locally):
-
-```bash
-pnpm db:migrate
-# or for production: npx prisma migrate deploy
-```
-
-See `docs/PRODUCTION_CHECKLIST.md` and `docs/STAGING_PROD_LAUNCH_RUNBOOK.md` for pre-deploy checks and runbooks.
-
----
-
-## Legacy Notes
-
-This project replaces the previous Express + MongoDB + Socket.IO stack.
-
-| Removed | Replaced with |
-|---------|----------------|
-| `server.js` (Express) | Next.js App Router + Server Actions |
-| Static HTML (home, portfolio, VC, launchpad, signup) | React pages under `app/(marketing)/` |
-| MongoDB / Mongoose | Neon Postgres + Prisma |
-| Socket.IO auth | NextAuth.js sessions |
-| PHP mail form | Contact form + server actions |
-
-Partner and seed data are in `prisma/seed.ts`; logo assets live under `public/`.
-
----
-
-## License
-
-Proprietary — Webcoin Labs.
+- Existing production modules are preserved unless superseded by role-specific OS surfaces.
+- New modules are additive and non-destructive.
+- Investor/founder/builder systems now have dedicated route surfaces while retaining backward compatibility with existing pages.

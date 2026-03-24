@@ -1,9 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
-import { PartnerGrid } from "@/components/partners/PartnerGrid";
 import type { Partner } from "@prisma/client";
+
+const PartnerGrid = dynamic(
+  () => import("@/components/partners/PartnerGrid").then((mod) => mod.PartnerGrid),
+  {
+    loading: () => <div className="h-48 animate-pulse rounded-2xl border border-border/50 bg-card/60" />,
+  },
+);
 
 export function NetworkTabs({
   currentPartners,

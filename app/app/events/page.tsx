@@ -1,110 +1,100 @@
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { EventVisibility } from "@prisma/client";
-import { EventsHubClient } from "@/components/events/EventsHubClient";
+import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Calendar, Video } from "lucide-react";
+import { CalendarClock, Users } from "lucide-react";
+import { authOptions } from "@/lib/auth";
+import { db } from "@/server/db/client";
 
 export const metadata = {
-  title: "Events — Webcoin Labs",
-  description: "Office hours, workshops, founder sessions, demo days.",
+  title: "Events - Webcoin Labs",
+  description: "Role-aware events and scheduling workspace",
 };
-
-async function getEvents(sessionUserId: string, isAdmin: boolean) {
-  const now = new Date();
-  const where = isAdmin
-    ? {}
-    : {
-        isPublished: true,
-        OR: [
-          { visibility: EventVisibility.PUBLIC },
-          { visibility: EventVisibility.MEMBERS },
-          {
-            visibility: EventVisibility.INVITE_ONLY,
-            rsvps: { some: { userId: sessionUserId } },
-          },
-        ],
-      };
-
-  const events = await prisma.event.findMany({
-    where,
-    include: {
-      _count: { select: { rsvps: true } },
-      rsvps: { where: { userId: sessionUserId }, select: { id: true } },
-    },
-    orderBy: { startAt: "asc" },
-  });
-
-  const thisWeekEnd = new Date(now);
-  thisWeekEnd.setDate(thisWeekEnd.getDate() + 7);
-  const thisWeek = events.filter(
-    (e) => e.startAt >= now && e.startAt <= thisWeekEnd
-  );
-  const featured = events.filter((e) => e.isFeatured && e.startAt >= now);
-  const upcoming = events.filter((e) => e.startAt >= now);
-  const past = events.filter((e) => e.endAt < now);
-
-  return {
-    thisWeek,
-    featured: featured[0] ?? null,
-    upcoming,
-    past,
-    all: events,
-  };
-}
 
 export default async function EventsPage() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Sign in to view events.</p>
-      </div>
-    );
-  }
+  if (!session?.user?.id) redirect("/login");
 
-  const data = await getEvents(
-    session.user.id,
-    session.user.role === "ADMIN"
-  );
+  const [upcomingEvents, myRsvps] = await Promise.all([
+    db.event.findMany({
+      where: {
+        startAt: { gte: new Date() },
+        isPublished: true,
+      },
+      orderBy: { startAt: "asc" },
+      take: 20,
+      include: {
+        _count: { select: { rsvps: true } },
+      },
+    }),
+    db.eventRsvp.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      include: {
+        event: { select: { id: true, title: true, startAt: true } },
+      },
+    }),
+  ]);
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Events</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Office hours, workshops, founder sessions, demo days
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <a
-            href="https://calendly.com/webcoinlabs/demo"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 text-sm font-medium border border-cyan-500/30 transition-colors"
-          >
-            <Calendar className="w-4 h-4" /> Request Office Hours
-          </a>
-          <Link
-            href="/app/apply?type=demo_day"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border hover:border-violet-500/40 text-sm font-medium transition-colors"
-          >
-            <Video className="w-4 h-4" /> Submit a Demo Day Pitch
-          </Link>
-        </div>
-      </div>
+    <div className="space-y-6 py-8">
+      <section className="rounded-2xl border border-border/60 bg-card p-6">
+        <h1 className="text-2xl font-semibold">Events</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Upcoming network events, role-specific sessions, and your RSVP timeline.
+        </p>
+      </section>
 
-      <EventsHubClient
-        thisWeek={data.thisWeek}
-        featured={data.featured}
-        upcoming={data.upcoming}
-        past={data.past}
-        userRsvpEventIds={data.all
-          .filter((e) => Array.isArray(e.rsvps) && e.rsvps.length > 0)
-          .map((e) => e.id)}
-      />
+      <section className="grid gap-4 lg:grid-cols-2">
+        <article className="rounded-xl border border-border/60 bg-card p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+            <CalendarClock className="h-4 w-4 text-cyan-300" />
+            Upcoming Events
+          </div>
+          {upcomingEvents.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No upcoming published events right now.</p>
+          ) : (
+            <div className="space-y-2">
+              {upcomingEvents.map((event) => (
+                <div key={event.id} className="rounded-md border border-border/60 p-3">
+                  <p className="text-sm font-medium">{event.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(event.startAt).toLocaleString()} | {event.format} | {event.visibility}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground inline-flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" />
+                    {event._count.rsvps} RSVP
+                  </p>
+                  <div className="mt-2">
+                    <Link href={`/app/events/${event.id}`} className="text-xs text-cyan-300 hover:text-cyan-200">
+                      Open event
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+
+        <article className="rounded-xl border border-border/60 bg-card p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+            <Users className="h-4 w-4 text-cyan-300" />
+            My RSVPs
+          </div>
+          {myRsvps.length === 0 ? (
+            <p className="text-sm text-muted-foreground">You have not RSVP’d to any events yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {myRsvps.map((rsvp) => (
+                <div key={rsvp.id} className="rounded-md border border-border/60 p-2 text-xs text-muted-foreground">
+                  {rsvp.event.title} | {rsvp.status} | {new Date(rsvp.event.startAt).toLocaleString()}
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+      </section>
     </div>
   );
 }
+

@@ -25,6 +25,13 @@ const envSchema = z.object({
   R2_ENDPOINT: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().optional(),
+  OPENCLAW_BASE_URL: z.string().url().optional(),
+  OPENCLAW_API_KEY: z.string().optional(),
+  APP_ENCRYPTION_SECRET: z.string().optional(),
+  UPLOAD_SCAN_HOOK_URL: z.string().url().optional(),
+  INTERNAL_JOBS_SECRET: z.string().optional(),
+  UPSTASH_REDIS_REST_URL: z.string().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -75,6 +82,30 @@ if (hasGitHub && (!data.GITHUB_CLIENT_ID || !data.GITHUB_CLIENT_SECRET)) {
 
 if (data.NODE_ENV === "production" && !data.GEMINI_API_KEY) {
   throw new Error("GEMINI_API_KEY must be set in production for pitch analysis flows.");
+}
+
+if (data.OPENCLAW_BASE_URL && !data.OPENCLAW_API_KEY) {
+  throw new Error("OPENCLAW_API_KEY must be set when OPENCLAW_BASE_URL is configured.");
+}
+
+const isProdRuntime = data.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build";
+
+if (isProdRuntime) {
+  if (!data.UPSTASH_REDIS_REST_URL || !data.UPSTASH_REDIS_REST_TOKEN) {
+    throw new Error("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set in production.");
+  }
+  try {
+    // eslint-disable-next-line no-new
+    new URL(data.UPSTASH_REDIS_REST_URL);
+  } catch {
+    throw new Error("UPSTASH_REDIS_REST_URL must be a valid URL in production.");
+  }
+  if (!data.INTERNAL_JOBS_SECRET) {
+    throw new Error("INTERNAL_JOBS_SECRET must be set in production.");
+  }
+  if (!data.OPENCLAW_BASE_URL || !data.OPENCLAW_API_KEY || !data.APP_ENCRYPTION_SECRET) {
+    throw new Error("OPENCLAW_BASE_URL, OPENCLAW_API_KEY, and APP_ENCRYPTION_SECRET must be set in production.");
+  }
 }
 
 export const env = {

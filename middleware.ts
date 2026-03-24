@@ -20,6 +20,9 @@ export default withAuth(
                 if (req.nextUrl.pathname.startsWith("/app")) {
                     return !!token;
                 }
+                if (req.nextUrl.pathname.startsWith("/api/profiles/contact")) {
+                    return !!token && (token.role === "INVESTOR" || token.role === "ADMIN");
+                }
                 return true;
             },
         },
@@ -27,5 +30,5 @@ export default withAuth(
 );
 
 export const config = {
-    matcher: ["/app/:path*"],
+    matcher: ["/app/:path*", "/api/profiles/contact/:path*"],
 };

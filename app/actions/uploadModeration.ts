@@ -10,7 +10,7 @@ import {
   type UploadAsset,
 } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { getFileStorage } from "@/lib/storage";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { retryPitchDeckAnalysis } from "@/app/actions/pitchdeck";
@@ -196,14 +196,14 @@ async function moderateAsset({
   const noteParsed = noteSchema.safeParse(note ?? "");
   if (!noteParsed.success) return { success: false, error: noteParsed.error.errors[0]?.message ?? "Invalid note." };
 
-  const asset = await prisma.uploadAsset.findUnique({ where: { id: idParsed.data } });
+  const asset = await db.uploadAsset.findUnique({ where: { id: idParsed.data } });
   if (!asset) return { success: false, error: "Upload asset not found." };
 
   const reasonValue = reasonParsed.data?.trim() || undefined;
   const noteValue = noteParsed.data?.trim() || undefined;
 
   try {
-    await prisma.$transaction(async (tx) => {
+    await db.$transaction(async (tx) => {
       const updated = await tx.uploadAsset.update({
         where: { id: asset.id },
         data: {
@@ -288,7 +288,7 @@ export async function removeUploadAsset(
   if (!result.success) return result;
 
   if (options?.deleteFromStorage) {
-    const asset = await prisma.uploadAsset.findUnique({ where: { id: assetId }, select: { storageKey: true } });
+    const asset = await db.uploadAsset.findUnique({ where: { id: assetId }, select: { storageKey: true } });
     if (asset?.storageKey) {
       try {
         const storage = getFileStorage();
@@ -327,11 +327,11 @@ export async function updateUploadModerationNote(assetId: string, note: string):
   if (!noteParsed.success) return { success: false, error: noteParsed.error.errors[0]?.message ?? "Invalid note." };
   const noteValue = noteParsed.data?.trim() || "";
 
-  const asset = await prisma.uploadAsset.findUnique({ where: { id: idParsed.data } });
+  const asset = await db.uploadAsset.findUnique({ where: { id: idParsed.data } });
   if (!asset) return { success: false, error: "Upload asset not found." };
 
   try {
-    await prisma.$transaction(async (tx) => {
+    await db.$transaction(async (tx) => {
       await tx.uploadAsset.update({
         where: { id: asset.id },
         data: {
@@ -375,10 +375,10 @@ export async function reprocessUploadAsset(assetId: string, note?: string): Prom
   if (!noteParsed.success) return { success: false, error: noteParsed.error.errors[0]?.message ?? "Invalid note." };
   const noteValue = noteParsed.data?.trim() || "";
 
-  const asset = await prisma.uploadAsset.findUnique({ where: { id: idParsed.data } });
+  const asset = await db.uploadAsset.findUnique({ where: { id: idParsed.data } });
   if (!asset) return { success: false, error: "Upload asset not found." };
 
-  await prisma.$transaction(async (tx) => {
+  await db.$transaction(async (tx) => {
     await tx.uploadAsset.update({
       where: { id: asset.id },
       data: {
@@ -424,7 +424,7 @@ export async function reprocessUploadAsset(assetId: string, note?: string): Prom
         mimeType = metadata.format ? `image/${metadata.format}` : mimeType;
       }
 
-      await prisma.uploadAsset.update({
+      await db.uploadAsset.update({
         where: { id: asset.id },
         data: {
           fileSize: buffer.length,
@@ -435,7 +435,7 @@ export async function reprocessUploadAsset(assetId: string, note?: string): Prom
       });
     }
 
-    await prisma.$transaction(async (tx) => {
+    await db.$transaction(async (tx) => {
       const updated = await tx.uploadAsset.update({
         where: { id: asset.id },
         data: {
@@ -466,7 +466,7 @@ export async function reprocessUploadAsset(assetId: string, note?: string): Prom
       error,
       data: { assetId: asset.id, assetType: asset.assetType, actorId: session.user.id },
     });
-    await prisma.$transaction(async (tx) => {
+    await db.$transaction(async (tx) => {
       const updated = await tx.uploadAsset.update({
         where: { id: asset.id },
         data: {
@@ -550,3 +550,4 @@ export async function bulkModerateUploadAssets(input: {
   await revalidateUploadPaths();
   return { success: true, processed, failed };
 }
+

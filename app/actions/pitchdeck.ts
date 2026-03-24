@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { getFileStorage } from "@/lib/storage";
 import { extractDeckText, type DeckFileKind } from "@/lib/extraction/deckText";
@@ -85,7 +85,7 @@ async function processPitchDeck(
   deckId: string,
   actor: { id: string; role: string }
 ): Promise<PitchDeckActionResult> {
-  const deck = await prisma.pitchDeck.findUnique({
+  const deck = await db.pitchDeck.findUnique({
     where: { id: deckId },
     include: {
       reports: { orderBy: { createdAt: "desc" }, take: 1 },
@@ -100,11 +100,11 @@ async function processPitchDeck(
   if (!report) return { success: false, error: "Report record missing." };
 
   try {
-    await prisma.pitchDeck.update({
+    await db.pitchDeck.update({
       where: { id: deck.id },
       data: { processingStatus: "EXTRACTING" },
     });
-    await prisma.aIReport.update({
+    await db.aIReport.update({
       where: { id: report.id },
       data: { status: "PROCESSING", errorMessage: null },
     });
@@ -119,7 +119,7 @@ async function processPitchDeck(
     if (!kind) throw new Error("Could not infer deck file type.");
     const extractedText = await extractDeckText(buffer, kind);
 
-    await prisma.pitchDeck.update({
+    await db.pitchDeck.update({
       where: { id: deck.id },
       data: {
         extractedText,
@@ -131,7 +131,7 @@ async function processPitchDeck(
 
     const analysis = await analyzePitchDeckText(extractedText, deck.originalFileName);
 
-    await prisma.aIReport.update({
+    await db.aIReport.update({
       where: { id: report.id },
       data: {
         status: "COMPLETED",
@@ -161,7 +161,7 @@ async function processPitchDeck(
       },
     });
 
-    await prisma.pitchDeck.update({
+    await db.pitchDeck.update({
       where: { id: deck.id },
       data: {
         processingStatus: "COMPLETED",
@@ -169,7 +169,7 @@ async function processPitchDeck(
         uploadStatus: "STORED",
       },
     });
-    await prisma.uploadAsset.updateMany({
+    await db.uploadAsset.updateMany({
       where: { pitchDeckId: deck.id },
       data: {
         status: "ACTIVE",
@@ -192,7 +192,7 @@ async function processPitchDeck(
     });
     const shouldFailAsset =
       !deck.storageKey || /extract|storage key|file type|document format|signature/i.test(message);
-    await prisma.pitchDeck.update({
+    await db.pitchDeck.update({
       where: { id: deck.id },
       data: {
         processingStatus: "FAILED",
@@ -201,7 +201,7 @@ async function processPitchDeck(
       },
     });
     if (shouldFailAsset) {
-      await prisma.uploadAsset.updateMany({
+      await db.uploadAsset.updateMany({
         where: { pitchDeckId: deck.id },
         data: {
           status: "FAILED",
@@ -210,7 +210,7 @@ async function processPitchDeck(
         },
       });
     }
-    await prisma.aIReport.update({
+    await db.aIReport.update({
       where: { id: report.id },
       data: {
         status: "FAILED",
@@ -246,19 +246,19 @@ export async function uploadPitchDeck(formData: FormData): Promise<PitchDeckActi
 
   const projectId = parsed.data.projectId || null;
   if (projectId) {
-    const project = await prisma.project.findFirst({
+    const project = await db.project.findFirst({
       where: session.user.role === "ADMIN" ? { id: projectId } : { id: projectId, ownerUserId: session.user.id },
       select: { id: true },
     });
     if (!project) return { success: false, error: "Project not found for this account." };
   }
 
-  const founderProfile = await prisma.founderProfile.findUnique({
+  const founderProfile = await db.founderProfile.findUnique({
     where: { userId: session.user.id },
     select: { id: true },
   });
 
-  const deck = await prisma.pitchDeck.create({
+  const deck = await db.pitchDeck.create({
     data: {
       userId: session.user.id,
       founderProfileId: founderProfile?.id ?? null,
@@ -274,7 +274,7 @@ export async function uploadPitchDeck(formData: FormData): Promise<PitchDeckActi
     },
   });
 
-  const report = await prisma.aIReport.create({
+  const report = await db.aIReport.create({
     data: {
       pitchDeckId: deck.id,
       status: "QUEUED",
@@ -294,7 +294,7 @@ export async function uploadPitchDeck(formData: FormData): Promise<PitchDeckActi
       buffer: fileBuffer,
       storageKey,
     });
-    await prisma.pitchDeck.update({
+    await db.pitchDeck.update({
       where: { id: deck.id },
       data: {
         fileUrl: stored.fileUrl,
@@ -321,11 +321,11 @@ export async function uploadPitchDeck(formData: FormData): Promise<PitchDeckActi
       error,
       data: { pitchDeckId: deck.id, userId: session.user.id },
     });
-    await prisma.pitchDeck.update({
+    await db.pitchDeck.update({
       where: { id: deck.id },
       data: { uploadStatus: "FAILED", processingStatus: "FAILED", extractionError: message },
     });
-    await prisma.aIReport.update({
+    await db.aIReport.update({
       where: { id: report.id },
       data: { status: "FAILED", errorMessage: message },
     });
@@ -357,17 +357,17 @@ export async function retryPitchDeckAnalysis(pitchDeckId: string): Promise<Pitch
   const limiter = await rateLimitAsync(rateLimitKey(session.user.id, "pitchdeck-retry"), 10, 60_000);
   if (!limiter.ok) return { success: false, error: "Too many retries. Please try again later." };
   if (isAsyncAnalysisEnabled()) {
-    const latestReport = await prisma.aIReport.findFirst({
+    const latestReport = await db.aIReport.findFirst({
       where: { pitchDeckId },
       orderBy: { createdAt: "desc" },
       select: { id: true },
     });
-    await prisma.pitchDeck.update({
+    await db.pitchDeck.update({
       where: { id: pitchDeckId },
       data: { processingStatus: "QUEUED", extractionError: null },
     });
     if (latestReport?.id) {
-      await prisma.aIReport.update({
+      await db.aIReport.update({
         where: { id: latestReport.id },
         data: { status: "QUEUED", errorMessage: null },
       });
@@ -383,7 +383,7 @@ export async function retryPitchDeckAnalysis(pitchDeckId: string): Promise<Pitch
 
 export async function getLatestPitchDeckReport() {
   const session = await assertFounderOrAdmin();
-  return prisma.pitchDeck.findFirst({
+  return db.pitchDeck.findFirst({
     where: { userId: session.user.id },
     include: { reports: { orderBy: { createdAt: "desc" }, take: 1 } },
     orderBy: { createdAt: "desc" },
@@ -392,7 +392,7 @@ export async function getLatestPitchDeckReport() {
 
 export async function listPitchDecksForFounder(limit = 12) {
   const session = await assertFounderOrAdmin();
-  return prisma.pitchDeck.findMany({
+  return db.pitchDeck.findMany({
     where: { userId: session.user.id },
     include: { reports: { orderBy: { createdAt: "desc" }, take: 1 }, project: { select: { id: true, name: true } } },
     orderBy: { createdAt: "desc" },
@@ -414,7 +414,7 @@ export async function drainQueuedPitchDeckAnalyses(limit = 6) {
 }
 
 export async function drainQueuedPitchDeckAnalysesBySystem(limit = 6) {
-  const decks = await prisma.pitchDeck.findMany({
+  const decks = await db.pitchDeck.findMany({
     where: {
       uploadStatus: "STORED",
       processingStatus: { in: ["QUEUED", "FAILED"] },

@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://user:pass@localhost:5432/webcoinlabs
+      NEXTAUTH_SECRET: test-secret
+      NEXTAUTH_URL: http://localhost:3000
+      STORAGE_PROVIDER: local
+      LOCAL_STORAGE_ROOT: /tmp/webcoinlabs
+      GEMINI_API_KEY: test-gemini-key
+      OPENCLAW_BASE_URL: https://example.com
+      OPENCLAW_API_KEY: test-openclaw-key
+      APP_ENCRYPTION_SECRET: test-app-encryption-secret
+      INTERNAL_JOBS_SECRET: test-internal-jobs-secret
+      UPSTASH_REDIS_REST_URL: https://example.upstash.io
+      UPSTASH_REDIS_REST_TOKEN: test-upstash-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint:ci
+      - run: pnpm typecheck
+      - run: pnpm build
+      - run: pnpm test
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --prod --audit-level=high
+
+  e2e-smoke:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://user:pass@localhost:5432/webcoinlabs
+      NEXTAUTH_SECRET: test-secret
+      NEXTAUTH_URL: http://localhost:3000
+      STORAGE_PROVIDER: local
+      LOCAL_STORAGE_ROOT: /tmp/webcoinlabs
+      GEMINI_API_KEY: test-gemini-key
+      OPENCLAW_BASE_URL: https://example.com
+      OPENCLAW_API_KEY: test-openclaw-key
+      APP_ENCRYPTION_SECRET: test-app-encryption-secret
+      INTERNAL_JOBS_SECRET: test-internal-jobs-secret
+      UPSTASH_REDIS_REST_URL: https://example.upstash.io
+      UPSTASH_REDIS_REST_TOKEN: test-upstash-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e:smoke

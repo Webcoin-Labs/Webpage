@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { HiringInterestsTable } from "@/components/hiring/HiringInterestsTable";
 import { HiringInterestForm } from "@/components/hiring/HiringInterestForm";
 import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag";
@@ -16,14 +16,14 @@ export default async function HiringPage() {
 
   const [receivedInterests, hiringFounders] = await Promise.all([
     isFounder
-      ? prisma.hiringInterest.findMany({
+      ? db.hiringInterest.findMany({
           where: { founderId: user.id },
           orderBy: { createdAt: "desc" },
           take: 120,
         })
       : Promise.resolve([]),
     isBuilder
-      ? prisma.founderProfile.findMany({
+      ? db.founderProfile.findMany({
           where: { isHiring: true },
           include: {
             user: { select: { id: true, name: true } },

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AnimatedSection } from "@/components/common/AnimatedSection";
@@ -11,7 +11,7 @@ type Params = { params: Promise<{ slugOrId: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slugOrId } = await params;
-  const project = await prisma.project.findFirst({
+  const project = await db.project.findFirst({
     where: { publicVisible: true, OR: [{ slug: slugOrId }, { id: slugOrId }] },
     select: { name: true, tagline: true },
   });
@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 async function getProject(slugOrId: string) {
-  return prisma.project.findFirst({
+  return db.project.findFirst({
     where: { publicVisible: true, OR: [{ slug: slugOrId }, { id: slugOrId }] },
     include: {
       owner: {

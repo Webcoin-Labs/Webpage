@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { ArrowLeft } from "lucide-react";
 import { AdminPartnersForm } from "@/components/app/AdminPartnersForm";
 
@@ -14,7 +14,7 @@ export default async function AdminPartnersPage() {
   const session = await getServerSession(authOptions);
   if (session?.user.role !== "ADMIN") redirect("/app");
 
-  const partners = await prisma.partner.findMany({ orderBy: [{ status: "asc" }, { sortOrder: "asc" }, { name: "asc" }] });
+  const partners = await db.partner.findMany({ orderBy: [{ status: "asc" }, { sortOrder: "asc" }, { name: "asc" }] });
 
   return (
     <div className="space-y-8 py-8">

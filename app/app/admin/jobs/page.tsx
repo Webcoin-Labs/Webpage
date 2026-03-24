@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { updateJobApplicationStatus, updateJobPostStatus } from "@/app/actions/jobs";
 
 export const metadata = { title: "Jobs — Admin | Webcoin Labs" };
@@ -13,7 +13,7 @@ export default async function AdminJobsPage() {
   if (session?.user.role !== "ADMIN") redirect("/app");
 
   const [jobs, applications] = await Promise.all([
-    prisma.jobPost.findMany({
+    db.jobPost.findMany({
       include: {
         createdBy: { select: { name: true, email: true } },
         project: { select: { name: true } },
@@ -22,7 +22,7 @@ export default async function AdminJobsPage() {
       orderBy: { createdAt: "desc" },
       take: 200,
     }),
-    prisma.jobApplication.findMany({
+    db.jobApplication.findMany({
       include: {
         user: { select: { name: true, email: true } },
         job: { select: { title: true, company: true } },

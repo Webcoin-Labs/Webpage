@@ -12,9 +12,14 @@ import {
   Building2,
   MessageSquare,
   Crown,
+  AlertTriangle,
+  Rocket,
+  Award,
+  ExternalLink,
+  Github,
 } from "lucide-react";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { getRecommendedBuildersForFounder, getRecommendedProjectsForBuilder } from "@/lib/recommendations";
 import { getBuilderAffiliation, getFounderAffiliation } from "@/lib/affiliation";
 import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag";
@@ -61,9 +66,18 @@ export default async function AppDashboard() {
   const isInvestor = user.role === "INVESTOR";
   const isAdmin = user.role === "ADMIN";
 
+  const safe = async <T,>(promise: Promise<T>, fallback: T): Promise<T> => {
+    try {
+      return await promise;
+    } catch {
+      return fallback;
+    }
+  };
+
   const [
     applications,
     projectCount,
+    founderStartupCount,
     builderProfile,
     founderProfile,
     investorProfile,
@@ -82,91 +96,170 @@ export default async function AppDashboard() {
     latestOwnedProject,
     latestIntroRequest,
     latestJobApplication,
+    builderProjects,
+    investorOperatingProfile,
   ] = await Promise.all([
-    prisma.application.count({ where: { userId: user.id } }),
-    prisma.project.count({ where: { ownerUserId: user.id } }),
-    prisma.builderProfile.findUnique({ where: { userId: user.id } }),
-    prisma.founderProfile.findUnique({ where: { userId: user.id } }),
-    prisma.investorProfile.findUnique({ where: { userId: user.id } }),
-    prisma.introRequest.count({ where: { founderId: user.id } }),
-    prisma.pitchDeck.findFirst({
-      where: {
-        userId: user.id,
-        OR: [
-          { uploadAsset: { is: null } },
-          { uploadAsset: { is: { status: { in: ["ACTIVE", "FLAGGED", "REPROCESSING"] } } } },
-        ],
-      },
-      include: { reports: { orderBy: { createdAt: "desc" }, take: 1 } },
-      orderBy: { createdAt: "desc" },
-    }),
-    isFounder ? getRecommendedBuildersForFounder(user.id, 6) : Promise.resolve([]),
-    isBuilder ? getRecommendedProjectsForBuilder(user.id, 6) : Promise.resolve([]),
-    prisma.jobPost.findMany({
-      where: { status: "OPEN" },
-      orderBy: { createdAt: "desc" },
-      include: { project: { select: { id: true, name: true } } },
-      take: 6,
-    }),
-    isBuilder ? prisma.jobApplication.count({ where: { userId: user.id } }) : Promise.resolve(0),
-    isFounder ? prisma.jobPost.count({ where: { createdByUserId: user.id } }) : Promise.resolve(0),
+    safe(isInvestor ? Promise.resolve(0) : db.application.count({ where: { userId: user.id } }), 0),
+    safe(db.project.count({ where: { ownerUserId: user.id } }), 0),
+    safe(isFounder ? db.startup.count({ where: { founderId: user.id } }) : Promise.resolve(0), 0),
+    safe(
+      isBuilder
+        ? db.builderProfile.findUnique({
+            where: { userId: user.id },
+            // Avoid selecting columns that may not exist yet in older DBs.
+            select: {
+              id: true,
+              userId: true,
+              handle: true,
+              title: true,
+              headline: true,
+              independent: true,
+              openToWork: true,
+              skills: true,
+              preferredChains: true,
+              openTo: true,
+              bio: true,
+              github: true,
+              linkedin: true,
+              twitter: true,
+              website: true,
+              portfolioUrl: true,
+              resumeUrl: true,
+              achievements: true,
+              openSourceContributions: true,
+              publicVisible: true,
+              verifiedByWebcoinLabs: true,
+              updatedAt: true,
+            },
+          })
+        : Promise.resolve(null),
+      null,
+    ),
+    safe(isFounder ? db.founderProfile.findUnique({ where: { userId: user.id } }) : Promise.resolve(null), null),
+    safe(isInvestor ? db.investorProfile.findUnique({ where: { userId: user.id } }) : Promise.resolve(null), null),
+    safe(isFounder ? db.introRequest.count({ where: { founderId: user.id } }) : Promise.resolve(0), 0),
+    safe(
+      isFounder || isBuilder
+        ? db.pitchDeck.findFirst({
+            where: {
+              userId: user.id,
+              OR: [
+                { uploadAsset: { is: null } },
+                { uploadAsset: { is: { status: { in: ["ACTIVE", "FLAGGED", "REPROCESSING"] } } } },
+              ],
+            },
+            include: { reports: { orderBy: { createdAt: "desc" }, take: 1 } },
+            orderBy: { createdAt: "desc" },
+          })
+        : Promise.resolve(null),
+      null,
+    ),
+    safe(isFounder ? getRecommendedBuildersForFounder(user.id, 6) : Promise.resolve([]), []),
+    safe(isBuilder ? getRecommendedProjectsForBuilder(user.id, 6) : Promise.resolve([]), []),
+    safe(
+      isBuilder
+        ? db.jobPost.findMany({
+            where: { status: "OPEN" },
+            orderBy: { createdAt: "desc" },
+            include: { project: { select: { id: true, name: true } } },
+            take: 6,
+          })
+        : Promise.resolve([]),
+      [],
+    ),
+    safe(isBuilder ? db.jobApplication.count({ where: { userId: user.id } }) : Promise.resolve(0), 0),
+    safe(isFounder ? db.jobPost.count({ where: { createdByUserId: user.id } }) : Promise.resolve(0), 0),
     isInvestor
-      ? prisma.project.findMany({
-          where: { publicVisible: true },
-          select: { id: true, name: true, stage: true, chainFocus: true, tagline: true },
-          orderBy: { createdAt: "desc" },
-          take: 6,
-        })
+      ? safe(
+          db.project.findMany({
+            where: { publicVisible: true },
+            select: { id: true, name: true, stage: true, chainFocus: true, tagline: true },
+            orderBy: { createdAt: "desc" },
+            take: 6,
+          }),
+          [],
+        )
       : Promise.resolve([]),
     isFounder
-      ? prisma.hiringInterest.findMany({
-          where: { founderId: user.id },
-          orderBy: { createdAt: "desc" },
-          take: 6,
-        })
+      ? safe(
+          db.hiringInterest.findMany({
+            where: { founderId: user.id },
+            orderBy: { createdAt: "desc" },
+            take: 6,
+          }),
+          [],
+        )
       : Promise.resolve([]),
-    isFounder ? prisma.introRequest.count({ where: { founderId: user.id, type: "KOL" } }) : Promise.resolve(0),
+    safe(isFounder ? db.introRequest.count({ where: { founderId: user.id, type: "KOL" } }) : Promise.resolve(0), 0),
     isBuilder
-      ? prisma.founderProfile.findMany({
-          where: { isHiring: true, userId: { not: user.id } },
-          include: {
-            user: { select: { id: true, name: true } },
-            _count: { select: { hiringInterests: true } },
-          },
-          orderBy: { updatedAt: "desc" },
-          take: 4,
-        })
+      ? safe(
+          db.founderProfile.findMany({
+            where: { isHiring: true, userId: { not: user.id } },
+            include: {
+              user: { select: { id: true, name: true } },
+              _count: { select: { hiringInterests: true } },
+            },
+            orderBy: { updatedAt: "desc" },
+            take: 4,
+          }),
+          [],
+        )
       : Promise.resolve([]),
     isFounder
-      ? prisma.introRequest.findFirst({
-          where: { founderId: user.id, type: "KOL" },
-          select: { id: true, status: true, updatedAt: true, requestPayload: true },
-          orderBy: { updatedAt: "desc" },
-        })
+      ? safe(
+          db.introRequest.findFirst({
+            where: { founderId: user.id, type: "KOL" },
+            select: { id: true, status: true, updatedAt: true, requestPayload: true },
+            orderBy: { updatedAt: "desc" },
+          }),
+          null,
+        )
       : Promise.resolve(null),
-    prisma.project.findFirst({
-      where: { ownerUserId: user.id },
-      select: { id: true, name: true, updatedAt: true },
-      orderBy: { updatedAt: "desc" },
-    }),
+    safe(
+      isFounder
+        ? db.project.findFirst({
+            where: { ownerUserId: user.id },
+            select: { id: true, name: true, updatedAt: true },
+            orderBy: { updatedAt: "desc" },
+          })
+        : Promise.resolve(null),
+      null,
+    ),
     isFounder
-      ? prisma.introRequest.findFirst({
-          where: { founderId: user.id },
-          select: { id: true, type: true, updatedAt: true },
-          orderBy: { updatedAt: "desc" },
-        })
+      ? safe(
+          db.introRequest.findFirst({
+            where: { founderId: user.id },
+            select: { id: true, type: true, updatedAt: true },
+            orderBy: { updatedAt: "desc" },
+          }),
+          null,
+        )
       : Promise.resolve(null),
     isBuilder
-      ? prisma.jobApplication.findFirst({
-          where: { userId: user.id },
-          select: {
-            id: true,
-            updatedAt: true,
-            job: { select: { title: true } },
-          },
-          orderBy: { updatedAt: "desc" },
-        })
+      ? safe(
+          db.jobApplication.findFirst({
+            where: { userId: user.id },
+            select: {
+              id: true,
+              updatedAt: true,
+              job: { select: { title: true } },
+            },
+            orderBy: { updatedAt: "desc" },
+          }),
+          null,
+        )
       : Promise.resolve(null),
+    isBuilder
+      ? safe(
+          db.builderProject.findMany({
+            where: { builderId: user.id },
+            orderBy: { updatedAt: "desc" },
+            take: 4,
+          }),
+          [],
+        )
+      : Promise.resolve([]),
+    isInvestor ? safe(db.investor.findUnique({ where: { userId: user.id } }), null) : Promise.resolve(null),
   ]);
 
   const latestReport = latestDeck?.reports[0];
@@ -178,9 +271,11 @@ export default async function AppDashboard() {
     builderProfile?.preferredChains,
     builderProfile?.openTo,
     builderProfile?.bio,
-    builderProfile?.affiliation || builderProfile?.independent,
+    builderProfile?.achievements,
+    builderProfile?.openSourceContributions,
+    builderProfile?.independent,
     builderProfile?.openToWork,
-    builderProfile?.github || builderProfile?.portfolioUrl,
+    builderProfile?.github || builderProfile?.portfolioUrl || builderProfile?.resumeUrl,
   ]);
   const founderCompletion = getCompletionScore([
     founderProfile?.companyName,
@@ -198,9 +293,22 @@ export default async function AppDashboard() {
     investorProfile?.roleTitle,
     investorProfile?.focus,
     investorProfile?.website,
+    investorProfile?.ticketSize,
+    investorProfile?.lookingFor,
+    investorProfile?.investmentThesis,
   ]);
-  const completion = isBuilder ? builderCompletion : isFounder ? founderCompletion : isInvestor ? investorCompletion : 100;
-  const profileComplete = completion >= 70;
+  const founderCompanyName = founderProfile?.companyName?.trim();
+  const founderHasValidCompanyName = Boolean(founderCompanyName && founderCompanyName.toLowerCase() !== "check");
+  const founderStartupRequired = isFounder && founderStartupCount < 1;
+  const founderCombinedCompletion = founderStartupRequired ? Math.min(founderCompletion, 79) : founderCompletion;
+  const completion = isBuilder
+    ? builderCompletion
+    : isFounder
+      ? founderCombinedCompletion
+      : isInvestor
+        ? investorCompletion
+        : 100;
+  const profileComplete = completion >= 80 && !founderStartupRequired;
 
   const founderAffiliation = getFounderAffiliation(founderProfile);
   const builderAffiliation = getBuilderAffiliation(builderProfile);
@@ -237,11 +345,25 @@ export default async function AppDashboard() {
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl font-semibold">Welcome back{user.name ? `, ${user.name.split(" ")[0]}` : ""}</h1>
-                {isFounder && founderAffiliation ? <ProfileAffiliationTag label={founderAffiliation.label} variant="founder" /> : null}
+                {isFounder && founderHasValidCompanyName ? (
+                  <span className="inline-flex items-center gap-2">
+                    <CompanyLogo
+                      src={founderProfile?.companyLogoUrl}
+                      alt={founderCompanyName ?? "Company"}
+                      fallback={founderCompanyName ?? "Company"}
+                      className="h-6 w-6 rounded-md border border-border/60 bg-background p-0.5"
+                      fallbackClassName="rounded-md border border-border/60 bg-background text-[9px] text-muted-foreground"
+                      imgClassName="p-0.5"
+                    />
+                    {founderAffiliation ? <ProfileAffiliationTag label={founderAffiliation.label} variant="founder" /> : null}
+                  </span>
+                ) : null}
                 {isBuilder ? <ProfileAffiliationTag label={builderAffiliation.label} variant={builderAffiliation.variant} /> : null}
                 {isInvestor && investorProfile?.firmName ? <ProfileAffiliationTag label={investorProfile.firmName} /> : null}
               </div>
-              <p className="text-sm text-muted-foreground">Your Webcoin Labs founder-builder workspace.</p>
+              <p className="text-sm text-muted-foreground">
+                {isInvestor ? "Your investor intelligence workspace." : "Your Webcoin Labs founder-builder workspace."}
+              </p>
             </div>
           </div>
           <span className="w-fit rounded-full border border-cyan-500/40 px-3 py-1 text-xs font-medium text-cyan-300">
@@ -252,13 +374,27 @@ export default async function AppDashboard() {
 
       {!profileComplete && (isBuilder || isFounder || isInvestor) ? (
         <div className="flex flex-col gap-3 rounded-xl border border-border/50 bg-card p-5 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="font-semibold">Complete your profile to unlock full discovery and matching</p>
-            <p className="text-sm text-muted-foreground">Profiles drive recommendations, intros, and hiring outcomes.</p>
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-300" />
+            <div>
+              <p className="font-semibold">Complete at least 80% profile to access all tools</p>
+              <p className="text-sm text-muted-foreground">
+                {founderStartupRequired
+                  ? "Startup section is mandatory for founder tools like hiring, intros, and premium modules."
+                  : "Profiles drive recommendations, intros, and hiring outcomes."}
+              </p>
+            </div>
           </div>
-          <Link href="/app/profile" className="inline-flex items-center gap-2 rounded-lg bg-blue-500/10 px-4 py-2 text-sm font-medium text-blue-300 hover:bg-blue-500/20">
-            Complete Profile <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/app/profile" className="inline-flex items-center gap-2 rounded-lg bg-blue-500/10 px-4 py-2 text-sm font-medium text-blue-300 hover:bg-blue-500/20">
+              Complete Profile <ArrowRight className="h-4 w-4" />
+            </Link>
+            {founderStartupRequired ? (
+              <Link href="/app/founder-os" className="inline-flex items-center gap-2 rounded-lg bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-500/20">
+                Add Startup <ArrowRight className="h-4 w-4" />
+              </Link>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
@@ -276,11 +412,11 @@ export default async function AppDashboard() {
         <div className="rounded-xl border border-border/50 bg-card p-5">
           <div className="mb-3 flex items-center gap-2">
             <FolderKanban className="h-4 w-4 text-green-300" />
-            <span className="text-sm font-medium">Projects</span>
+            <span className="text-sm font-medium">{isBuilder ? "Builder Projects" : "Projects"}</span>
           </div>
-          <p className="text-2xl font-semibold">{projectCount}</p>
-          <Link href="/app/projects" className="mt-2 inline-flex items-center gap-1 text-xs text-blue-300">
-            Manage projects <ArrowRight className="h-3 w-3" />
+          <p className="text-2xl font-semibold">{isBuilder ? builderProjects.length : projectCount}</p>
+          <Link href={isBuilder ? "/app/builder-projects" : "/app/projects"} className="mt-2 inline-flex items-center gap-1 text-xs text-blue-300">
+            {isBuilder ? "Manage builder projects" : "Manage projects"} <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
         <div className="rounded-xl border border-border/50 bg-card p-5">
@@ -325,7 +461,7 @@ export default async function AppDashboard() {
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium">Company Identity</p>
-                  <p className="text-xs text-muted-foreground">LinkedIn-style startup layer for founder discovery.</p>
+                  <p className="text-xs text-muted-foreground">Founder identity used across founder discovery, hiring, and investor visibility.</p>
                 </div>
                 {founderProfile?.isHiring ? (
                   <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] text-emerald-200">
@@ -336,16 +472,18 @@ export default async function AppDashboard() {
               <div className="flex flex-wrap items-start gap-4">
                 <CompanyLogo
                   src={founderProfile?.companyLogoUrl}
-                  alt={founderProfile?.companyName ?? "Company"}
-                  fallback={founderProfile?.companyName ?? "Company"}
+                  alt={founderHasValidCompanyName ? founderCompanyName ?? "Company" : "Company"}
+                  fallback={founderHasValidCompanyName ? founderCompanyName ?? "Company" : "Company"}
                   className="h-14 w-14 rounded-xl border border-border/60 bg-background p-1"
                   fallbackClassName="rounded-xl border border-border/60 bg-background text-sm text-muted-foreground"
                   imgClassName="p-1"
                 />
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-base font-semibold">{founderProfile?.companyName ?? "Add company name"}</p>
-                    {founderAffiliation ? <ProfileAffiliationTag label={founderAffiliation.label} variant="founder" /> : null}
+                    <p className="text-base font-semibold">{founderHasValidCompanyName ? founderCompanyName : "Add company name"}</p>
+                    {founderHasValidCompanyName && founderAffiliation ? (
+                      <ProfileAffiliationTag label={founderAffiliation.label} variant="founder" />
+                    ) : null}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {founderProfile?.roleTitle ?? "Add founder title"} | {founderProfile?.chainFocus ?? "Add chain focus"} | {stageLabel(founderProfile?.projectStage)}
@@ -357,6 +495,7 @@ export default async function AppDashboard() {
               </div>
               <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
                 <span>Projects: {projectCount}</span>
+                <span>Startups: {founderStartupCount}</span>
                 <span>Jobs posted: {myPostedJobs}</span>
                 <span>Intro requests: {introRequests}</span>
                 {founderProfile?.website ? (
@@ -365,6 +504,11 @@ export default async function AppDashboard() {
                   </a>
                 ) : null}
               </div>
+              {founderStartupRequired ? (
+                <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                  Add at least one startup in Founder OS to unlock hiring and intro workflows.
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-2xl border border-border/50 bg-card p-6">
@@ -407,6 +551,22 @@ export default async function AppDashboard() {
           </div>
 
           <div className="space-y-6">
+            {founderStartupRequired ? (
+              <div className="rounded-2xl border border-border/50 bg-card p-6">
+                <div className="mb-3 flex items-center gap-2">
+                  <Rocket className="h-4 w-4 text-cyan-300" />
+                  <p className="text-sm font-medium">Founder tools are locked</p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Complete startup setup first. Once at least one startup is added, Hiring, KOL Premium, and investor-facing
+                  tools will unlock automatically.
+                </p>
+                <Link href="/app/founder-os" className="mt-3 inline-flex items-center gap-1 text-xs text-cyan-300">
+                  Open Startup Manager <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+            ) : null}
+            {!founderStartupRequired ? (
             <div className="rounded-2xl border border-border/50 bg-card p-6">
               <div className="mb-3 flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-emerald-300" />
@@ -432,7 +592,9 @@ export default async function AppDashboard() {
                 </div>
               )}
             </div>
+            ) : null}
 
+            {!founderStartupRequired ? (
             <div className="rounded-2xl border border-border/50 bg-card p-6">
               <div className="mb-3 flex items-center gap-2">
                 <Crown className="h-4 w-4 text-amber-300" />
@@ -451,7 +613,9 @@ export default async function AppDashboard() {
                 Open KOL Premium board <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
+            ) : null}
 
+            {!founderStartupRequired ? (
             <div className="rounded-2xl border border-border/50 bg-card p-6">
               <div className="mb-3 flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-emerald-300" />
@@ -475,6 +639,7 @@ export default async function AppDashboard() {
                 Open pitch area <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
+            ) : null}
           </div>
         </section>
       ) : null}
@@ -511,6 +676,73 @@ export default async function AppDashboard() {
                   </span>
                 ))}
               </div>
+              <div className="mt-3 flex flex-wrap gap-3 text-xs">
+                {builderProfile?.linkedin ? (
+                  <a href={builderProfile.linkedin} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-cyan-300">
+                    <ExternalLink className="h-3.5 w-3.5" /> LinkedIn
+                  </a>
+                ) : null}
+                {builderProfile?.twitter ? (
+                  <span className="inline-flex items-center gap-1 text-cyan-300">
+                    <ExternalLink className="h-3.5 w-3.5" /> {builderProfile.twitter}
+                  </span>
+                ) : null}
+                {builderProfile?.resumeUrl ? (
+                  <a href={builderProfile.resumeUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-300">
+                    <FileText className="h-3.5 w-3.5" /> Resume
+                  </a>
+                ) : null}
+              </div>
+              {builderProfile?.achievements ? (
+                <p className="mt-3 rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-2 text-xs text-muted-foreground">
+                  <span className="font-medium text-cyan-200">Achievements:</span> {builderProfile.achievements}
+                </p>
+              ) : null}
+              {builderProfile?.openSourceContributions ? (
+                <p className="mt-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2 text-xs text-muted-foreground">
+                  <span className="font-medium text-emerald-200">Open source:</span> {builderProfile.openSourceContributions}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="rounded-2xl border border-border/50 bg-card p-6">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Award className="h-4 w-4 text-amber-300" />
+                  <p className="text-sm font-medium">Builder Portfolio</p>
+                </div>
+                <Link href="/app/builder-projects" className="text-xs text-blue-300">
+                  Manage portfolio
+                </Link>
+              </div>
+              {builderProjects.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Add your shipped projects, GitHub links, achievements, and open-source impact to unlock stronger hiring matches.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {builderProjects.map((project) => (
+                    <div key={project.id} className="rounded-lg border border-border/50 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-medium">{project.title}</p>
+                        {project.githubUrl ? (
+                          <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-cyan-300">
+                            <Github className="h-3.5 w-3.5" /> GitHub
+                          </a>
+                        ) : null}
+                      </div>
+                      {project.tagline ? <p className="mt-1 text-xs text-muted-foreground">{project.tagline}</p> : null}
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {project.techStack.slice(0, 5).map((item) => (
+                          <span key={item} className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-0.5 text-[10px] text-cyan-200">
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl border border-border/50 bg-card p-6">
@@ -611,30 +843,71 @@ export default async function AppDashboard() {
       {isInvestor ? (
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="rounded-2xl border border-border/50 bg-card p-6">
-            <p className="mb-3 text-sm font-medium">Recent Curated Projects</p>
-            {investorProjects.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No public projects available yet.</p>
-            ) : (
-              <div className="space-y-3 text-sm">
-                {investorProjects.map((project) => (
-                  <div key={project.id} className="flex items-center justify-between rounded-lg border border-border/50 p-3">
-                    <div>
-                      <p>{project.name}</p>
-                      <p className="text-xs text-muted-foreground">{project.chainFocus ?? "General"} | {project.stage}</p>
-                    </div>
-                    <Link href={`/projects/${project.id}`} className="text-xs text-blue-300">Review</Link>
-                  </div>
-                ))}
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] text-amber-300">
+              <Crown className="h-3.5 w-3.5" />
+              Investor Module
+            </div>
+            <div className="mb-3 flex items-center gap-3">
+              <CompanyLogo
+                src={user.image}
+                alt={investorProfile?.firmName ?? "Investor Firm"}
+                fallback={investorProfile?.firmName ?? user.name ?? "Investor"}
+                className="h-10 w-10 rounded-lg border border-border/60 bg-background p-1"
+                fallbackClassName="rounded-lg border border-border/60 bg-background text-xs text-muted-foreground"
+                imgClassName="p-1"
+              />
+              <div>
+                <p className="text-sm font-semibold">{investorProfile?.firmName ?? "Add firm name in profile"}</p>
+                <p className="text-xs text-muted-foreground">{investorProfile?.roleTitle ?? "Investor role title"}</p>
               </div>
-            )}
+            </div>
+            <p className="text-sm font-medium">Investor signal workspace</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Review founder applications, evaluate active ventures, and track thesis-fit signals from one investor workspace.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Workspace data is sourced from live applications, venture records, and meetings only.
+            </p>
+            <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+              <span className="rounded-md border border-border/60 px-2 py-1">
+                Ticket size: {investorProfile?.ticketSize ?? investorOperatingProfile?.ticketSize ?? "Set in profile"}
+              </span>
+              <span className="rounded-md border border-border/60 px-2 py-1">
+                Looking for: {investorProfile?.lookingFor ?? investorProfile?.focus ?? "Set in profile"}
+              </span>
+              <span className="rounded-md border border-border/60 px-2 py-1">
+                Stage: {investorOperatingProfile?.investmentStage ?? "Set in profile"}
+              </span>
+              <span className="rounded-md border border-border/60 px-2 py-1">
+                LinkedIn: {investorProfile?.linkedin ? "Available" : "Missing"}
+              </span>
+            </div>
+            <Link href="/app/kreatorboard" className="mt-3 inline-flex items-center gap-1 text-xs text-cyan-300">
+              Open investor workspace <ArrowRight className="h-3 w-3" />
+            </Link>
+            <a href="https://t.me/rishu" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-cyan-300">
+              Connect with Rishu on Telegram <ArrowRight className="h-3 w-3" />
+            </a>
           </div>
           <div className="rounded-2xl border border-border/50 bg-card p-6">
             <p className="text-sm font-medium">Network Updates</p>
-            <p className="mt-2 text-xs text-muted-foreground">Use projects and builders directories for live discovery.</p>
+            <p className="mt-2 text-xs text-muted-foreground">Use founder and startup directories for live discovery.</p>
             <div className="mt-4 flex gap-3 text-xs">
-              <Link href="/projects" className="text-blue-300">Projects</Link>
-              <Link href="/builders" className="text-blue-300">Builders</Link>
+              <Link href="/app/founders" className="text-blue-300">Founders</Link>
+              <Link href="/startups" className="text-blue-300">Startups</Link>
             </div>
+            {investorProjects.length > 0 ? (
+              <div className="mt-4 space-y-2">
+                {investorProjects.slice(0, 3).map((project) => (
+                  <div key={project.id} className="rounded-md border border-border/50 p-2">
+                    <p className="text-xs font-medium">{project.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {project.chainFocus ?? "General"} | {project.stage}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         </section>
       ) : null}
@@ -654,6 +927,39 @@ export default async function AppDashboard() {
         </section>
       ) : null}
 
+      <section className="rounded-2xl border border-border/50 bg-card p-6">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-sm font-medium">{isInvestor ? "Investor Modules" : "Founder OS Modules"}</p>
+            <Link href={isInvestor ? "/app/kreatorboard" : "/app/founder-os"} className="text-xs text-cyan-300">
+            {isInvestor ? "Open Investor Workspace" : "Open Founder OS"}
+            </Link>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground md:grid-cols-4">
+          {isInvestor ? (
+            <>
+              <span className="rounded-md border border-border/60 px-2 py-1">Founder Discovery</span>
+              <span className="rounded-md border border-border/60 px-2 py-1">Startup Signals</span>
+              <span className="rounded-md border border-border/60 px-2 py-1">Investor Workspace</span>
+              <span className="rounded-md border border-border/60 px-2 py-1">Pipeline Notes</span>
+            </>
+          ) : (
+            <>
+              <span className="rounded-md border border-border/60 px-2 py-1">Startup Manager</span>
+              <span className="rounded-md border border-border/60 px-2 py-1">Matches</span>
+              <span className="rounded-md border border-border/60 px-2 py-1">Hiring Pipeline</span>
+              <span className="rounded-md border border-border/60 px-2 py-1">AI Pitch</span>
+              <span className="rounded-md border border-border/60 px-2 py-1">Investor Connect</span>
+              <span className="rounded-md border border-border/60 px-2 py-1">Chat</span>
+              <span className="rounded-md border border-border/60 px-2 py-1">Market Insights</span>
+              <span className="rounded-md border border-border/60 px-2 py-1">GitHub Activity</span>
+              <span className="rounded-md border border-border/60 px-2 py-1">Jobs</span>
+              <span className="rounded-md border border-border/60 px-2 py-1">Meetings</span>
+              <span className="rounded-md border border-border/60 px-2 py-1">Payments Integration</span>
+            </>
+          )}
+        </div>
+      </section>
+
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Link href="/app/profile" className="group rounded-xl border border-border/50 bg-card p-5 transition-all hover:border-blue-500/30">
           <div className="mb-3 flex items-center gap-3">
@@ -665,25 +971,39 @@ export default async function AppDashboard() {
           <p className="text-2xl font-semibold">{profileComplete ? "Complete" : "In progress"}</p>
           <p className="mt-1 text-xs text-muted-foreground">Keep your identity and company details current.</p>
         </Link>
-        <Link href="/app/projects" className="group rounded-xl border border-border/50 bg-card p-5 transition-all hover:border-green-500/30">
+        <Link
+          href={isFounder ? "/app/founder-os" : isBuilder ? "/app/builder-projects" : "/app/projects"}
+          className="group rounded-xl border border-border/50 bg-card p-5 transition-all hover:border-green-500/30"
+        >
           <div className="mb-3 flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-500/10">
               <FolderKanban className="h-4 w-4 text-green-300" />
             </div>
-            <span className="text-sm font-medium">Projects</span>
+            <span className="text-sm font-medium">{isFounder ? "Startups" : isBuilder ? "Builder Projects" : "Projects"}</span>
           </div>
-          <p className="text-2xl font-semibold">{projectCount}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Manage your startup profile and visibility.</p>
+          <p className="text-2xl font-semibold">{isFounder ? founderStartupCount : isBuilder ? builderProjects.length : projectCount}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {isFounder
+              ? "Add and manage startups for public founder visibility."
+              : isBuilder
+                ? "Show your shipped work, open-source contributions, and technical range."
+                : "Manage your startup profile and visibility."}
+          </p>
         </Link>
-        <Link href="/app/apply" className="group rounded-xl border border-border/50 bg-card p-5 transition-all hover:border-emerald-500/30">
+        <Link
+          href={isInvestor ? "/app/kreatorboard" : "/app/apply"}
+          className="group rounded-xl border border-border/50 bg-card p-5 transition-all hover:border-emerald-500/30"
+        >
           <div className="mb-3 flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10">
               <CheckCircle2 className="h-4 w-4 text-emerald-300" />
             </div>
-            <span className="text-sm font-medium">Applications</span>
+            <span className="text-sm font-medium">{isInvestor ? "Investor Workspace" : "Applications"}</span>
           </div>
-          <p className="text-2xl font-semibold">{applications}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Track program applications and next actions.</p>
+          <p className="text-2xl font-semibold">{isInvestor ? "Soon" : applications}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {isInvestor ? "Investor dashboard is launching with creator and startup signals." : "Track program applications and next actions."}
+          </p>
         </Link>
       </section>
     </div>

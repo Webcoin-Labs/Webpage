@@ -1,8 +1,8 @@
 "use client";
 
-import { useTransition, useState } from "react";
+import { useRef, useTransition, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { submitApplication } from "@/app/actions/application";
+import { generateApplicationAssist, submitApplication } from "@/app/actions/application";
 import { CheckCircle2, Loader2 } from "lucide-react";
 
 const appTypes = [
@@ -17,17 +17,45 @@ export default function ApplyPage() {
     const typeParam = searchParams.get("type");
     const defaultType = typeParam === "demo_day" ? "DEMO_DAY_PITCH" : undefined;
     const [isPending, startTransition] = useTransition();
+    const [isAssistPending, startAssistTransition] = useTransition();
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState("");
+    const [coverLetter, setCoverLetter] = useState("");
+    const [aiScore, setAiScore] = useState<number | null>(null);
+    const [aiSummary, setAiSummary] = useState("");
+    const [aiStrengths, setAiStrengths] = useState<string[]>([]);
+    const [aiGaps, setAiGaps] = useState<string[]>([]);
+    const formRef = useRef<HTMLFormElement>(null);
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setError("");
         const formData = new FormData(e.currentTarget);
+        formData.set("coverLetter", coverLetter);
+        if (aiScore !== null) formData.set("aiFitScore", String(aiScore));
+        if (aiSummary) formData.set("aiSummary", aiSummary);
         startTransition(async () => {
             const result = await submitApplication(formData);
             if (result.success) setSuccess(true);
             else setError(result.error);
+        });
+    };
+
+    const handleGenerateAssist = () => {
+        if (!formRef.current) return;
+        setError("");
+        const formData = new FormData(formRef.current);
+        startAssistTransition(async () => {
+            const result = await generateApplicationAssist(formData);
+            if (!result.success) {
+                setError(result.error);
+                return;
+            }
+            setCoverLetter(result.coverLetter);
+            setAiScore(result.fitScore);
+            setAiSummary(result.summary);
+            setAiStrengths(result.strengths);
+            setAiGaps(result.gaps);
         });
     };
 
@@ -50,7 +78,7 @@ export default function ApplyPage() {
             <h1 className="text-2xl font-bold mb-2">Apply</h1>
             <p className="text-muted-foreground mb-8">Tell us what you&apos;re working on and what kind of support you need.</p>
 
-            <form onSubmit={handleSubmit} className="space-y-6 p-6 rounded-xl border border-border/50 bg-card">
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-6 p-6 rounded-xl border border-border/50 bg-card">
                 <div>
                     <label className="block text-xs font-medium mb-3">Application Type</label>
                     <div className="space-y-2">
@@ -79,6 +107,40 @@ export default function ApplyPage() {
                 <div>
                     <label className="block text-xs font-medium mb-1.5">Links <span className="text-muted-foreground">(GitHub, Twitter, project, etc.)</span></label>
                     <input name="links" placeholder="https://github.com/..., https://..." className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40" />
+                </div>
+
+                <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-cyan-200">AI Application Assist</p>
+                        <button
+                            type="button"
+                            onClick={handleGenerateAssist}
+                            disabled={isAssistPending}
+                            className="inline-flex items-center gap-2 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-200 disabled:opacity-60"
+                        >
+                            {isAssistPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                            {isAssistPending ? "Analyzing..." : "Generate cover letter + fit score"}
+                        </button>
+                    </div>
+                    {aiScore !== null ? (
+                        <div className="mt-3 space-y-2 text-xs">
+                            <p className="text-muted-foreground">AI fit score: <span className="text-cyan-300 font-semibold">{aiScore}/100</span></p>
+                            <p className="text-muted-foreground">{aiSummary}</p>
+                            {aiStrengths.length > 0 ? <p className="text-emerald-300">Strengths: {aiStrengths.join(" | ")}</p> : null}
+                            {aiGaps.length > 0 ? <p className="text-amber-300">Gaps: {aiGaps.join(" | ")}</p> : null}
+                        </div>
+                    ) : null}
+                    <div className="mt-3">
+                        <label className="block text-xs font-medium mb-1.5">Cover Letter</label>
+                        <textarea
+                            name="coverLetter"
+                            rows={5}
+                            value={coverLetter}
+                            onChange={(event) => setCoverLetter(event.target.value)}
+                            placeholder="Use AI assist or write your own cover letter."
+                            className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40 resize-none"
+                        />
+                    </div>
                 </div>
 
                 {error && <p className="text-sm text-destructive">{error}</p>}

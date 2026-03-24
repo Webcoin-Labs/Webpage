@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { JobPostStatus } from "@prisma/client";
 
@@ -55,14 +55,14 @@ export async function createJobPost(formData: FormData): Promise<JobResult> {
 
   const projectId = parsed.data.projectId || null;
   if (projectId) {
-    const project = await prisma.project.findFirst({
+    const project = await db.project.findFirst({
       where: session.user.role === "ADMIN" ? { id: projectId } : { id: projectId, ownerUserId: session.user.id },
       select: { id: true },
     });
     if (!project) return { success: false, error: "Project not found or not owned by you." };
   }
 
-  await prisma.jobPost.create({
+  await db.jobPost.create({
     data: {
       title: parsed.data.title,
       company: parsed.data.company,
@@ -104,16 +104,16 @@ export async function applyToJob(formData: FormData): Promise<JobResult> {
   });
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? "Invalid input" };
 
-  const job = await prisma.jobPost.findUnique({ where: { id: parsed.data.jobId }, select: { id: true, status: true } });
+  const job = await db.jobPost.findUnique({ where: { id: parsed.data.jobId }, select: { id: true, status: true } });
   if (!job || job.status !== "OPEN") return { success: false, error: "This job is no longer open." };
 
-  const existing = await prisma.jobApplication.findUnique({
+  const existing = await db.jobApplication.findUnique({
     where: { jobId_userId: { jobId: parsed.data.jobId, userId: session.user.id } },
     select: { id: true },
   });
   if (existing) return { success: false, error: "You already applied to this job." };
 
-  await prisma.jobApplication.create({
+  await db.jobApplication.create({
     data: {
       jobId: parsed.data.jobId,
       userId: session.user.id,
@@ -133,7 +133,7 @@ export async function updateJobApplicationStatus(id: string, status: string) {
   if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
   const parsed = z.enum(["APPLIED", "REVIEWING", "SHORTLISTED", "REJECTED", "HIRED"]).safeParse(status);
   if (!parsed.success) throw new Error("Invalid status");
-  await prisma.jobApplication.update({ where: { id }, data: { status: parsed.data } });
+  await db.jobApplication.update({ where: { id }, data: { status: parsed.data } });
   revalidatePath("/app/admin");
   revalidatePath("/app/admin/jobs");
 }
@@ -145,13 +145,13 @@ export async function updateJobPostStatus(id: string, status: string) {
   const parsed = z.enum(["OPEN", "CLOSED", "DRAFT"]).safeParse(status);
   if (!parsed.success) throw new Error("Invalid status");
 
-  const job = await prisma.jobPost.findUnique({ where: { id }, select: { createdByUserId: true } });
+  const job = await db.jobPost.findUnique({ where: { id }, select: { createdByUserId: true } });
   if (!job) throw new Error("Job not found");
   if (session.user.role !== "ADMIN" && job.createdByUserId !== session.user.id) {
     throw new Error("Unauthorized");
   }
 
-  await prisma.jobPost.update({ where: { id }, data: { status: parsed.data } });
+  await db.jobPost.update({ where: { id }, data: { status: parsed.data } });
   revalidatePath("/app/jobs");
   revalidatePath("/app");
   revalidatePath("/app/admin/jobs");

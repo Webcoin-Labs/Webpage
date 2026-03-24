@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { generateIcs } from "@/lib/ical";
 
 export async function GET(
@@ -13,7 +13,7 @@ export async function GET(
     return new NextResponse("Unauthorized", { status: 401 });
   }
   const { id } = await params;
-  const event = await prisma.event.findFirst({
+  const event = await db.event.findFirst({
     where: { id, isPublished: true },
   });
   if (!event) {

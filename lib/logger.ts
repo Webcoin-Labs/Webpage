@@ -49,15 +49,9 @@ function write(level: LogLevel, context: LogContext) {
     error: context.error ? formatError(context.error) : undefined,
   };
   const line = JSON.stringify(payload);
-  if (level === "error") {
-    console.error(line);
-    return;
-  }
-  if (level === "warn") {
-    console.warn(line);
-    return;
-  }
-  console.info(line);
+  if (level === "error") console.error(line);
+  else if (level === "warn") console.warn(line);
+  else console.info(line);
 
   const sinkUrl = process.env.OBSERVABILITY_SINK_URL;
   if (sinkUrl) {

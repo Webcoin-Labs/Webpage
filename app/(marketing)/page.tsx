@@ -19,7 +19,7 @@ import { ProblemRevealGrid } from "@/components/home/ProblemRevealGrid";
 import { CapabilityRevealGrid } from "@/components/home/CapabilityRevealGrid";
 import { HeroDashboardPreview } from "@/components/home/HeroDashboardPreview";
 import { StrategyCallForm } from "@/components/forms/StrategyCallForm";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { getBuilderAffiliation } from "@/lib/affiliation";
 import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag";
 import { ProfileAvatar } from "@/components/common/ProfileAvatar";
@@ -102,7 +102,7 @@ type NetworkCounts = {
 };
 
 async function getFeaturedCurrentPartners() {
-  return prisma.partner.findMany({
+  return db.partner.findMany({
     where: { featured: true, status: "CURRENT" },
     orderBy: { sortOrder: "asc" },
     take: 24,
@@ -110,7 +110,7 @@ async function getFeaturedCurrentPartners() {
 }
 
 async function getFeaturedBuilders() {
-  return prisma.builderProfile.findMany({
+  return db.builderProfile.findMany({
     where: { publicVisible: true },
     include: { user: { select: { id: true, name: true, image: true } } },
     orderBy: { updatedAt: "desc" },
@@ -131,16 +131,16 @@ async function getNetworkCounts(): Promise<NetworkCounts> {
     publishedEvents,
     kolRequests,
   ] = await Promise.all([
-    prisma.founderProfile.count(),
-    prisma.builderProfile.count({ where: { publicVisible: true } }),
-    prisma.project.count({ where: { publicVisible: true } }),
-    prisma.introRequest.count(),
-    prisma.aIReport.count(),
-    prisma.partner.count({ where: { status: "CURRENT" } }),
-    prisma.jobPost.count({ where: { status: "OPEN" } }),
-    prisma.founderProfile.count({ where: { isHiring: true } }),
-    prisma.event.count({ where: { isPublished: true } }),
-    prisma.introRequest.count({ where: { type: "KOL" } }),
+    db.founderProfile.count(),
+    db.builderProfile.count({ where: { publicVisible: true } }),
+    db.project.count({ where: { publicVisible: true } }),
+    db.introRequest.count(),
+    db.aIReport.count(),
+    db.partner.count({ where: { status: "CURRENT" } }),
+    db.jobPost.count({ where: { status: "OPEN" } }),
+    db.founderProfile.count({ where: { isHiring: true } }),
+    db.event.count({ where: { isPublished: true } }),
+    db.introRequest.count({ where: { type: "KOL" } }),
   ]);
 
   return {
@@ -195,7 +195,7 @@ export default async function HomePage() {
         </div>
 
         <div className="container relative z-10 mx-auto max-w-7xl px-6 py-24 lg:py-32">
-          <div className="grid items-center gap-12 lg:grid-cols-[1.08fr_0.92fr]">
+          <div className="grid items-center gap-12 lg:grid-cols-[1.18fr_0.82fr]">
             <AnimatedSection>
               <p className="inline-flex items-center rounded-full border border-blue-300/25 bg-blue-400/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-blue-100">
                 Builder-first venture infrastructure
@@ -204,9 +204,24 @@ export default async function HomePage() {
                 Build real blockchain companies with the right builders, systems, and distribution.
               </h1>
               <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
-                Webcoin Labs gives founders and operators one operating layer to launch products, run hiring, process
-                intros, and become ecosystem-ready with AI-assisted execution.
+                Webcoin Labs gives founders and builders one operating layer to collaborate, ship faster, and get
+                fundraising-ready through structured profiles, matching, intros, and ecosystem distribution.
               </p>
+              <div className="mt-6 flex flex-wrap gap-2 text-xs">
+                {[
+                  { label: "Influencers", value: "1,500+" },
+                  { label: "Founders", value: "100+" },
+                  { label: "Builders", value: "50+" },
+                ].map((item) => (
+                  <span
+                    key={item.label}
+                    className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/40 px-3 py-1 text-muted-foreground"
+                  >
+                    <span className="font-semibold text-foreground">{item.value}</span>
+                    <span>{item.label}</span>
+                  </span>
+                ))}
+              </div>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
                   href="/app"
@@ -226,7 +241,7 @@ export default async function HomePage() {
               </div>
             </AnimatedSection>
 
-            <AnimatedSection delay={0.08}>
+            <AnimatedSection delay={0.08} className="justify-self-center lg:justify-self-end w-full max-w-[560px] lg:max-w-none">
               <HeroDashboardPreview />
             </AnimatedSection>
           </div>

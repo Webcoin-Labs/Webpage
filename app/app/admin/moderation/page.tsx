@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { ArrowLeft } from "lucide-react";
 import { ModerationBuilders } from "@/components/app/ModerationBuilders";
 import { ModerationProjects } from "@/components/app/ModerationProjects";
@@ -17,7 +17,7 @@ export default async function AdminModerationPage() {
   if (session?.user.role !== "ADMIN") redirect("/app");
 
   const [builders, projects, founderProfiles, imageUsers, hiringInterests] = await Promise.all([
-    prisma.builderProfile.findMany({
+    db.builderProfile.findMany({
       include: {
         user: {
           select: {
@@ -32,16 +32,16 @@ export default async function AdminModerationPage() {
       },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.project.findMany({
+    db.project.findMany({
       include: { owner: { select: { name: true, email: true } } },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.founderProfile.findMany({
+    db.founderProfile.findMany({
       include: { user: { select: { name: true, email: true } } },
       orderBy: { updatedAt: "desc" },
       take: 120,
     }),
-    prisma.user.findMany({
+    db.user.findMany({
       where: { image: { not: null } },
       select: {
         id: true,
@@ -57,7 +57,7 @@ export default async function AdminModerationPage() {
       orderBy: { updatedAt: "desc" },
       take: 120,
     }),
-    prisma.hiringInterest.findMany({
+    db.hiringInterest.findMany({
       include: { founder: { select: { name: true, email: true } } },
       orderBy: { createdAt: "desc" },
       take: 120,

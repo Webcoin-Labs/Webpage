@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { MessageSquare, ArrowRight, Briefcase, UserRound } from "lucide-react";
 import { getServerSession, authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 
 export const metadata = { title: "Messages — Webcoin Labs" };
 
@@ -18,7 +18,7 @@ export default async function MessagesPage() {
   if (!session?.user?.id) redirect("/login");
 
   const [sentIntros, receivedIntros, applications] = await Promise.all([
-    prisma.introRequest.findMany({
+    db.introRequest.findMany({
       where: { founderId: session.user.id },
       include: {
         targetUser: { select: { id: true, name: true, email: true } },
@@ -28,7 +28,7 @@ export default async function MessagesPage() {
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
-    prisma.introRequest.findMany({
+    db.introRequest.findMany({
       where: { targetUserId: session.user.id },
       include: {
         founder: { select: { id: true, name: true, email: true } },
@@ -37,7 +37,7 @@ export default async function MessagesPage() {
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
-    prisma.jobApplication.findMany({
+    db.jobApplication.findMany({
       where: { userId: session.user.id },
       include: {
         job: { select: { id: true, title: true, company: true } },

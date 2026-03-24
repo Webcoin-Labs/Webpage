@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import Link from "next/link";
 import { AnimatedSection } from "@/components/common/AnimatedSection";
 import { ProjectsDirectoryClient } from "./ProjectsDirectoryClient";
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 async function getProjects() {
-  return prisma.project.findMany({
+  return db.project.findMany({
     where: { publicVisible: true },
     include: {
       owner: {

@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 
 const strategyCallSchema = z.object({
@@ -48,7 +48,7 @@ export async function submitStrategyCall(formData: FormData): Promise<LeadAction
 
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? "Invalid input" };
 
-  await prisma.lead.create({
+  await db.lead.create({
     data: {
       name: parsed.data.name,
       email: parsed.data.email,
@@ -84,7 +84,7 @@ export async function submitJobsWaitlist(formData: FormData): Promise<LeadAction
 
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? "Invalid input" };
 
-  await prisma.lead.create({
+  await db.lead.create({
     data: {
       name: "Jobs Waitlist",
       email: parsed.data.email,
@@ -114,7 +114,7 @@ export async function submitKreatorboardWaitlist(formData: FormData): Promise<Le
   });
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? "Invalid input" };
 
-  await prisma.lead.create({
+  await db.lead.create({
     data: {
       name: parsed.data.name,
       email: parsed.data.email,

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { AnimatedSection } from "@/components/common/AnimatedSection";
 import { NetworkTabs } from "@/components/partners/NetworkTabs";
 
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 async function getPartners() {
-    return prisma.partner.findMany({ orderBy: [{ status: "asc" }, { sortOrder: "asc" }, { name: "asc" }] });
+    return db.partner.findMany({ orderBy: [{ status: "asc" }, { sortOrder: "asc" }, { name: "asc" }] });
 }
 
 export default async function NetworkPage() {

@@ -118,7 +118,7 @@ export function NewIntroRequestForm({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Premium requests are prioritized in matching workflows and surfaced in the KOL Premium dashboard.
+              Premium requests are part of Webcoin Plus ($20/month) and are prioritized in matching workflows.
             </p>
           </>
         ) : (

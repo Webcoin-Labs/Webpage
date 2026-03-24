@@ -4,11 +4,13 @@ import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { Role } from "@prisma/client";
 import { env } from "@/lib/env";
 
 export { getServerSession };
+
+const SESSION_MAX_AGE_SECONDS = 24 * 60 * 60;
 
 const providers: NextAuthOptions["providers"] = [
     CredentialsProvider({
@@ -20,7 +22,7 @@ const providers: NextAuthOptions["providers"] = [
         },
         async authorize(credentials) {
             if (!credentials?.login || !credentials?.password) return null;
-            const user = await prisma.user.findFirst({
+            const user = await db.user.findFirst({
                 where: {
                     OR: [
                         { email: credentials.login.trim().toLowerCase() },
@@ -61,23 +63,42 @@ if (env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) {
 }
 
 export const authOptions: NextAuthOptions = {
-    adapter: PrismaAdapter(prisma) as NextAuthOptions["adapter"],
+    adapter: PrismaAdapter(db) as NextAuthOptions["adapter"],
     providers,
     session: {
         strategy: "jwt",
+        // Force re-login every 24 hours
+        maxAge: SESSION_MAX_AGE_SECONDS,
+    },
+    jwt: {
+        maxAge: SESSION_MAX_AGE_SECONDS,
     },
     callbacks: {
         async jwt({ token, user }) {
+            const nowSeconds = Math.floor(Date.now() / 1000);
+            // Enforce a hard 24h lifetime (not sliding) from the initial login time.
+            const issuedAtSeconds =
+                typeof token.loginAt === "number"
+                    ? Math.floor(token.loginAt / 1000)
+                    : typeof token.iat === "number"
+                      ? token.iat
+                      : undefined;
+
+            if (issuedAtSeconds && nowSeconds - issuedAtSeconds > SESSION_MAX_AGE_SECONDS) {
+                return null as any;
+            }
+
             if (user) {
                 const u = user as { role?: Role; onboardingComplete?: boolean };
                 token.role = u.role ?? "BUILDER";
                 token.id = user.id;
                 token.onboardingComplete = u.onboardingComplete ?? false;
                 token.picture = user.image ?? token.picture;
+                token.loginAt = Date.now();
             }
             // Refresh role and onboarding from DB when needed (works for OAuth and credentials)
             if (token.id) {
-                const dbUser = await prisma.user.findUnique({
+                const dbUser = await db.user.findUnique({
                     where: { id: token.id as string },
                     select: { role: true, id: true, onboardingComplete: true, email: true, image: true },
                 });
@@ -125,5 +146,7 @@ declare module "next-auth/jwt" {
         role?: Role;
         id?: string;
         onboardingComplete?: boolean;
+        loginAt?: number;
     }
 }
+

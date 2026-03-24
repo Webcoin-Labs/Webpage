@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, FileDown } from "lucide-react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { PitchDeckHubClient } from "@/components/pitchdeck/PitchDeckHubClient";
 import { PitchDeckUploadForm } from "@/components/pitchdeck/PitchDeckUploadForm";
 import { RetryAnalysisButton } from "@/components/pitchdeck/RetryAnalysisButton";
@@ -21,7 +21,7 @@ export default async function PitchDeckHubPage() {
 
   const [projects, recentDecks] = await Promise.all([
     userId
-      ? prisma.project.findMany({
+      ? db.project.findMany({
           where: { ownerUserId: userId },
           select: { id: true, name: true },
           orderBy: { createdAt: "desc" },
@@ -29,7 +29,7 @@ export default async function PitchDeckHubPage() {
         })
       : Promise.resolve([]),
     userId
-      ? prisma.pitchDeck.findMany({
+      ? db.pitchDeck.findMany({
           where: {
             userId,
             OR: [

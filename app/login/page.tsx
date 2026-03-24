@@ -4,7 +4,7 @@ import { signIn } from "next-auth/react";
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, Github, Loader2, Mail, Lock } from "lucide-react";
+import { CheckCircle2, Github, Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { HeroBackground } from "@/components/common/HeroBackground";
 
 const inputClass =
@@ -17,6 +17,7 @@ export default function LoginPage() {
 
   const [loading, setLoading] = useState<"google" | "github" | "credentials" | null>(null);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleOAuth = async (provider: "google" | "github") => {
     setLoading(provider);
@@ -137,11 +138,20 @@ export default function LoginPage() {
                       <input
                         id="signin-password"
                         name="password"
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         autoComplete="current-password"
                         placeholder="••••••••"
-                        className={inputClass + " pl-9"}
+                        className={inputClass + " pl-9 pr-10"}
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-pressed={showPassword}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/40 rounded-md"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                     <p className="mt-1.5 text-right">
                       <Link

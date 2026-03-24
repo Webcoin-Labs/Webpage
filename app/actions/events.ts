@@ -2,7 +2,7 @@
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { EventType, EventTrack, EventFormat, MeetingProvider, EventVisibility, RsvpStatus } from "@prisma/client";
@@ -62,11 +62,11 @@ export async function createEvent(formData: FormData) {
   const data = parsed.data;
   let slug = slugify(data.title);
   let n = 0;
-  while (await prisma.event.findUnique({ where: { slug } })) {
+  while (await db.event.findUnique({ where: { slug } })) {
     slug = `${slugify(data.title)}-${++n}`;
   }
 
-  await prisma.event.create({
+  await db.event.create({
     data: {
       slug,
       title: data.title,
@@ -113,7 +113,7 @@ export async function updateEvent(id: string, formData: FormData) {
   if (!parsed.success) throw new Error(parsed.error.errors[0]?.message ?? "Invalid input");
 
   const data = parsed.data;
-  await prisma.event.update({
+  await db.event.update({
     where: { id },
     data: {
       title: data.title,
@@ -148,7 +148,7 @@ export async function deleteEvent(id: string) {
   if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
   const rl = await rateLimitAsync(rateLimitKey(session.user.id, "admin-event-delete"), 20, 60_000);
   if (!rl.ok) throw new Error("Too many event changes. Please wait a minute and try again.");
-  await prisma.event.delete({ where: { id } });
+  await db.event.delete({ where: { id } });
   revalidatePath("/app/events");
   revalidatePath("/app/admin/events");
 }
@@ -159,7 +159,7 @@ export async function rsvpEvent(eventId: string, status: RsvpStatus) {
   const rl = await rateLimitAsync(rateLimitKey(session.user.id, "event-rsvp"), 10, 60_000);
   if (!rl.ok) throw new Error("Too many RSVP attempts. Please wait a minute and try again.");
 
-  await prisma.eventRsvp.upsert({
+  await db.eventRsvp.upsert({
     where: {
       eventId_userId: { eventId, userId: session.user.id },
     },
@@ -176,7 +176,7 @@ export async function cancelRsvp(eventId: string) {
   if (!session?.user?.id) throw new Error("Unauthorized");
   const rl = await rateLimitAsync(rateLimitKey(session.user.id, "event-cancel-rsvp"), 20, 60_000);
   if (!rl.ok) throw new Error("Too many requests. Please wait a minute and try again.");
-  await prisma.eventRsvp.deleteMany({
+  await db.eventRsvp.deleteMany({
     where: { eventId, userId: session.user.id },
   });
   revalidatePath("/app/events");
@@ -189,7 +189,7 @@ export async function checkInAttendee(rsvpId: string) {
   if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
   const rl = await rateLimitAsync(rateLimitKey(session.user.id, "admin-event-checkin"), 120, 60_000);
   if (!rl.ok) throw new Error("Too many requests. Please wait a minute and try again.");
-  await prisma.eventRsvp.update({
+  await db.eventRsvp.update({
     where: { id: rsvpId },
     data: { checkedInAt: new Date() },
   });
@@ -201,7 +201,7 @@ export async function setEventReminder(eventId: string, remindAt: Date) {
   if (!session?.user?.id) throw new Error("Unauthorized");
   const rl = await rateLimitAsync(rateLimitKey(session.user.id, "event-reminder"), 10, 60_000);
   if (!rl.ok) throw new Error("Too many reminder changes. Please wait a minute and try again.");
-  await prisma.eventReminder.upsert({
+  await db.eventReminder.upsert({
     where: { eventId_userId: { eventId, userId: session.user.id } },
     create: { eventId, userId: session.user.id, remindAt },
     update: { remindAt },
@@ -215,7 +215,7 @@ export async function sendRemindersForEvent(eventId: string) {
   const rl = await rateLimitAsync(rateLimitKey(session.user.id, "admin-event-reminders"), 30, 60_000);
   if (!rl.ok) throw new Error("Too many requests. Please wait a minute and try again.");
 
-  const reminders = await prisma.eventReminder.findMany({
+  const reminders = await db.eventReminder.findMany({
     where: {
       eventId,
       sentAt: null,
@@ -255,7 +255,7 @@ export async function sendRemindersForEvent(eventId: string) {
       });
       continue;
     }
-    await prisma.eventReminder.update({
+    await db.eventReminder.update({
       where: { id: reminder.id },
       data: { sentAt: new Date() },
     });
@@ -273,7 +273,7 @@ export async function processDueEventReminders(limit = 200) {
 }
 
 export async function processDueEventRemindersBySystem(limit = 200) {
-  const dueReminders = await prisma.eventReminder.findMany({
+  const dueReminders = await db.eventReminder.findMany({
     where: {
       sentAt: null,
       remindAt: { lte: new Date() },
@@ -316,7 +316,7 @@ export async function processDueEventRemindersBySystem(limit = 200) {
       continue;
     }
     delivered += 1;
-    await prisma.eventReminder.update({
+    await db.eventReminder.update({
       where: { id: reminder.id },
       data: { sentAt: new Date() },
     });

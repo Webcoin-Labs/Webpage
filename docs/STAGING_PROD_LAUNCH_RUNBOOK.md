@@ -165,6 +165,16 @@ Run every 1-5 minutes via your platform scheduler:
 - call `POST /api/internal/jobs/drain`
 - include `x-webcoinlabs-job-secret`
 
+### 5.5 Configure Founder OS expansion schedules
+
+Run every 3 minutes:
+- call `POST /api/internal/jobs/openclaw-sync`
+- include `x-webcoinlabs-job-secret`
+
+Run every 1 minute:
+- call `POST /api/internal/jobs/tokenomics-import`
+- include `x-webcoinlabs-job-secret`
+
 ---
 
 ## 6) First 24 Hours Monitoring

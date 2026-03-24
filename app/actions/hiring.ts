@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { HiringInterestStatus } from "@prisma/client";
 import { logger } from "@/lib/logger";
@@ -49,14 +49,14 @@ export async function submitHiringInterest(formData: FormData): Promise<HiringRe
   );
   if (!rl.ok) return { success: false, error: "Too many submissions. Please try again shortly." };
 
-  const founder = await prisma.founderProfile.findUnique({
+  const founder = await db.founderProfile.findUnique({
     where: { userId: parsed.data.founderId },
     select: { id: true, isHiring: true, companyName: true, user: { select: { name: true } } },
   });
   if (!founder) return { success: false, error: "Founder profile not found." };
   if (!founder.isHiring) return { success: false, error: "This founder is not actively hiring right now." };
 
-  const existingSubmission = await prisma.hiringInterest.findFirst({
+  const existingSubmission = await db.hiringInterest.findFirst({
     where: {
       founderId: parsed.data.founderId,
       builderUserId: session.user.id,
@@ -72,7 +72,7 @@ export async function submitHiringInterest(formData: FormData): Promise<HiringRe
     }
   }
 
-  const created = await prisma.hiringInterest.create({
+  const created = await db.hiringInterest.create({
     data: {
       founderId: parsed.data.founderId,
       founderProfileId: founder.id,
@@ -103,7 +103,7 @@ export async function updateHiringInterestStatus(id: string, status: HiringInter
   const parsedStatus = z.enum(["NEW", "REVIEWING", "CONTACTED", "ARCHIVED"]).safeParse(status);
   if (!parsedStatus.success) throw new Error("Invalid status");
 
-  const interest = await prisma.hiringInterest.findUnique({
+  const interest = await db.hiringInterest.findUnique({
     where: { id },
     select: { founderId: true },
   });
@@ -113,7 +113,7 @@ export async function updateHiringInterestStatus(id: string, status: HiringInter
   }
 
   try {
-    await prisma.hiringInterest.update({
+    await db.hiringInterest.update({
       where: { id },
       data: { status: parsedStatus.data },
     });

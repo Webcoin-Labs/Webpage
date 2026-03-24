@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Crown, ArrowRight, Megaphone } from "lucide-react";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 
 export const metadata = { title: "KOL Premium - Webcoin Labs" };
 
@@ -26,14 +26,48 @@ export default async function KolsPremiumPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
   if (!["FOUNDER", "ADMIN"].includes(session.user.role)) redirect("/app");
+  const isAdmin = session.user.role === "ADMIN";
+  const hasWebcoinPlus = isAdmin;
+
+  if (!hasWebcoinPlus) {
+    return (
+      <div className="space-y-6 py-8">
+        <section className="rounded-2xl border border-border/50 bg-card p-6">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-300">
+            <Crown className="h-3.5 w-3.5" />
+            Webcoin Plus
+          </div>
+          <h1 className="text-2xl font-bold">KOL Premium is available in Webcoin Plus</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Unlock KOL Premium for <strong>$20/month</strong> with priority routing, creator operations, up to 10 startup
+            profiles, and upcoming pitch deck builder features.
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Kreatorboard is currently in progress. Direct influencer connections will be enabled there after launch.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+            <Link href="/pricing" className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-amber-300">
+              View pricing <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+            <Link href="/contact" className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-muted-foreground">
+              Upgrade request
+            </Link>
+            <a href="https://t.me/rishu" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-cyan-300">
+              Connect with Rishu on Telegram
+            </a>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   const baseWhere =
-    session.user.role === "ADMIN"
+    isAdmin
       ? { type: "KOL" as const }
       : { founderId: session.user.id, type: "KOL" as const };
 
   const [requests, total, matched, reviewing] = await Promise.all([
-    prisma.introRequest.findMany({
+    db.introRequest.findMany({
       where: baseWhere,
       include: {
         founder: { select: { name: true, email: true } },
@@ -42,9 +76,9 @@ export default async function KolsPremiumPage() {
       orderBy: { updatedAt: "desc" },
       take: 120,
     }),
-    prisma.introRequest.count({ where: baseWhere }),
-    prisma.introRequest.count({ where: { ...baseWhere, status: "MATCHED" } }),
-    prisma.introRequest.count({ where: { ...baseWhere, status: "REVIEWING" } }),
+    db.introRequest.count({ where: baseWhere }),
+    db.introRequest.count({ where: { ...baseWhere, status: "MATCHED" } }),
+    db.introRequest.count({ where: { ...baseWhere, status: "REVIEWING" } }),
   ]);
 
   const premiumCount = requests.filter((item) => asKolPayload(item.requestPayload).priorityTier === "PREMIUM").length;
@@ -62,13 +96,26 @@ export default async function KolsPremiumPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Track KOL intro requests, premium routing, and matching progress in one workspace.
             </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Kreatorboard is under active build. KOL Premium currently runs through managed workflows and Telegram coordination.
+            </p>
           </div>
-          <Link
-            href="/app/intros/new?type=KOL&tier=PREMIUM"
-            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90"
-          >
-            New Premium Request <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/app/intros/new?type=KOL&tier=PREMIUM"
+              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90"
+            >
+              New Premium Request <ArrowRight className="h-4 w-4" />
+            </Link>
+            <a
+              href="https://t.me/rishu"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-4 py-2.5 text-sm font-semibold text-cyan-200"
+            >
+              Discuss KOLs with Rishu
+            </a>
+          </div>
         </div>
       </div>
 

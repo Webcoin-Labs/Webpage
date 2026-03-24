@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { revalidatePath } from "next/cache";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 
@@ -47,11 +47,11 @@ export async function createProject(formData: FormData): Promise<ProjectResult> 
     const slugBase = result.data.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
     let slug = slugBase;
     let n = 0;
-    while (await prisma.project.findUnique({ where: { slug } })) {
+    while (await db.project.findUnique({ where: { slug } })) {
       slug = `${slugBase}-${++n}`;
     }
 
-    const project = await prisma.project.create({
+    const project = await db.project.create({
         data: {
             ownerUserId: session.user.id,
             ...result.data,

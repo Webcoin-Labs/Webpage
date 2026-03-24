@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { IntroRequestsList } from "./IntroRequestsList";
@@ -11,7 +11,7 @@ export default async function IntrosPage() {
   const session = await getServerSession(authOptions);
   const user = session!.user;
 
-  const requests = await prisma.introRequest.findMany({
+  const requests = await db.introRequest.findMany({
     where: { founderId: user.id },
     include: {
       sourceProject: { select: { name: true } },

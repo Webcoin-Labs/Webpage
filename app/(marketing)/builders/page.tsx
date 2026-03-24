@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import Link from "next/link";
 import { AnimatedSection } from "@/components/common/AnimatedSection";
 import { BuildersDirectoryClient } from "./BuildersDirectoryClient";
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 async function getBuilders() {
-  return prisma.builderProfile.findMany({
+  return db.builderProfile.findMany({
     where: { publicVisible: true },
     include: { user: { select: { id: true, name: true, image: true } } },
     orderBy: { createdAt: "desc" },

@@ -107,7 +107,7 @@ export function Navbar() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 8 }}
                       transition={{ duration: 0.18 }}
-                      className="absolute top-full left-0 mt-3 w-[460px] rounded-2xl border border-border/80 bg-background/98 backdrop-blur-xl shadow-[0_24px_48px_-28px_rgba(2,6,23,0.85)] p-3"
+                      className="absolute top-full left-0 mt-3 w-[460px] rounded-2xl border border-border/80 bg-background shadow-[0_24px_48px_-28px_rgba(2,6,23,0.85)] p-3"
                     >
                       <div className="grid grid-cols-2 gap-2">
                         {group.items.map((item) => (

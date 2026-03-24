@@ -12,7 +12,6 @@ import {
   Network,
   Search,
   ShieldCheck,
-  UserSquare2,
   UsersRound,
 } from "lucide-react";
 
@@ -41,14 +40,14 @@ const activity = [
   "Match created",
   "Pitch deck analyzed",
   "New job posted",
-  "Partner node added",
 ];
 
 export function HeroDashboardPreview() {
   return (
-    <div className="rounded-3xl border border-border/70 bg-card/90 p-3 shadow-[0_20px_50px_-34px_rgba(2,6,23,0.95)] backdrop-blur">
-      <div className="rounded-2xl border border-border/70 bg-[#070d1a] p-2.5">
-        <div className="mb-2.5 flex items-center gap-2 rounded-xl border border-border/70 bg-background/30 px-2.5 py-2">
+    <div className="w-full max-h-[420px] aspect-[16/10] overflow-hidden rounded-3xl border border-border/70 bg-card/90 shadow-[0_20px_50px_-34px_rgba(2,6,23,0.95)] backdrop-blur">
+      <div className="h-full w-full p-3">
+        <div className="h-full w-full origin-top scale-[0.92] rounded-2xl border border-border/70 bg-[#070d1a] p-2.5">
+        <div className="mb-2 flex items-center gap-2 rounded-xl border border-border/70 bg-background/30 px-2.5 py-2">
           <div className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border/70 bg-card">
             <Layers3 className="h-3.5 w-3.5 text-foreground" />
           </div>
@@ -66,9 +65,9 @@ export function HeroDashboardPreview() {
           <div className="h-6 w-6 rounded-full border border-border/70 bg-accent" />
         </div>
 
-        <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-2.5">
+        <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-2">
           <aside className="rounded-xl border border-border/70 bg-background/30 p-1.5">
-            {navItems.map((item, index) => (
+            {navItems.slice(0, 7).map((item, index) => (
               <div
                 key={item}
                 className={`mb-1 flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[10px] ${
@@ -83,8 +82,8 @@ export function HeroDashboardPreview() {
             ))}
           </aside>
 
-          <div className="grid gap-2.5">
-            <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <div className="rounded-xl border border-border/70 bg-background/35 p-2.5">
                 <p className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
                   <Handshake className="h-3 w-3 text-cyan-300" />
@@ -126,7 +125,7 @@ export function HeroDashboardPreview() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-3 gap-2">
               <div className="rounded-xl border border-border/70 bg-background/35 p-2.5">
                 <p className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
                   <UsersRound className="h-3 w-3 text-emerald-300" />
@@ -198,7 +197,7 @@ export function HeroDashboardPreview() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               <div className="rounded-xl border border-border/70 bg-background/35 p-2.5">
                 <div className="flex items-center justify-between">
                   <p className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -243,11 +242,11 @@ export function HeroDashboardPreview() {
 
                 <div className="rounded-xl border border-border/70 bg-background/35 p-2.5">
                   <p className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <UserSquare2 className="h-3 w-3 text-cyan-300" />
+                    <ShieldCheck className="h-3 w-3 text-cyan-300" />
                     Network Activity
                   </p>
                   <div className="mt-1.5 space-y-1">
-                    {activity.map((item, idx) => (
+                    {activity.slice(0, 4).map((item, idx) => (
                       <div key={item} className="flex items-center justify-between rounded-md border border-border/60 bg-background/50 px-2 py-1">
                         <span className="text-[9px] text-muted-foreground">{item}</span>
                         <span className="inline-flex items-center gap-0.5 text-[8px] text-muted-foreground">
@@ -260,14 +259,8 @@ export function HeroDashboardPreview() {
                 </div>
               </div>
             </div>
-
-            <div className="rounded-xl border border-border/70 bg-background/35 p-2.5">
-              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                <Database className="h-3 w-3 text-blue-300" />
-                Future modules: recommendations engine, admin moderation, cloud asset readiness, funding readiness.
-              </div>
-            </div>
           </div>
+        </div>
         </div>
       </div>
     </div>

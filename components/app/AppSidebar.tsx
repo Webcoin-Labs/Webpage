@@ -18,8 +18,12 @@ import {
   CalendarDays,
   BriefcaseBusiness,
   UsersRound,
+  Handshake,
   Crown,
   BellRing,
+  Rocket,
+  ArrowRightLeft,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProfileAvatar } from "@/components/common/ProfileAvatar";
@@ -48,9 +52,21 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { href: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/app/workspaces", label: "Workspaces", icon: ArrowRightLeft },
+  { href: "/app/notifications", label: "Notifications", icon: BellRing },
+  { href: "/app/founders", label: "Founders", icon: Handshake, roles: ["FOUNDER", "BUILDER", "INVESTOR", "ADMIN"] },
+  { href: "/app/founder-os", label: "Founder OS", icon: Rocket, roles: ["FOUNDER", "BUILDER", "ADMIN"] },
+  { href: "/app/founder-os/investor-applications", label: "Investor Applications", icon: MessageSquare, roles: ["FOUNDER", "ADMIN"] },
+  { href: "/app/builder-os", label: "Builder OS", icon: BriefcaseBusiness, roles: ["BUILDER", "FOUNDER", "ADMIN"] },
+  { href: "/app/investor-os", label: "Investor OS", icon: Building2, roles: ["INVESTOR", "ADMIN"] },
+  { href: "/app/kreatorboard", label: "Kreatorboard", icon: Crown, roles: ["INVESTOR", "ADMIN"] },
+  { href: "/app/invite-community", label: "Invite Community", icon: Shield },
   { href: "/app/events", label: "Events", icon: CalendarDays },
   { href: "/app/profile", label: "Profile", icon: User },
-  { href: "/app/projects", label: "Projects", icon: FolderKanban, roles: ["FOUNDER", "ADMIN", "INVESTOR"] },
+  { href: "/app/projects", label: "Projects", icon: FolderKanban, roles: ["FOUNDER", "ADMIN"] },
+  { href: "/app/builder-projects", label: "Builder Projects", icon: FolderKanban, roles: ["BUILDER", "ADMIN"] },
+  { href: "/pitchdeck", label: "Pitch Deck", icon: FileText, roles: ["FOUNDER", "BUILDER", "ADMIN"] },
+  { href: "/app/matches", label: "Find Co-founder", icon: Handshake, roles: ["FOUNDER", "BUILDER", "ADMIN"] },
   { href: "/app/apply", label: "Apply", icon: FileText, roles: ["FOUNDER", "BUILDER", "ADMIN"] },
   { href: "/app/applications", label: "My Applications", icon: FileCheck, roles: ["FOUNDER", "BUILDER", "ADMIN"] },
   { href: "/app/intros", label: "Intro Requests", icon: MessageSquare, roles: ["FOUNDER", "ADMIN"] },
@@ -182,8 +198,7 @@ export function AppMobileNav({ user }: { user: SidebarUser }) {
   const pathname = usePathname();
   const visibleItems = navItems
     .filter((item) => canAccess(item, user.role))
-    .filter((item) => item.href !== "/app/settings")
-    .slice(0, 7);
+    .filter((item) => item.href !== "/app/settings");
 
   return (
     <div className="border-b border-border/50 bg-background/95 px-3 py-2 md:hidden">

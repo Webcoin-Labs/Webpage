@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { EventsCalendarClient } from "@/components/events/EventsCalendarClient";
@@ -20,7 +20,7 @@ export default async function EventsCalendarPage() {
     );
   }
 
-  const events = await prisma.event.findMany({
+  const events = await db.event.findMany({
     where: {
       isPublished: true,
       OR: [

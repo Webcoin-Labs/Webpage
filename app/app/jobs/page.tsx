@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { JobApplyForm } from "@/components/jobs/JobApplyForm";
 import { JobPostForm } from "@/components/jobs/JobPostForm";
 import { updateJobPostStatus } from "@/app/actions/jobs";
@@ -18,14 +18,14 @@ export default async function JobsPage() {
 
   const [projects, jobs, myApplications, founderProfile] = await Promise.all([
     isFounderOrAdmin
-      ? prisma.project.findMany({
+      ? db.project.findMany({
           where: user.role === "ADMIN" ? {} : { ownerUserId: user.id },
           select: { id: true, name: true },
           orderBy: { createdAt: "desc" },
           take: 50,
         })
       : Promise.resolve([]),
-    prisma.jobPost.findMany({
+    db.jobPost.findMany({
       where: { status: "OPEN" },
       include: {
         applications: {
@@ -45,7 +45,7 @@ export default async function JobsPage() {
       take: 120,
     }),
     isBuilderOrAdmin
-      ? prisma.jobApplication.findMany({
+      ? db.jobApplication.findMany({
           where: { userId: user.id },
           include: { job: { select: { id: true, title: true, company: true, status: true } } },
           orderBy: { createdAt: "desc" },
@@ -53,7 +53,7 @@ export default async function JobsPage() {
         })
       : Promise.resolve([]),
     isFounderOrAdmin
-      ? prisma.founderProfile.findUnique({
+      ? db.founderProfile.findUnique({
           where: { userId: user.id },
           select: { companyName: true },
         })

@@ -2,7 +2,7 @@
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -20,12 +20,12 @@ export async function claimReward(rewardId: string): Promise<ClaimResult> {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return { success: false, error: "Not authenticated" };
 
-  const reward = await prisma.reward.findUnique({
+  const reward = await db.reward.findUnique({
     where: { id: rewardId, userId: session.user.id, status: "PENDING" },
   });
   if (!reward) return { success: false, error: "Reward not found or already claimed" };
 
-  await prisma.reward.update({
+  await db.reward.update({
     where: { id: rewardId },
     data: { status: "CLAIMED", claimedAt: new Date() },
   });
@@ -46,7 +46,7 @@ export async function createReward(formData: FormData): Promise<CreateRewardResu
   const parsed = createRewardSchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? "Invalid input" };
 
-  const reward = await prisma.reward.create({
+  const reward = await db.reward.create({
     data: {
       userId: parsed.data.userId,
       label: parsed.data.label,

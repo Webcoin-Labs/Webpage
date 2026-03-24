@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { NewIntroRequestForm } from "@/components/app/NewIntroRequestForm";
 
 function getFirstParam(value: string | string[] | undefined) {
@@ -12,25 +12,26 @@ function getFirstParam(value: string | string[] | undefined) {
 export default async function NewIntroPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const resolvedSearchParams = await Promise.resolve(searchParams);
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
   if (session.user.role !== "FOUNDER" && session.user.role !== "ADMIN") redirect("/app/intros");
 
-  const requestedType = getFirstParam(searchParams?.type);
-  const requestedTier = getFirstParam(searchParams?.tier);
+  const requestedType = getFirstParam(resolvedSearchParams?.type);
+  const requestedTier = getFirstParam(resolvedSearchParams?.tier);
   const defaultType = requestedType === "VC" ? "VC" : "KOL";
   const defaultPriorityTier = requestedTier === "PREMIUM" ? "PREMIUM" : "STANDARD";
 
   const [projects, builders, partners] = await Promise.all([
-    prisma.project.findMany({
+    db.project.findMany({
       where: session.user.role === "ADMIN" ? {} : { ownerUserId: session.user.id },
       select: { id: true, name: true },
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
-    prisma.builderProfile.findMany({
+    db.builderProfile.findMany({
       where: { publicVisible: true },
       include: {
         user: { select: { id: true, name: true } },
@@ -38,7 +39,7 @@ export default async function NewIntroPage({
       orderBy: { createdAt: "desc" },
       take: 80,
     }),
-    prisma.partner.findMany({
+    db.partner.findMany({
       where: { status: "CURRENT" },
       select: { id: true, name: true },
       orderBy: { name: "asc" },

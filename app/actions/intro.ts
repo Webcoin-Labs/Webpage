@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { revalidatePath } from "next/cache";
 import type { IntroType } from "@prisma/client";
@@ -89,25 +89,25 @@ export async function createIntroRequest(formData: FormData): Promise<IntroResul
   const contextSummary = parsedContext.data.contextSummary || null;
 
   if (sourceProjectId) {
-    const project = await prisma.project.findFirst({
+    const project = await db.project.findFirst({
       where: session.user.role === "ADMIN" ? { id: sourceProjectId } : { id: sourceProjectId, ownerUserId: session.user.id },
       select: { id: true },
     });
     if (!project) return { success: false, error: "Invalid source project" };
   }
   if (targetUserId) {
-    const targetBuilder = await prisma.builderProfile.findUnique({
+    const targetBuilder = await db.builderProfile.findUnique({
       where: { userId: targetUserId },
       select: { userId: true, publicVisible: true },
     });
     if (!targetBuilder) return { success: false, error: "Selected builder does not exist" };
   }
   if (targetPartnerId) {
-    const partner = await prisma.partner.findUnique({ where: { id: targetPartnerId }, select: { id: true } });
+    const partner = await db.partner.findUnique({ where: { id: targetPartnerId }, select: { id: true } });
     if (!partner) return { success: false, error: "Selected partner does not exist" };
   }
 
-  const intro = await prisma.introRequest.create({
+  const intro = await db.introRequest.create({
     data: {
       founderId: session.user.id,
       type: type as IntroType,

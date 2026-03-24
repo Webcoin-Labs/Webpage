@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { ArrowLeft } from "lucide-react";
 import { AdminRewardsForm } from "@/components/app/AdminRewardsForm";
 
@@ -13,8 +13,8 @@ export default async function AdminRewardsPage() {
   if (session?.user.role !== "ADMIN") redirect("/app");
 
   const [users, rewards] = await Promise.all([
-    prisma.user.findMany({ select: { id: true, name: true, email: true }, orderBy: { name: "asc" } }),
-    prisma.reward.findMany({
+    db.user.findMany({ select: { id: true, name: true, email: true }, orderBy: { name: "asc" } }),
+    db.reward.findMany({
       include: { user: { select: { name: true, email: true } } },
       orderBy: { createdAt: "desc" },
       take: 50,

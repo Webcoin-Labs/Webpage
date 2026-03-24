@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import Link from "next/link";
 import { Plus, FolderKanban, ArrowRight } from "lucide-react";
 import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag";
@@ -15,13 +15,13 @@ export default async function ProjectsPage() {
     const isFounder = user.role === "FOUNDER" || user.role === "ADMIN";
 
     const founderProfile = isFounder
-        ? await prisma.founderProfile.findUnique({
+        ? await db.founderProfile.findUnique({
             where: { userId: user.id },
             select: { companyName: true, roleTitle: true, isHiring: true },
         })
         : null;
 
-    const projects = await prisma.project.findMany({
+    const projects = await db.project.findMany({
         where: { ownerUserId: user.id },
         orderBy: { createdAt: "desc" },
     });

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getServerSession, authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { ArrowLeft, Plus } from "lucide-react";
 import { AdminEventsTable } from "@/components/events/AdminEventsTable";
 
@@ -11,7 +11,7 @@ export default async function AdminEventsPage() {
   const session = await getServerSession(authOptions);
   if (session?.user.role !== "ADMIN") redirect("/app");
 
-  const events = await prisma.event.findMany({
+  const events = await db.event.findMany({
     include: { _count: { select: { rsvps: true } } },
     orderBy: { startAt: "desc" },
   });

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { HiringInterestsTable } from "@/components/hiring/HiringInterestsTable";
 
 export const metadata = { title: "Hiring Interests • Admin | Webcoin Labs" };
@@ -12,7 +12,7 @@ export default async function AdminHiringInterestsPage() {
   const session = await getServerSession(authOptions);
   if (session?.user.role !== "ADMIN") redirect("/app");
 
-  const entries = await prisma.hiringInterest.findMany({
+  const entries = await db.hiringInterest.findMany({
     include: {
       founder: { select: { name: true, email: true } },
     },

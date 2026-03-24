@@ -158,8 +158,10 @@ export function InteractiveRevealCard(props: InteractiveRevealCardProps) {
                   )}
                 </div>
                 {backgroundIllustration ? (
-                  <div className="hidden md:block h-12 w-20 shrink-0 rounded-lg border border-border/70 bg-background/50 p-1 overflow-hidden">
-                    <div className="h-full w-full opacity-70">{backgroundIllustration}</div>
+                  <div className="hidden md:block h-14 w-24 shrink-0 rounded-lg border border-border/70 bg-gradient-to-b from-background/60 to-background/20 p-1 overflow-hidden">
+                    <div className="h-full w-full opacity-100 [filter:contrast(1.15)_brightness(1.15)]">
+                      {backgroundIllustration}
+                    </div>
                   </div>
                 ) : null}
               </div>

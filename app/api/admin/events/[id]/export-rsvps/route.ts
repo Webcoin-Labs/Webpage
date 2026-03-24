@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -12,14 +12,14 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  const event = await prisma.event.findUnique({
+  const event = await db.event.findUnique({
     where: { id },
     select: { title: true, slug: true },
   });
   if (!event) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  const rsvps = await prisma.eventRsvp.findMany({
+  const rsvps = await db.eventRsvp.findMany({
     where: { eventId: id },
     include: {
       user: { select: { name: true, email: true } },

@@ -1,10 +1,10 @@
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { scoreBuilderToProject, scoreFounderToBuilder } from "@/lib/matching";
 
 export async function getRecommendedBuildersForFounder(userId: string, take = 6) {
   const [founderProfile, builders] = await Promise.all([
-    prisma.founderProfile.findUnique({ where: { userId } }),
-    prisma.builderProfile.findMany({
+    db.founderProfile.findUnique({ where: { userId } }),
+    db.builderProfile.findMany({
       where: { publicVisible: true },
       include: { user: { select: { id: true, name: true, image: true } } },
       take: 120,
@@ -25,8 +25,8 @@ export async function getRecommendedBuildersForFounder(userId: string, take = 6)
 
 export async function getRecommendedProjectsForBuilder(userId: string, take = 6) {
   const [builderProfile, projects] = await Promise.all([
-    prisma.builderProfile.findUnique({ where: { userId } }),
-    prisma.project.findMany({
+    db.builderProfile.findUnique({ where: { userId } }),
+    db.project.findMany({
       where: { publicVisible: true },
       include: {
         owner: {
