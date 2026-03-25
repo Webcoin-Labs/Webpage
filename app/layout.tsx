@@ -6,6 +6,7 @@ import { AuthProvider } from "@/components/providers/AuthProvider";
 import { CalendlyProvider } from "@/components/providers/CalendlyProvider";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const spaceGrotesk = Space_Grotesk({
     subsets: ["latin"],
@@ -95,6 +96,7 @@ export default async function RootLayout({
                         <CalendlyProvider>{children}</CalendlyProvider>
                     </AuthProvider>
                 </ThemeProvider>
+                <SpeedInsights />
             </body>
         </html>
     );
