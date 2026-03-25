@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Briefcase, Building2, CheckCircle2, Coins, Loader2, Rocket, UserRound, Wallet } from "lucide-react";
 import {
   completeWorkspaceOnboarding,
@@ -41,6 +42,7 @@ function StepBadge({ value, active }: { value: string; active: boolean }) {
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -58,6 +60,12 @@ export default function OnboardingPage() {
   const [integrations, setIntegrations] = useState<string[]>([]);
   const [walletAddress, setWalletAddress] = useState("");
   const [walletNetwork, setWalletNetwork] = useState<"EVM" | "SOLANA">("EVM");
+
+  useEffect(() => {
+    if (!session?.user) return;
+    if (!name && session.user.name) setName(session.user.name);
+    if (!username && session.user.username) setUsername(session.user.username);
+  }, [session, name, username]);
 
   const workspaceDescriptor = useMemo(() => {
     if (workspace === "FOUNDER_OS") return { title: "Founder OS", icon: Rocket, copy: "Venture building, deck, investor outreach, builder discovery." };
@@ -215,7 +223,10 @@ export default function OnboardingPage() {
             </div>
             <button
               type="button"
-              onClick={() => setStep(1)}
+              onClick={() => {
+                const hasIdentity = (name.trim().length >= 2) && (username.trim().length >= 3);
+                setStep(hasIdentity ? 2 : 1);
+              }}
               className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-200"
             >
               Continue
@@ -380,7 +391,7 @@ export default function OnboardingPage() {
             <h2 className="text-xl font-semibold">Preview & Publish</h2>
             <div className="rounded-lg border border-border/60 bg-background p-4 text-sm">
               <p className="font-semibold">{name || "Unnamed profile"}</p>
-              <p className="text-xs text-muted-foreground">@{username || "username"}</p>
+              <p className="text-xs text-muted-foreground">@{username || session?.user?.username || "username"}</p>
               <p className="mt-2 text-xs text-muted-foreground">{bio || "No bio added yet."}</p>
               <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
                 <span className="rounded-full border border-border px-2 py-1">{workspaceDescriptor.title}</span>
@@ -398,11 +409,21 @@ export default function OnboardingPage() {
             </div>
             <button
               type="button"
-              onClick={() => router.push("/app/workspaces")}
+              onClick={() => {
+                if (workspace === "FOUNDER_OS") {
+                  router.push("/app/founder-os");
+                  return;
+                }
+                if (workspace === "INVESTOR_OS") {
+                  router.push("/app/investor-os");
+                  return;
+                }
+                router.push("/app/builder-os");
+              }}
               className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200"
             >
               <CheckCircle2 className="h-4 w-4" />
-              Publish & Open Workspaces
+              Publish & Open Dashboard
             </button>
           </div>
         ) : null}

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { Role } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 import { canViewerAccessEntity } from "@/server/policies/visibility";
 
 type ViewerContext = {
@@ -10,7 +10,7 @@ type ViewerContext = {
 };
 
 export async function selectFounderPublicProfile(username: string, viewer: ViewerContext = {}) {
-  const profile = await prisma.user.findFirst({
+  const profile = await db.user.findFirst({
     where: {
       username: username.toLowerCase(),
       founderProfile: { is: { publicVisible: true } },
@@ -63,7 +63,7 @@ export async function selectFounderPublicProfile(username: string, viewer: Viewe
 }
 
 export async function selectBuilderPublicProfile(username: string, viewer: ViewerContext = {}) {
-  const profile = await prisma.user.findFirst({
+  const profile = await db.user.findFirst({
     where: {
       username: username.toLowerCase(),
       builderProfile: { is: { publicVisible: true } },

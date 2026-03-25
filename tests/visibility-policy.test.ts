@@ -6,8 +6,8 @@ const prismaMock = {
   },
 };
 
-vi.mock("@/lib/prisma", () => ({
-  prisma: prismaMock,
+vi.mock("@/server/db/client", () => ({
+  db: prismaMock,
 }));
 
 describe("visibility policy", () => {

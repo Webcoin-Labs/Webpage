@@ -10,12 +10,81 @@ type ViewerContext = {
   role?: Role | null;
 };
 
+type PublicSettings = {
+  showEmailToInvestors?: boolean | null;
+  showLinkedinToInvestors?: boolean | null;
+  showTelegramToInvestors?: boolean | null;
+} | null;
+
+type FounderSanitizable = {
+  id: string;
+  email: string | null;
+  socialLinks: unknown;
+  publicProfileSettings?: PublicSettings;
+  founderProfile: {
+    telegram: string | null;
+    linkedin: string | null;
+  } | null;
+};
+
+type BuilderSanitizable = {
+  id: string;
+  email: string | null;
+  socialLinks: unknown;
+  publicProfileSettings?: PublicSettings;
+  builderProfile: {
+    linkedin: string | null;
+  } | null;
+};
+
+function isOwnerOrAdmin(viewer: ViewerContext, ownerUserId: string) {
+  if (viewer.userId && viewer.userId === ownerUserId) return true;
+  if (viewer.role === "ADMIN") return true;
+  return false;
+}
+
+function canInvestorSee(viewer: ViewerContext, enabled: boolean | null | undefined) {
+  const investorViewer = viewer.role === "INVESTOR";
+  return investorViewer && Boolean(enabled);
+}
+
+function sanitizeFounderProfile<T extends FounderSanitizable | null>(profile: T, viewer: ViewerContext): T {
+  if (!profile?.founderProfile) return profile;
+  if (isOwnerOrAdmin(viewer, profile.id)) return profile;
+  return {
+    ...profile,
+    email: canInvestorSee(viewer, profile.publicProfileSettings?.showEmailToInvestors) ? profile.email : null,
+    socialLinks: null,
+    founderProfile: {
+      ...profile.founderProfile,
+      telegram: canInvestorSee(viewer, profile.publicProfileSettings?.showTelegramToInvestors) ? profile.founderProfile.telegram : null,
+      linkedin: canInvestorSee(viewer, profile.publicProfileSettings?.showLinkedinToInvestors) ? profile.founderProfile.linkedin : null,
+    },
+  } as T;
+}
+
+function sanitizeBuilderProfile<T extends BuilderSanitizable | null>(profile: T, viewer: ViewerContext): T {
+  if (!profile?.builderProfile) return profile;
+  if (isOwnerOrAdmin(viewer, profile.id)) return profile;
+  return {
+    ...profile,
+    email: canInvestorSee(viewer, profile.publicProfileSettings?.showEmailToInvestors) ? profile.email : null,
+    socialLinks: null,
+    builderProfile: {
+      ...profile.builderProfile,
+      linkedin: canInvestorSee(viewer, profile.publicProfileSettings?.showLinkedinToInvestors) ? profile.builderProfile.linkedin : null,
+    },
+  } as T;
+}
+
 export async function getFounderPublicProfile(username: string, viewer: ViewerContext = {}) {
-  return selectFounderPublicProfile(username, viewer);
+  const profile = await selectFounderPublicProfile(username, viewer);
+  return sanitizeFounderProfile(profile, viewer);
 }
 
 export async function getBuilderPublicProfile(username: string, viewer: ViewerContext = {}) {
-  return selectBuilderPublicProfile(username, viewer);
+  const profile = await selectBuilderPublicProfile(username, viewer);
+  return sanitizeBuilderProfile(profile, viewer);
 }
 
 export async function getInvestorPublicByUsername(username: string, viewer: ViewerContext = {}) {

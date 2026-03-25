@@ -39,12 +39,6 @@ const partnerWordmark = [
   "Builder Guilds",
 ];
 
-const demoBuilders = [
-  { name: "Alex Chen", role: "Protocol Engineer", chain: "Base, Arc", openTo: "Full-time, Advisory", affiliationLabel: "Independent", affiliationVariant: "independent" as const },
-  { name: "Jordan Lee", role: "Growth Lead", chain: "EVM, Solana", openTo: "Contract, Cofounder", affiliationLabel: "ARC Builder", affiliationVariant: "default" as const },
-  { name: "Sam Rivera", role: "Smart Contract Dev", chain: "Arc, Base", openTo: "Full-time, Part-time", affiliationLabel: "Available", affiliationVariant: "available" as const },
-];
-
 const aiOperatingCards = [
   {
     title: "Pitch deck extraction and scoring",
@@ -406,36 +400,19 @@ export default async function HomePage() {
                       </div>
                     );
                   })
-                : demoBuilders.map((builder, idx) => (
-                    <div key={`demo-${idx}`} className="rounded-2xl border border-border/70 bg-card p-6">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <ProfileAvatar
-                              src={null}
-                              alt={builder.name}
-                              fallback={builder.name.charAt(0)}
-                              className="h-8 w-8 rounded-full"
-                              fallbackClassName="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 text-xs text-cyan-200"
-                            />
-                            <div className="text-sm font-semibold text-foreground">{builder.name}</div>
-                            <ProfileAffiliationTag label={builder.affiliationLabel} variant={builder.affiliationVariant} />
-                          </div>
-                          <div className="mt-1 text-xs text-muted-foreground">{builder.role}</div>
-                          <div className="mt-2 text-xs text-muted-foreground">Chain expertise: {builder.chain}</div>
-                          <div className="mt-2 text-xs text-emerald-300">Open to: {builder.openTo}</div>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <Link href="/app/hiring" className="rounded-full bg-blue-600 px-4 py-2 text-center text-xs font-medium text-white transition hover:bg-blue-500">
-                            Connect
-                          </Link>
-                          <Link href="/builders" className="rounded-full border border-border px-4 py-2 text-center text-xs font-medium text-foreground transition hover:bg-accent">
-                            View Profile
-                          </Link>
-                        </div>
+                : (
+                    <div className="rounded-2xl border border-dashed border-border/70 bg-card p-6">
+                      <p className="text-sm text-muted-foreground">No public builders available yet. Complete builder onboarding to appear here.</p>
+                      <div className="mt-3 flex gap-2">
+                        <Link href="/app/onboarding" className="rounded-full bg-blue-600 px-4 py-2 text-center text-xs font-medium text-white transition hover:bg-blue-500">
+                          Complete onboarding
+                        </Link>
+                        <Link href="/builders" className="rounded-full border border-border px-4 py-2 text-center text-xs font-medium text-foreground transition hover:bg-accent">
+                          Browse directory
+                        </Link>
                       </div>
                     </div>
-                  ))}
+                  )}
             </div>
           </AnimatedSection>
         </div>

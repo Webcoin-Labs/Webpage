@@ -17,8 +17,8 @@ vi.mock("@/lib/auth", () => ({
   authOptions: {},
 }));
 
-vi.mock("@/lib/prisma", () => ({
-  prisma: prismaMock,
+vi.mock("@/server/db/client", () => ({
+  db: prismaMock,
 }));
 
 describe("authz policy", () => {

@@ -75,6 +75,14 @@ export async function register(data: {
       username,
       password: hashedPassword,
       name: name ?? email.split("@")[0],
+      onboardingComplete: true,
+      workspaceMemberships: {
+        create: {
+          workspace: "BUILDER_OS",
+          status: "ENABLED",
+          isDefault: true,
+        },
+      },
     },
   });
   return { success: true };

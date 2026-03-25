@@ -1,7 +1,7 @@
 import "server-only";
 
 import { Role, VisibilityAccessLevel, VisibilityEntityType } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 
 type ViewerContext = {
   userId?: string | null;
@@ -35,7 +35,7 @@ export async function canViewerAccessEntity(
   entityId: string,
   viewer: ViewerContext,
 ) {
-  const rules = await prisma.visibilityRule.findMany({
+  const rules = await db.visibilityRule.findMany({
     where: {
       entityType,
       entityId,

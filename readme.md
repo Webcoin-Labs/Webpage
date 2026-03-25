@@ -114,6 +114,14 @@ Production build check:
 pnpm build
 ```
 
+Mandatory release gate before deploy:
+
+```bash
+pnpm release:gate
+```
+
+See full checklist: `docs/release-checklist.md`.
+
 ## Environment Setup
 
 Use local environment files only (do not commit secrets):

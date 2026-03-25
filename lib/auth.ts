@@ -38,9 +38,10 @@ const providers: NextAuthOptions["providers"] = [
                 name: user.name,
                 email: user.email,
                 image: user.image,
+                username: user.username,
                 role: user.role,
                 onboardingComplete: user.onboardingComplete,
-            } as { id: string; name: string | null; email: string; image: string | null; role: Role; onboardingComplete: boolean };
+            } as { id: string; name: string | null; email: string; image: string | null; username: string | null; role: Role; onboardingComplete: boolean };
         },
     }),
 ];
@@ -89,10 +90,11 @@ export const authOptions: NextAuthOptions = {
             }
 
             if (user) {
-                const u = user as { role?: Role; onboardingComplete?: boolean };
+                const u = user as { role?: Role; onboardingComplete?: boolean; username?: string | null };
                 token.role = u.role ?? "BUILDER";
                 token.id = user.id;
                 token.onboardingComplete = u.onboardingComplete ?? false;
+                token.username = u.username ?? null;
                 token.picture = user.image ?? token.picture;
                 token.loginAt = Date.now();
             }
@@ -100,12 +102,13 @@ export const authOptions: NextAuthOptions = {
             if (token.id) {
                 const dbUser = await db.user.findUnique({
                     where: { id: token.id as string },
-                    select: { role: true, id: true, onboardingComplete: true, email: true, image: true },
+                    select: { role: true, id: true, onboardingComplete: true, email: true, image: true, username: true },
                 });
                 if (dbUser) {
                     token.role = dbUser.role;
                     token.id = dbUser.id;
                     token.onboardingComplete = dbUser.onboardingComplete;
+                    token.username = dbUser.username;
                     if (dbUser.email) token.email = dbUser.email;
                     token.picture = dbUser.image ?? token.picture;
                 }
@@ -117,6 +120,7 @@ export const authOptions: NextAuthOptions = {
                 session.user.role = token.role as Role;
                 session.user.id = token.id as string;
                 session.user.onboardingComplete = token.onboardingComplete as boolean;
+                session.user.username = (token.username as string | null | undefined) ?? null;
                 session.user.image = (token.picture as string | null | undefined) ?? session.user.image;
             }
             return session;
@@ -135,6 +139,7 @@ declare module "next-auth" {
             name?: string | null;
             email?: string | null;
             image?: string | null;
+            username?: string | null;
             role: Role;
             onboardingComplete?: boolean;
         };
@@ -145,6 +150,7 @@ declare module "next-auth/jwt" {
     interface JWT {
         role?: Role;
         id?: string;
+        username?: string | null;
         onboardingComplete?: boolean;
         loginAt?: number;
     }

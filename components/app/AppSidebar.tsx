@@ -1,29 +1,20 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
-  LayoutDashboard,
-  User,
-  FolderKanban,
-  FileText,
-  FileCheck,
-  MessageSquare,
-  Settings,
-  LogOut,
-  Shield,
-  Gift,
-  CalendarDays,
-  BriefcaseBusiness,
-  UsersRound,
-  Handshake,
-  Crown,
   BellRing,
+  Compass,
+  FolderKanban,
+  Inbox,
+  LayoutDashboard,
+  LogOut,
   Rocket,
-  ArrowRightLeft,
-  Building2,
+  Settings,
+  User,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProfileAvatar } from "@/components/common/ProfileAvatar";
@@ -46,42 +37,56 @@ type NavItem = {
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
-  exact?: boolean;
   roles?: Array<"BUILDER" | "FOUNDER" | "INVESTOR" | "ADMIN">;
+  exact?: boolean;
 };
 
-const navItems: NavItem[] = [
+const systemItems: NavItem[] = [
   { href: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/app/workspaces", label: "Workspaces", icon: ArrowRightLeft },
-  { href: "/app/notifications", label: "Notifications", icon: BellRing },
-  { href: "/app/founders", label: "Founders", icon: Handshake, roles: ["FOUNDER", "BUILDER", "INVESTOR", "ADMIN"] },
-  { href: "/app/founder-os", label: "Founder OS", icon: Rocket, roles: ["FOUNDER", "BUILDER", "ADMIN"] },
-  { href: "/app/founder-os/investor-applications", label: "Investor Applications", icon: MessageSquare, roles: ["FOUNDER", "ADMIN"] },
-  { href: "/app/builder-os", label: "Builder OS", icon: BriefcaseBusiness, roles: ["BUILDER", "FOUNDER", "ADMIN"] },
-  { href: "/app/investor-os", label: "Investor OS", icon: Building2, roles: ["INVESTOR", "ADMIN"] },
-  { href: "/app/kreatorboard", label: "Kreatorboard", icon: Crown, roles: ["INVESTOR", "ADMIN"] },
-  { href: "/app/invite-community", label: "Invite Community", icon: Shield },
-  { href: "/app/events", label: "Events", icon: CalendarDays },
-  { href: "/app/profile", label: "Profile", icon: User },
-  { href: "/app/projects", label: "Projects", icon: FolderKanban, roles: ["FOUNDER", "ADMIN"] },
-  { href: "/app/builder-projects", label: "Builder Projects", icon: FolderKanban, roles: ["BUILDER", "ADMIN"] },
-  { href: "/pitchdeck", label: "Pitch Deck", icon: FileText, roles: ["FOUNDER", "BUILDER", "ADMIN"] },
-  { href: "/app/matches", label: "Find Co-founder", icon: Handshake, roles: ["FOUNDER", "BUILDER", "ADMIN"] },
-  { href: "/app/apply", label: "Apply", icon: FileText, roles: ["FOUNDER", "BUILDER", "ADMIN"] },
-  { href: "/app/applications", label: "My Applications", icon: FileCheck, roles: ["FOUNDER", "BUILDER", "ADMIN"] },
-  { href: "/app/intros", label: "Intro Requests", icon: MessageSquare, roles: ["FOUNDER", "ADMIN"] },
-  { href: "/app/kols-premium", label: "KOL Premium", icon: Crown, roles: ["FOUNDER", "ADMIN"] },
-  { href: "/app/jobs", label: "Jobs", icon: BriefcaseBusiness, roles: ["FOUNDER", "BUILDER", "ADMIN"] },
-  { href: "/app/hiring", label: "Hiring", icon: UsersRound, roles: ["FOUNDER", "BUILDER", "ADMIN"] },
-  { href: "/app/messages", label: "Messages", icon: BellRing, roles: ["FOUNDER", "BUILDER", "ADMIN"] },
-  { href: "/app/rewards", label: "Rewards", icon: Gift, roles: ["FOUNDER", "BUILDER", "ADMIN"] },
+  { href: "/app/workspaces", label: "Apps / Launcher", icon: Compass },
+  { href: "/app/notifications", label: "Inbox", icon: Inbox },
+  { href: "/app/events", label: "Tasks / Activity", icon: BellRing },
+  { href: "/app/founders", label: "People / Network", icon: User },
+  { href: "/app/projects", label: "Files / Data Room", icon: FolderKanban, roles: ["FOUNDER", "ADMIN"] },
+  { href: "/app/builder-projects", label: "Files / Data Room", icon: FolderKanban, roles: ["BUILDER", "ADMIN"] },
+  { href: "/app/settings", label: "Integrations", icon: Wrench },
   { href: "/app/settings", label: "Settings", icon: Settings },
+];
+
+const osItems: NavItem[] = [
+  { href: "/app/founder-os", label: "Founder OS", icon: Rocket, roles: ["FOUNDER", "BUILDER", "ADMIN"] },
+  { href: "/app/builder-os", label: "Builder OS", icon: Rocket, roles: ["BUILDER", "FOUNDER", "ADMIN"] },
+  { href: "/app/investor-os", label: "Investor OS", icon: Rocket, roles: ["INVESTOR", "ADMIN"] },
 ];
 
 function canAccess(item: NavItem, role: string) {
   if (!item.roles || item.roles.length === 0) return true;
   if (role === "ADMIN") return true;
   return item.roles.includes(role as "BUILDER" | "FOUNDER" | "INVESTOR" | "ADMIN");
+}
+
+function NavSection({ items, pathname, role }: { items: NavItem[]; pathname: string; role: string }) {
+  return (
+    <>
+      {items.filter((item) => canAccess(item, role)).map((item) => {
+        const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+        const Icon = item.icon;
+        return (
+          <Link
+            key={`${item.href}-${item.label}`}
+            href={item.href}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+              isActive ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            {item.label}
+          </Link>
+        );
+      })}
+    </>
+  );
 }
 
 export function AppSidebar({
@@ -92,10 +97,9 @@ export function AppSidebar({
   affiliation?: SidebarAffiliation | null;
 }) {
   const pathname = usePathname();
-  const visibleItems = navItems.filter((item) => canAccess(item, user.role));
 
   return (
-    <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-border/50 bg-card/50 backdrop-blur-xl md:flex">
+    <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-border/50 bg-card/60 backdrop-blur-xl md:flex">
       <div className="flex h-16 items-center border-b border-border/50 px-6">
         <Link href="/" className="flex items-center gap-2">
           <Image src="/logo/webcoinlogo.webp" alt="Webcoin Labs" width={28} height={28} className="hidden rounded-md dark:block" />
@@ -115,64 +119,27 @@ export function AppSidebar({
           />
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{user.name ?? "User"}</p>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span
-                className={cn(
-                  "rounded px-1.5 py-0.5 text-[10px] font-medium",
-                  user.role === "BUILDER"
-                    ? "bg-cyan-500/10 text-cyan-400"
-                    : user.role === "FOUNDER"
-                      ? "bg-violet-500/10 text-violet-400"
-                      : user.role === "ADMIN"
-                        ? "bg-amber-500/10 text-amber-400"
-                        : "bg-slate-500/10 text-slate-400",
-                )}
-              >
-                {user.role}
-              </span>
-              {affiliation ? (
-                <ProfileAffiliationTag label={affiliation.label} variant={affiliation.variant} size="sm" />
-              ) : null}
+            <div className="mt-1 flex items-center gap-1.5">
+              <span className="rounded bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-medium text-cyan-300">{user.role}</span>
+              {affiliation ? <ProfileAffiliationTag label={affiliation.label} variant={affiliation.variant} size="sm" /> : null}
             </div>
           </div>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
-        {visibleItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-accent text-foreground"
-                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-              )}
-            >
-              <Icon className="h-4 w-4 flex-shrink-0" />
-              {item.label}
-            </Link>
-          );
-        })}
-
-        {user.role === "ADMIN" ? (
-          <Link
-            href="/app/admin"
-            className={cn(
-              "mt-4 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-              pathname.startsWith("/app/admin")
-                ? "bg-amber-500/10 text-amber-400"
-                : "text-muted-foreground hover:bg-amber-500/10 hover:text-amber-400",
-            )}
-          >
-            <Shield className="h-4 w-4" />
-            Admin
-          </Link>
-        ) : null}
+      <nav className="flex-1 space-y-4 overflow-y-auto p-3">
+        <div>
+          <p className="px-2 pb-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">System</p>
+          <div className="space-y-0.5">
+            <NavSection items={systemItems} pathname={pathname} role={user.role} />
+          </div>
+        </div>
+        <div>
+          <p className="px-2 pb-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Operating Systems</p>
+          <div className="space-y-0.5">
+            <NavSection items={osItems} pathname={pathname} role={user.role} />
+          </div>
+        </div>
       </nav>
 
       <div className="space-y-0.5 border-t border-border/50 p-3">
@@ -183,12 +150,6 @@ export function AppSidebar({
           <LogOut className="h-4 w-4" />
           Sign Out
         </button>
-        <Link
-          href="/"
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
-        >
-          Back to Site
-        </Link>
       </div>
     </aside>
   );
@@ -196,25 +157,21 @@ export function AppSidebar({
 
 export function AppMobileNav({ user }: { user: SidebarUser }) {
   const pathname = usePathname();
-  const visibleItems = navItems
-    .filter((item) => canAccess(item, user.role))
-    .filter((item) => item.href !== "/app/settings");
+  const visible = [...systemItems, ...osItems].filter((item) => canAccess(item, user.role)).slice(0, 9);
 
   return (
     <div className="border-b border-border/50 bg-background/95 px-3 py-2 md:hidden">
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {visibleItems.map((item) => {
+        {visible.map((item) => {
           const Icon = item.icon;
           const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
           return (
             <Link
-              key={item.href}
+              key={`${item.href}-${item.label}`}
               href={item.href}
               className={cn(
                 "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs",
-                isActive
-                  ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-300"
-                  : "border-border/70 bg-card text-muted-foreground",
+                isActive ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-300" : "border-border/70 bg-card text-muted-foreground",
               )}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -226,3 +183,4 @@ export function AppMobileNav({ user }: { user: SidebarUser }) {
     </div>
   );
 }
+

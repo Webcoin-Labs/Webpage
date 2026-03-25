@@ -83,6 +83,20 @@ enum AIReportStatus {
   FAILED
 }
 
+enum PitchSectionQuality {
+  STRONG
+  MODERATE
+  WEAK
+  MISSING
+  UNDERDEVELOPED
+}
+
+enum PitchDeckVersionType {
+  ORIGINAL
+  AI_IMPROVED
+  STARTUP_DRAFT
+}
+
 enum DeckType {
   web3
   web2
@@ -461,6 +475,7 @@ model User {
   eventRsvps      EventRsvp[]
   eventReminders  EventReminder[]
   pitchDecks      PitchDeck[]
+  pitchDeckVersions PitchDeckVersion[]
   jobPosts        JobPost[]
   jobApplications JobApplication[]
   hiringInterestsReceived HiringInterest[] @relation("FounderHiringInterests")
@@ -839,6 +854,8 @@ model PitchDeck {
   founderProfile FounderProfile? @relation(fields: [founderProfileId], references: [id], onDelete: SetNull)
   project       Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
   reports       AIReport[]
+  sections      PitchDeckSection[]
+  versions      PitchDeckVersion[]
   assignments   PitchDeckAssignment[]
   investorApplications InvestorApplication[]
   uploadAsset   UploadAsset?   @relation("PitchDeckUploadAsset")
@@ -1586,8 +1603,52 @@ model AIReport {
   updatedAt                 DateTime       @updatedAt
 
   pitchDeck PitchDeck @relation(fields: [pitchDeckId], references: [id], onDelete: Cascade)
+  sections  PitchDeckSection[]
+  versions  PitchDeckVersion[]
 
   @@index([pitchDeckId, createdAt])
+}
+
+model PitchDeckSection {
+  id             String              @id @default(cuid())
+  pitchDeckId    String
+  reportId       String?
+  sectionKey     String
+  sectionTitle   String
+  sectionOrder   Int
+  extractedText  String              @db.Text
+  qualityLabel   PitchSectionQuality
+  goodPoints     Json?
+  unclearPoints  Json?
+  missingPoints  Json?
+  fixSummary     String?             @db.Text
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  pitchDeck PitchDeck @relation(fields: [pitchDeckId], references: [id], onDelete: Cascade)
+  report    AIReport?  @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@index([pitchDeckId, sectionOrder])
+  @@index([reportId, createdAt])
+}
+
+model PitchDeckVersion {
+  id          String               @id @default(cuid())
+  pitchDeckId String
+  userId      String
+  reportId    String?
+  name        String
+  versionType PitchDeckVersionType
+  contentJson Json
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  pitchDeck PitchDeck @relation(fields: [pitchDeckId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  report    AIReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@index([pitchDeckId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model UploadAsset {

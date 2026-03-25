@@ -4,12 +4,15 @@ import path from "path";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { SubscriptionTier } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { getFileStorage } from "@/lib/storage";
 import { extractDeckText, type DeckFileKind } from "@/lib/extraction/deckText";
 import { analyzePitchDeckText } from "@/lib/ai/pitchAnalysis";
+import { generateImprovedDeck, generateMissingSection, rewritePitchDeckSection } from "@/lib/ai/pitchRewrite";
+import { buildSectionReviews, detectMissingSectionKeys, keyToSectionTitle } from "@/lib/pitchdeck/workspace";
 import { upsertPitchDeckUploadAsset } from "@/lib/uploads/assets";
 import { logger } from "@/lib/logger";
 
@@ -79,6 +82,95 @@ async function assertFounderOrAdmin() {
     throw new Error("Only founders can use pitch analysis.");
   }
   return session;
+}
+
+async function hasPremiumPitchDeckAccess(userId: string, role: string) {
+  if (role === "ADMIN") return true;
+  const subscription = await db.premiumSubscription.findUnique({
+    where: { userId },
+    select: { tier: true, status: true },
+  });
+  return subscription?.tier === SubscriptionTier.PREMIUM && subscription.status === "ACTIVE";
+}
+
+async function ensureDeckOwnership(deckId: string, actor: { id: string; role: string }) {
+  const deck = await db.pitchDeck.findUnique({
+    where: { id: deckId },
+    include: {
+      reports: { orderBy: { createdAt: "desc" }, take: 1 },
+      sections: { orderBy: { sectionOrder: "asc" } },
+      versions: { orderBy: { createdAt: "desc" }, take: 20 },
+    },
+  });
+  if (!deck) throw new Error("Pitch deck not found.");
+  if (actor.role !== "ADMIN" && deck.userId !== actor.id) throw new Error("Unauthorized for this pitch deck.");
+  return deck;
+}
+
+async function buildDeckStartupContext(deckId: string, userId: string) {
+  const [deck, founderProfile, startups, ventures, raiseRounds] = await Promise.all([
+    db.pitchDeck.findUnique({
+      where: { id: deckId },
+      select: { projectId: true, founderProfileId: true },
+    }),
+    db.founderProfileExtended.findUnique({
+      where: { userId },
+    }),
+    db.startup.findMany({
+      where: { founderId: userId },
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+    }),
+    db.venture.findMany({
+      where: { ownerUserId: userId },
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+    }),
+    db.raiseRound.findMany({
+      where: { founderUserId: userId, isActive: true },
+      orderBy: { updatedAt: "desc" },
+      take: 3,
+    }),
+  ]);
+
+  const currentProject =
+    deck?.projectId
+      ? await db.project.findUnique({
+          where: { id: deck.projectId },
+          select: { id: true, name: true },
+        })
+      : null;
+
+  return JSON.stringify(
+    {
+      founderProfile: founderProfile ?? null,
+      project: currentProject ?? null,
+      startups: startups.map((s) => ({
+        name: s.name,
+        stage: s.stage,
+        chainFocus: s.chainFocus,
+        problem: s.problem,
+        solution: s.solution,
+        traction: s.traction,
+      })),
+      ventures: ventures.map((v) => ({
+        name: v.name,
+        stage: v.stage,
+        chainEcosystem: v.chainEcosystem,
+        tagline: v.tagline,
+        description: v.description,
+      })),
+      activeRounds: raiseRounds.map((r) => ({
+        roundName: r.roundName,
+        roundType: r.roundType,
+        targetAmount: Number(r.targetAmount),
+        raisedAmount: Number(r.raisedAmount),
+        currency: r.currency,
+      })),
+    },
+    null,
+    2,
+  );
 }
 
 async function processPitchDeck(
@@ -158,6 +250,53 @@ async function processPitchDeck(
         confidenceNotes: analysis.output.confidenceNotes,
         rawJson: analysis.raw as object,
         errorMessage: null,
+      },
+    });
+
+    const sectionReviews = buildSectionReviews(extractedText);
+    const missingSectionKeys = detectMissingSectionKeys(sectionReviews, analysis.output.deckType);
+    const missingLabels = missingSectionKeys.map((key) => keyToSectionTitle(key));
+    await db.pitchDeckSection.deleteMany({ where: { pitchDeckId: deck.id } });
+    if (sectionReviews.length > 0) {
+      await db.pitchDeckSection.createMany({
+        data: sectionReviews.map((section) => ({
+          pitchDeckId: deck.id,
+          reportId: report.id,
+          sectionKey: section.key,
+          sectionTitle: section.title,
+          sectionOrder: section.order,
+          extractedText: section.extractedText,
+          qualityLabel: section.qualityLabel,
+          goodPoints: section.goodPoints,
+          unclearPoints: section.unclearPoints,
+          missingPoints: section.missingPoints,
+          fixSummary: section.fixSummary,
+        })),
+      });
+    }
+    await db.pitchDeckVersion.create({
+      data: {
+        pitchDeckId: deck.id,
+        userId: deck.userId,
+        reportId: report.id,
+        name: `Original analysis ${new Date().toLocaleDateString()}`,
+        versionType: "ORIGINAL",
+        contentJson: {
+          generatedFrom: "analysis",
+          missingSections: missingLabels,
+          reportSnapshot: {
+            deckType: analysis.output.deckType,
+            clarityScore: analysis.output.clarityScore,
+            completenessScore: analysis.output.completenessScore,
+            investorReadinessScore: analysis.output.investorReadinessScore,
+            strengths: analysis.output.strengths,
+            gtmGaps: analysis.output.gtmGaps,
+            risks: analysis.output.risks,
+            nextSteps: analysis.output.nextSteps,
+            missingInformation: analysis.output.missingInformation,
+          },
+          sections: sectionReviews,
+        } as object,
       },
     });
 
@@ -398,6 +537,209 @@ export async function listPitchDecksForFounder(limit = 12) {
     orderBy: { createdAt: "desc" },
     take: Math.min(Math.max(limit, 1), 50),
   });
+}
+
+export async function listPitchDeckWorkspaceData(limit = 20) {
+  const session = await assertFounderOrAdmin();
+  const [isPremium, decks, projects, ventures] = await Promise.all([
+    hasPremiumPitchDeckAccess(session.user.id, session.user.role),
+    db.pitchDeck.findMany({
+      where: { userId: session.user.id },
+      include: {
+        reports: { orderBy: { createdAt: "desc" }, take: 1 },
+        sections: { orderBy: { sectionOrder: "asc" } },
+        versions: { orderBy: { createdAt: "desc" }, take: 25 },
+        project: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: Math.min(Math.max(limit, 1), 40),
+    }),
+    db.project.findMany({
+      where: { ownerUserId: session.user.id },
+      select: { id: true, name: true },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    db.venture.findMany({
+      where: { ownerUserId: session.user.id },
+      select: { id: true, name: true },
+      orderBy: { updatedAt: "desc" },
+      take: 20,
+    }),
+  ]);
+
+  return {
+    isPremium,
+    decks,
+    projects,
+    ventures,
+    now: new Date().toISOString(),
+  };
+}
+
+export async function rewritePitchDeckSectionAction(formData: FormData): Promise<PitchDeckActionResult> {
+  const session = await assertFounderOrAdmin();
+  const pitchDeckId = String(formData.get("pitchDeckId") ?? "");
+  const sectionId = String(formData.get("sectionId") ?? "");
+  const tone = String(formData.get("tone") ?? "sharper investor language");
+  if (!pitchDeckId || !sectionId) return { success: false, error: "Missing section context." };
+
+  const isPremium = await hasPremiumPitchDeckAccess(session.user.id, session.user.role);
+  if (!isPremium) {
+    return { success: false, error: "Premium required to rewrite sections." };
+  }
+
+  const deck = await ensureDeckOwnership(pitchDeckId, { id: session.user.id, role: session.user.role });
+  const section = deck.sections.find((item) => item.id === sectionId);
+  if (!section) return { success: false, error: "Section not found." };
+
+  const startupContext = await buildDeckStartupContext(deck.id, session.user.id);
+  const rewritten = await rewritePitchDeckSection({
+    sectionTitle: section.sectionTitle,
+    sectionText: section.extractedText,
+    fullDeckText: deck.extractedText ?? "",
+    tone,
+    startupContext,
+  });
+
+  const version = await db.pitchDeckVersion.create({
+    data: {
+      pitchDeckId: deck.id,
+      userId: session.user.id,
+      reportId: deck.reports[0]?.id ?? null,
+      name: `Section rewrite - ${section.sectionTitle}`,
+      versionType: "AI_IMPROVED",
+      contentJson: {
+        action: "rewrite-section",
+        sourceSectionId: section.id,
+        sourceSectionTitle: section.sectionTitle,
+        rewritten,
+        provenance: {
+          generator: "ai-rewrite",
+          generatedAt: new Date().toISOString(),
+          truthfulness: "assistant_output_based_on_uploaded_deck_and_saved_profile_context",
+        },
+      } as object,
+    },
+  });
+
+  revalidatePath("/app/founder-os/pitch-deck");
+  revalidatePath("/pitchdeck");
+  return { success: true, pitchDeckId: deck.id, reportId: version.id };
+}
+
+export async function generateMissingPitchSectionAction(formData: FormData): Promise<PitchDeckActionResult> {
+  const session = await assertFounderOrAdmin();
+  const pitchDeckId = String(formData.get("pitchDeckId") ?? "");
+  const sectionKey = String(formData.get("sectionKey") ?? "");
+  if (!pitchDeckId || !sectionKey) return { success: false, error: "Missing generation context." };
+
+  const isPremium = await hasPremiumPitchDeckAccess(session.user.id, session.user.role);
+  if (!isPremium) {
+    return { success: false, error: "Premium required to generate missing sections." };
+  }
+
+  const deck = await ensureDeckOwnership(pitchDeckId, { id: session.user.id, role: session.user.role });
+  const startupContext = await buildDeckStartupContext(deck.id, session.user.id);
+  const generated = await generateMissingSection({
+    sectionTitle: keyToSectionTitle(sectionKey),
+    fullDeckText: deck.extractedText ?? "",
+    startupContext,
+  });
+
+  const version = await db.pitchDeckVersion.create({
+    data: {
+      pitchDeckId: deck.id,
+      userId: session.user.id,
+      reportId: deck.reports[0]?.id ?? null,
+      name: `Generated missing section - ${generated.sectionTitle}`,
+      versionType: "AI_IMPROVED",
+      contentJson: {
+        action: "generate-missing-section",
+        sectionKey,
+        generated,
+        provenance: {
+          generator: "ai-missing-section",
+          generatedAt: new Date().toISOString(),
+          truthfulness: "assistant_output_based_on_uploaded_deck_and_saved_profile_context",
+        },
+      } as object,
+    },
+  });
+  revalidatePath("/app/founder-os/pitch-deck");
+  return { success: true, pitchDeckId: deck.id, reportId: version.id };
+}
+
+export async function generateImprovedPitchDeckVersionAction(formData: FormData): Promise<PitchDeckActionResult> {
+  const session = await assertFounderOrAdmin();
+  const pitchDeckId = String(formData.get("pitchDeckId") ?? "");
+  if (!pitchDeckId) return { success: false, error: "Missing deck context." };
+
+  const isPremium = await hasPremiumPitchDeckAccess(session.user.id, session.user.role);
+  if (!isPremium) return { success: false, error: "Premium required to generate improved deck versions." };
+
+  const deck = await ensureDeckOwnership(pitchDeckId, { id: session.user.id, role: session.user.role });
+  const startupContext = await buildDeckStartupContext(deck.id, session.user.id);
+  const improved = await generateImprovedDeck({
+    deckText: deck.extractedText ?? "",
+    startupContext,
+  });
+  const version = await db.pitchDeckVersion.create({
+    data: {
+      pitchDeckId: deck.id,
+      userId: session.user.id,
+      reportId: deck.reports[0]?.id ?? null,
+      name: `AI improved deck ${new Date().toLocaleDateString()}`,
+      versionType: "AI_IMPROVED",
+      contentJson: {
+        action: "generate-improved-deck",
+        generated: improved,
+        provenance: {
+          generator: "ai-improved-deck",
+          generatedAt: new Date().toISOString(),
+          truthfulness: "assistant_output_based_on_uploaded_deck_and_saved_profile_context",
+        },
+      } as object,
+    },
+  });
+  revalidatePath("/app/founder-os/pitch-deck");
+  return { success: true, pitchDeckId: deck.id, reportId: version.id };
+}
+
+export async function generateStartupDraftPitchDeckAction(formData: FormData): Promise<PitchDeckActionResult> {
+  const session = await assertFounderOrAdmin();
+  const pitchDeckId = String(formData.get("pitchDeckId") ?? "");
+  if (!pitchDeckId) return { success: false, error: "Missing deck context." };
+
+  const isPremium = await hasPremiumPitchDeckAccess(session.user.id, session.user.role);
+  if (!isPremium) return { success: false, error: "Premium required to generate startup-based draft decks." };
+
+  const deck = await ensureDeckOwnership(pitchDeckId, { id: session.user.id, role: session.user.role });
+  const startupContext = await buildDeckStartupContext(deck.id, session.user.id);
+  const startupDraft = await generateImprovedDeck({
+    deckText: deck.extractedText ?? "No deck text available yet. Use startup context only.",
+    startupContext,
+  });
+  const version = await db.pitchDeckVersion.create({
+    data: {
+      pitchDeckId: deck.id,
+      userId: session.user.id,
+      reportId: deck.reports[0]?.id ?? null,
+      name: `Startup-based draft ${new Date().toLocaleDateString()}`,
+      versionType: "STARTUP_DRAFT",
+      contentJson: {
+        action: "startup-context-draft",
+        generated: startupDraft,
+        provenance: {
+          generator: "ai-startup-draft",
+          generatedAt: new Date().toISOString(),
+          truthfulness: "assistant_output_based_on_uploaded_deck_and_saved_profile_context",
+        },
+      } as object,
+    },
+  });
+  revalidatePath("/app/founder-os/pitch-deck");
+  return { success: true, pitchDeckId: deck.id, reportId: version.id };
 }
 
 // Backward-compatible entry point used by existing UI.

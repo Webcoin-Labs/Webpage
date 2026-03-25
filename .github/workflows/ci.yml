@@ -116,3 +116,46 @@ jobs:
       - run: pnpm prisma db push --skip-generate
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e:smoke
+
+  release-gate:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: pass
+          POSTGRES_DB: webcoinlabs
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d webcoinlabs"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://user:pass@localhost:5432/webcoinlabs
+      NEXTAUTH_SECRET: test-secret
+      NEXTAUTH_URL: http://localhost:3000
+      STORAGE_PROVIDER: local
+      LOCAL_STORAGE_ROOT: /tmp/webcoinlabs
+      GEMINI_API_KEY: test-gemini-key
+      OPENCLAW_BASE_URL: https://example.com
+      OPENCLAW_API_KEY: test-openclaw-key
+      APP_ENCRYPTION_SECRET: test-app-encryption-secret
+      INTERNAL_JOBS_SECRET: test-internal-jobs-secret
+      UPSTASH_REDIS_REST_URL: https://example.upstash.io
+      UPSTASH_REDIS_REST_TOKEN: test-upstash-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm release:gate

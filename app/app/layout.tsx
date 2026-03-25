@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
-import { BellRing } from "lucide-react";
+import { BellRing, Command, Plus, Search, Wifi } from "lucide-react";
 import { authOptions } from "@/lib/auth";
 import { AppMobileNav, AppSidebar } from "@/components/app/AppSidebar";
 import { OnboardingGuard } from "@/components/app/OnboardingGuard";
@@ -98,8 +98,15 @@ export default async function AppLayout({
   if (!session) redirect("/login");
 
   const onboardingComplete = (session.user as { onboardingComplete?: boolean }).onboardingComplete !== false;
+  const hasBaselineIdentity =
+    Boolean(session.user.name?.trim()) &&
+    Boolean((session.user as { username?: string | null }).username?.trim());
 
-  if (!onboardingComplete) {
+  // Prevent forced onboarding loops for users that already completed account creation.
+  // Keep onboarding optional for role/workspace enrichment.
+  const forceOnboarding = !onboardingComplete && !hasBaselineIdentity;
+
+  if (forceOnboarding) {
     return (
       <OnboardingGuard>
         <div className="flex min-h-screen items-center justify-center bg-background">{children}</div>
@@ -123,21 +130,36 @@ export default async function AppLayout({
             <span className="font-bold text-foreground">Webcoin Labs</span>
           </div>
         </div>
-        <div className="hidden h-11 items-center justify-between border-b border-border/40 px-6 text-xs text-muted-foreground md:flex">
-          <p>Convert ideas to reality with role-specific workflows.</p>
-          <div className="flex items-center gap-3">
-            <Link href="/app/notifications" className="inline-flex items-center gap-1 text-cyan-300 hover:text-cyan-200">
-              <BellRing className="h-3.5 w-3.5" /> Notifications ({unreadNotifications})
+        <div className="hidden items-center justify-between gap-3 border-b border-border/40 px-6 py-2 text-xs text-muted-foreground md:flex">
+          <label className="flex min-w-[320px] max-w-[520px] flex-1 items-center gap-2 rounded-lg border border-border/60 bg-card px-3 py-2">
+            <Search className="h-3.5 w-3.5" />
+            <input
+              placeholder="Search workspaces, apps, people..."
+              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/80"
+            />
+          </label>
+          <div className="flex items-center gap-2">
+            <button type="button" className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-card px-2.5 py-1.5">
+              <Command className="h-3.5 w-3.5" /> Command
+            </button>
+            <button type="button" className="inline-flex items-center gap-1 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1.5 text-cyan-200">
+              <Plus className="h-3.5 w-3.5" /> Quick Create
+            </button>
+            <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-card px-2.5 py-1.5">
+              <Wifi className="h-3.5 w-3.5 text-emerald-300" /> Sync Active
+            </span>
+            <Link href="/app/notifications" className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-card px-2.5 py-1.5 hover:text-foreground">
+              <BellRing className="h-3.5 w-3.5" /> {unreadNotifications}
             </Link>
             {session.user.role === "ADMIN" ? (
-              <Link href="/app/admin/notifications" className="text-amber-300 hover:text-amber-200">
-                Broadcast Center
+              <Link href="/app/admin/notifications" className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-amber-200">
+                Broadcast
               </Link>
             ) : null}
           </div>
         </div>
         <AppMobileNav user={session.user} />
-        <div className="relative mx-auto max-w-5xl p-6">{children}</div>
+        <div className="relative mx-auto max-w-[1300px] p-6">{children}</div>
         <AppHelpWidgetClient />
       </main>
     </div>

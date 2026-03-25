@@ -3,7 +3,7 @@ import "server-only";
 import { Role, WorkspaceType } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/server/db/client";
 
 export type AuthzSessionUser = {
   id: string;
@@ -39,7 +39,7 @@ export function assertAnyRole(user: AuthzSessionUser, allowed: Role[]) {
 }
 
 export async function assertWorkspaceEnabled(userId: string, workspace: WorkspaceType) {
-  const membership = await prisma.userWorkspace.findUnique({
+  const membership = await db.userWorkspace.findUnique({
     where: { userId_workspace: { userId, workspace } },
     select: { status: true },
   });
@@ -49,7 +49,7 @@ export async function assertWorkspaceEnabled(userId: string, workspace: Workspac
 }
 
 export async function getDefaultWorkspace(userId: string): Promise<WorkspaceType | null> {
-  const membership = await prisma.userWorkspace.findFirst({
+  const membership = await db.userWorkspace.findFirst({
     where: { userId, status: "ENABLED", isDefault: true },
     select: { workspace: true },
   });
@@ -57,10 +57,9 @@ export async function getDefaultWorkspace(userId: string): Promise<WorkspaceType
 }
 
 export async function getEnabledWorkspaces(userId: string): Promise<WorkspaceType[]> {
-  const memberships = await prisma.userWorkspace.findMany({
+  const memberships = await db.userWorkspace.findMany({
     where: { userId, status: "ENABLED" },
     select: { workspace: true },
   });
   return memberships.map((item) => item.workspace);
 }
-
