@@ -60,6 +60,7 @@ export default function OnboardingPage() {
   const [integrations, setIntegrations] = useState<string[]>([]);
   const [walletAddress, setWalletAddress] = useState("");
   const [walletNetwork, setWalletNetwork] = useState<"EVM" | "SOLANA">("EVM");
+  const usernameLocked = Boolean(session?.user?.username);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -80,6 +81,14 @@ export default function OnboardingPage() {
   const saveIdentity = () => {
     setError("");
     setSuccess("");
+    if (name.trim().length < 2) {
+      setError("Name is required.");
+      return;
+    }
+    if (username.trim().length < 3) {
+      setError("Unique username is required.");
+      return;
+    }
     startTransition(async () => {
       const fd = new FormData();
       fd.set("name", name);
@@ -237,11 +246,25 @@ export default function OnboardingPage() {
         {step === 1 ? (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Identity Setup</h2>
-            <p className="text-sm text-muted-foreground">Name, public handle, bio, social links, and education background.</p>
+            <p className="text-sm text-muted-foreground">Name * and unique username * are required. Other fields are optional.</p>
             <div className="grid gap-3 md:grid-cols-2">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-              <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="username" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Name *</p>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Unique username *</p>
+                <input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="username"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  disabled={usernameLocked}
+                  readOnly={usernameLocked}
+                />
+              </div>
             </div>
+            {usernameLocked ? <p className="text-xs text-muted-foreground">Username is locked once created.</p> : null}
             <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} placeholder="Bio / profile description" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
             <textarea
               value={educationBackground}

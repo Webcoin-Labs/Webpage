@@ -5,15 +5,19 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { builderModules, osRouteMeta } from "@/lib/os/modules";
 import { OsWorkspaceShell } from "@/components/os/OsWorkspaceShell";
+import { EcosystemFeedPanel } from "@/components/ecosystem/EcosystemFeedPanel";
 
 export const metadata = { title: "Builder Workspace - Webcoin Labs" };
 
 export default async function BuilderOsAppPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ app: string }>;
+  searchParams?: Promise<{ search?: string; scope?: string }>;
 }) {
   const { app } = await params;
+  const resolvedSearch = (await searchParams) ?? {};
   const moduleMeta = builderModules.find((module) => module.slug === app);
   if (!moduleMeta) notFound();
 
@@ -64,6 +68,18 @@ export default async function BuilderOsAppPage({
           Open full project manager
         </Link>
       </section>,
+    );
+  }
+
+  if (app === "ecosystem-feed") {
+    return wrap(
+      <EcosystemFeedPanel
+        basePath="/app/builder-os/ecosystem-feed"
+        defaultScope="BUILDER"
+        search={resolvedSearch.search}
+        scope={resolvedSearch.scope}
+        viewerRole={session.user.role}
+      />,
     );
   }
 

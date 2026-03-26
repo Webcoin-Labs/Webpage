@@ -1,32 +1,66 @@
 import { getServerSession } from "next-auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BellRing, CheckCircle2 } from "lucide-react";
+import { BellRing, CheckCircle2, MessageSquare, UserPlus } from "lucide-react";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { markAllNotificationsRead, markNotificationRead } from "@/app/actions/notifications";
+import { respondConnectionRequest } from "@/app/actions/connections";
 
 export const metadata = { title: "Notifications - Webcoin Labs" };
 
-export default async function NotificationsPage() {
+const tabs = [
+  { key: "all", label: "All" },
+  { key: "requests", label: "Requests" },
+  { key: "posts", label: "Posts" },
+] as const;
+
+type TabKey = (typeof tabs)[number]["key"];
+
+export default async function NotificationsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ tab?: string }>;
+}) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
-  const notifications = await db.notification.findMany({
-    where: {
-      targetRoles: {
-        has: session.user.role,
+  const params = (await searchParams) ?? {};
+  const activeTab: TabKey = tabs.some((tab) => tab.key === params.tab) ? (params.tab as TabKey) : "all";
+  const connectionRequestModel = (db as any).connectionRequest as { findMany: (...args: any[]) => Promise<any[]> } | undefined;
+
+  const [notifications, requestsRaw] = await Promise.all([
+    db.notification.findMany({
+      where: {
+        targetRoles: {
+          has: session.user.role,
+        },
       },
-    },
-    include: {
-      reads: {
-        where: { userId: session.user.id },
-        select: { id: true, readAt: true },
+      include: {
+        reads: {
+          where: { userId: session.user.id },
+          select: { id: true, readAt: true },
+        },
       },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 120,
-  });
+      orderBy: { createdAt: "desc" },
+      take: 120,
+    }),
+    connectionRequestModel
+      ? connectionRequestModel.findMany({
+          where: { toUserId: session.user.id, status: "PENDING" },
+          include: { fromUser: { select: { id: true, name: true, username: true, role: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+        })
+      : Promise.resolve([]),
+  ]);
+  const requests = requestsRaw as Array<{
+    id: string;
+    source: string | null;
+    message: string | null;
+    createdAt: Date;
+    fromUser: { name: string | null; username: string | null; role: string };
+  }>;
 
   const unreadCount = notifications.filter((item) => item.reads.length === 0).length;
 
@@ -39,13 +73,16 @@ export default async function NotificationsPage() {
     await markNotificationRead(String(formData.get("notificationId") ?? ""));
   };
 
+  const showRequests = activeTab === "all" || activeTab === "requests";
+  const showPosts = activeTab === "all" || activeTab === "posts";
+
   return (
     <div className="space-y-6 py-8">
       <section className="rounded-2xl border border-border/60 bg-card p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Notifications</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Feature launches, updates, and admin announcements for your role.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Feature launches, updates, connection requests, and admin announcements.</p>
           </div>
           <form action={readAllAction}>
             <button type="submit" className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs font-medium text-cyan-200">
@@ -53,51 +90,126 @@ export default async function NotificationsPage() {
             </button>
           </form>
         </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {tabs.map((tab) => (
+            <Link
+              key={tab.key}
+              href={`/app/notifications?tab=${tab.key}`}
+              className={`rounded-md border px-3 py-1.5 text-xs ${
+                activeTab === tab.key
+                  ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-200"
+                  : "border-border/70 text-muted-foreground"
+              }`}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </div>
       </section>
 
-      {notifications.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
-          No notifications yet.
-        </div>
-      ) : (
-        <section className="space-y-3">
-          {notifications.map((item) => {
-            const isUnread = item.reads.length === 0;
-            return (
-              <article key={item.id} className={`rounded-xl border p-4 ${isUnread ? "border-cyan-500/30 bg-cyan-500/5" : "border-border/60 bg-card"}`}>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <BellRing className={`h-4 w-4 ${isUnread ? "text-cyan-300" : "text-muted-foreground"}`} />
-                      <h2 className="text-sm font-semibold">{item.title}</h2>
-                      {isUnread ? (
-                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] text-cyan-200">New</span>
-                      ) : (
-                        <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">Read</span>
-                      )}
+      {showRequests ? (
+        <section className="rounded-xl border border-border/60 bg-card p-5">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-base font-semibold">Connection requests</h2>
+            <Link href="/app/messages" className="text-xs text-cyan-300 hover:text-cyan-200">
+              Open messages
+            </Link>
+          </div>
+          {requests.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border/60 p-6 text-sm text-muted-foreground">
+              No pending connection requests.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {requests.map((request) => (
+                <article key={request.id} className="rounded-lg border border-border/60 bg-background p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <UserPlus className="h-4 w-4 text-cyan-300" />
+                        <p className="text-sm font-semibold">
+                          {request.fromUser.name ?? request.fromUser.username ?? "Member"} sent you a connection request
+                        </p>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {request.fromUser.role} | {request.source ?? "profile"} | {new Date(request.createdAt).toLocaleString()}
+                      </p>
+                      {request.message ? <p className="mt-2 text-sm text-muted-foreground">{request.message}</p> : null}
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()}</p>
-                    <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">{item.message}</p>
-                    {item.featureUrl ? (
-                      <Link href={item.featureUrl} className="mt-2 inline-flex text-xs text-cyan-300 hover:text-cyan-200">
-                        Open related feature
-                      </Link>
+                    <div className="flex items-center gap-2">
+                      <form action={respondConnectionRequest}>
+                        <input type="hidden" name="requestId" value={request.id} />
+                        <input type="hidden" name="decision" value="accept" />
+                        <button type="submit" className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs text-emerald-200">
+                          Accept
+                        </button>
+                      </form>
+                      <form action={respondConnectionRequest}>
+                        <input type="hidden" name="requestId" value={request.id} />
+                        <input type="hidden" name="decision" value="decline" />
+                        <button type="submit" className="rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground">
+                          Decline
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {showPosts ? (
+        notifications.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+            No notifications yet.
+          </div>
+        ) : (
+          <section className="space-y-3">
+            {notifications.map((item) => {
+              const isUnread = item.reads.length === 0;
+              return (
+                <article key={item.id} className={`rounded-xl border p-4 ${isUnread ? "border-cyan-500/30 bg-cyan-500/5" : "border-border/60 bg-card"}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        {item.featureUrl ? (
+                          <MessageSquare className={`h-4 w-4 ${isUnread ? "text-cyan-300" : "text-muted-foreground"}`} />
+                        ) : (
+                          <BellRing className={`h-4 w-4 ${isUnread ? "text-cyan-300" : "text-muted-foreground"}`} />
+                        )}
+                        <h2 className="text-sm font-semibold">{item.title}</h2>
+                        {isUnread ? (
+                          <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] text-cyan-200">New</span>
+                        ) : (
+                          <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">Read</span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()}</p>
+                      <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">{item.message}</p>
+                      {item.featureUrl ? (
+                        <Link href={item.featureUrl} className="mt-2 inline-flex text-xs text-cyan-300 hover:text-cyan-200">
+                          Open related feature
+                        </Link>
+                      ) : null}
+                    </div>
+                    {isUnread ? (
+                      <form action={markOneAction}>
+                        <input type="hidden" name="notificationId" value={item.id} />
+                        <button type="submit" className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Mark read
+                        </button>
+                      </form>
                     ) : null}
                   </div>
-                  {isUnread ? (
-                    <form action={markOneAction}>
-                      <input type="hidden" name="notificationId" value={item.id} />
-                      <button type="submit" className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground">
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Mark read
-                      </button>
-                    </form>
-                  ) : null}
-                </div>
-              </article>
-            );
-          })}
-        </section>
-      )}
+                </article>
+              );
+            })}
+          </section>
+        )
+      ) : null}
     </div>
   );
 }

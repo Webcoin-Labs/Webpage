@@ -6,15 +6,19 @@ import { db } from "@/server/db/client";
 import { investorModules, osRouteMeta } from "@/lib/os/modules";
 import { OsWorkspaceShell } from "@/components/os/OsWorkspaceShell";
 import { createDiligenceMemoAction } from "@/app/actions/canonical-graph";
+import { EcosystemFeedPanel } from "@/components/ecosystem/EcosystemFeedPanel";
 
 export const metadata = { title: "Investor Workspace - Webcoin Labs" };
 
 export default async function InvestorOsAppPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ app: string }>;
+  searchParams?: Promise<{ search?: string; scope?: string }>;
 }) {
   const { app } = await params;
+  const resolvedSearch = (await searchParams) ?? {};
   const moduleMeta = investorModules.find((module) => module.slug === app);
   if (!moduleMeta) notFound();
 
@@ -60,6 +64,18 @@ export default async function InvestorOsAppPage({
           </div>
         )}
       </section>,
+    );
+  }
+
+  if (app === "ecosystem-feed") {
+    return wrap(
+      <EcosystemFeedPanel
+        basePath="/app/investor-os/ecosystem-feed"
+        defaultScope="INVESTOR"
+        search={resolvedSearch.search}
+        scope={resolvedSearch.scope}
+        viewerRole={session.user.role}
+      />,
     );
   }
 

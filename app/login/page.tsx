@@ -13,7 +13,11 @@ const labelClass = "block text-xs font-medium mb-1.5 text-foreground/90";
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/app";
+  const rawCallbackUrl = searchParams.get("callbackUrl");
+  const callbackUrl =
+    rawCallbackUrl && rawCallbackUrl.startsWith("/") && !rawCallbackUrl.startsWith("//")
+      ? rawCallbackUrl
+      : "/app";
 
   const [loading, setLoading] = useState<"google" | "github" | "credentials" | null>(null);
   const [error, setError] = useState("");
@@ -47,7 +51,7 @@ export default function LoginPage() {
       setError("Invalid email/username or password.");
       return;
     }
-    if (res?.url) window.location.href = res.url;
+    if (res?.ok) window.location.href = callbackUrl;
   };
 
   const createAccountHref = `/login/create-account?callbackUrl=${encodeURIComponent(callbackUrl)}`;
@@ -140,7 +144,7 @@ export default function LoginPage() {
                         name="password"
                         type={showPassword ? "text" : "password"}
                         autoComplete="current-password"
-                        placeholder="••••••••"
+                        placeholder="********"
                         className={inputClass + " pl-9 pr-10"}
                       />
                       <button
@@ -234,10 +238,11 @@ export default function LoginPage() {
             </section>
           </div>
           <p className="text-center pb-8 text-sm text-muted-foreground">
-            <Link href="/" className="hover:text-foreground transition-colors">← Back to webcoinlabs.com</Link>
+            <Link href="/" className="hover:text-foreground transition-colors">Back to webcoinlabs.com</Link>
           </p>
         </div>
       </div>
     </div>
   );
 }
+

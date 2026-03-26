@@ -22,11 +22,15 @@ const providers: NextAuthOptions["providers"] = [
         },
         async authorize(credentials) {
             if (!credentials?.login || !credentials?.password) return null;
+            const loginRaw = credentials.login.trim().replace(/^@+/, "");
+            const loginLower = loginRaw.toLowerCase();
             const user = await db.user.findFirst({
                 where: {
                     OR: [
-                        { email: credentials.login.trim().toLowerCase() },
-                        { username: credentials.login.trim().toLowerCase() },
+                        { email: loginLower },
+                        { username: loginRaw },
+                        { username: loginLower },
+                        { username: { equals: loginRaw, mode: "insensitive" } },
                     ],
                 },
             });
@@ -75,6 +79,16 @@ export const authOptions: NextAuthOptions = {
         maxAge: SESSION_MAX_AGE_SECONDS,
     },
     callbacks: {
+        async redirect({ url, baseUrl }) {
+            if (url.startsWith("/")) return `${baseUrl}${url}`;
+            try {
+                const target = new URL(url);
+                if (target.origin === baseUrl) return url;
+            } catch {
+                return `${baseUrl}/app`;
+            }
+            return `${baseUrl}/app`;
+        },
         async jwt({ token, user }) {
             const nowSeconds = Math.floor(Date.now() / 1000);
             // Enforce a hard 24h lifetime (not sliding) from the initial login time.

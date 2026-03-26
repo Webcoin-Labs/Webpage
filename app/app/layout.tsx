@@ -11,6 +11,7 @@ import { OnboardingGuard } from "@/components/app/OnboardingGuard";
 import { AppHelpWidgetClient } from "@/components/app/AppHelpWidgetClient";
 import { db } from "@/server/db/client";
 import { getBuilderAffiliation, getFounderAffiliation } from "@/lib/affiliation";
+import { AppTopNavUserMenu } from "@/components/app/AppTopNavUserMenu";
 
 type SidebarAffiliation = {
   label: string;
@@ -118,11 +119,19 @@ export default async function AppLayout({
     getSidebarAffiliationCached(session.user.id, session.user.role as AppUserRole),
     getUnreadNotificationsCached(session.user.id, session.user.role as AppUserRole),
   ]);
+  const enabledWorkspaces = await db.userWorkspace.findMany({
+    where: { userId: session.user.id, status: "ENABLED" },
+    select: { workspace: true },
+  });
 
   return (
     <div className="flex min-h-screen bg-background">
-      <AppSidebar user={session.user} affiliation={sidebarAffiliation} />
-      <main className="ml-0 min-h-screen flex-1 md:ml-64">
+      <AppSidebar
+        user={session.user}
+        affiliation={sidebarAffiliation}
+        enabledWorkspaces={enabledWorkspaces.map((item) => item.workspace)}
+      />
+      <main className="ml-0 min-h-screen flex-1">
         <div className="flex h-16 items-center border-b border-border/50 px-6 md:hidden">
           <div className="flex items-center gap-2">
             <Image src="/logo/webcoinlogo.webp" alt="Webcoin Labs" width={28} height={28} className="hidden rounded-md dark:block" />
@@ -151,6 +160,7 @@ export default async function AppLayout({
             <Link href="/app/notifications" className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-card px-2.5 py-1.5 hover:text-foreground">
               <BellRing className="h-3.5 w-3.5" /> {unreadNotifications}
             </Link>
+            <AppTopNavUserMenu name={session.user.name} email={session.user.email} image={session.user.image} />
             {session.user.role === "ADMIN" ? (
               <Link href="/app/admin/notifications" className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-amber-200">
                 Broadcast
@@ -158,7 +168,7 @@ export default async function AppLayout({
             ) : null}
           </div>
         </div>
-        <AppMobileNav user={session.user} />
+        <AppMobileNav user={session.user} enabledWorkspaces={enabledWorkspaces.map((item) => item.workspace)} />
         <div className="relative mx-auto max-w-[1300px] p-6">{children}</div>
         <AppHelpWidgetClient />
       </main>

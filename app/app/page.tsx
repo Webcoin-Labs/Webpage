@@ -329,10 +329,11 @@ export default async function AppDashboard() {
           ? `Reviewed ${investorProjects[0].name} recently.`
           : "No investor activity yet."
         : "Admin activity is available in admin panels.";
+  const founderToneCard = "border-zinc-700/70 bg-zinc-950/70";
 
   return (
     <div className="space-y-8 py-8">
-      <section className="rounded-2xl border border-border/50 bg-card p-6">
+      <section className={`rounded-2xl border p-6 ${isFounder ? founderToneCard : "border-border/50 bg-card"}`}>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <ProfileAvatar
@@ -343,8 +344,11 @@ export default async function AppDashboard() {
               fallbackClassName="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 text-lg text-cyan-300"
             />
             <div>
+              {isFounder ? <p className="text-[10px] uppercase tracking-[0.22em] text-orange-300/90">// Founder Command Interface</p> : null}
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-semibold">Welcome back{user.name ? `, ${user.name.split(" ")[0]}` : ""}</h1>
+                <h1 className={isFounder ? "text-3xl font-black uppercase tracking-tight" : "text-xl font-semibold"}>
+                  {isFounder ? "Founder Dashboard" : `Welcome back${user.name ? `, ${user.name.split(" ")[0]}` : ""}`}
+                </h1>
                 {isFounder && founderHasValidCompanyName ? (
                   <span className="inline-flex items-center gap-2">
                     <CompanyLogo
@@ -362,11 +366,15 @@ export default async function AppDashboard() {
                 {isInvestor && investorProfile?.firmName ? <ProfileAffiliationTag label={investorProfile.firmName} /> : null}
               </div>
               <p className="text-sm text-muted-foreground">
-                {isInvestor ? "Your investor intelligence workspace." : "Your Webcoin Labs founder-builder workspace."}
+                {isFounder
+                  ? "Layered venture control panel with dedicated modules and focused execution lanes."
+                  : isInvestor
+                    ? "Your investor intelligence workspace."
+                    : "Your Webcoin Labs founder-builder workspace."}
               </p>
             </div>
           </div>
-          <span className="w-fit rounded-full border border-cyan-500/40 px-3 py-1 text-xs font-medium text-cyan-300">
+          <span className={`w-fit rounded-full border px-3 py-1 text-xs font-medium ${isFounder ? "border-orange-500/40 text-orange-300" : "border-cyan-500/40 text-cyan-300"}`}>
             {user.role}
           </span>
         </div>
@@ -399,7 +407,7 @@ export default async function AppDashboard() {
       ) : null}
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-5">
-        <div className="rounded-xl border border-border/50 bg-card p-5">
+        <div className={`rounded-xl border p-5 ${isFounder ? founderToneCard : "border-border/50 bg-card"}`}>
           <div className="mb-3 flex items-center gap-2">
             <User className="h-4 w-4 text-blue-300" />
             <span className="text-sm font-medium">Profile Completion</span>
@@ -409,7 +417,7 @@ export default async function AppDashboard() {
             <div className="h-2 rounded-full bg-blue-500" style={{ width: `${completion}%` }} />
           </div>
         </div>
-        <div className="rounded-xl border border-border/50 bg-card p-5">
+        <div className={`rounded-xl border p-5 ${isFounder ? founderToneCard : "border-border/50 bg-card"}`}>
           <div className="mb-3 flex items-center gap-2">
             <FolderKanban className="h-4 w-4 text-green-300" />
             <span className="text-sm font-medium">{isBuilder ? "Builder Projects" : "Projects"}</span>
@@ -419,7 +427,7 @@ export default async function AppDashboard() {
             {isBuilder ? "Manage builder projects" : "Manage projects"} <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
-        <div className="rounded-xl border border-border/50 bg-card p-5">
+        <div className={`rounded-xl border p-5 ${isFounder ? founderToneCard : "border-border/50 bg-card"}`}>
           <div className="mb-3 flex items-center gap-2">
             <Building2 className="h-4 w-4 text-emerald-300" />
             <span className="text-sm font-medium">{isFounder ? "Hiring Status" : "Availability"}</span>
@@ -435,7 +443,7 @@ export default async function AppDashboard() {
             <p className="mt-2 text-xs text-muted-foreground">Role-specific activity only</p>
           )}
         </div>
-        <div className="rounded-xl border border-border/50 bg-card p-5">
+        <div className={`rounded-xl border p-5 ${isFounder ? founderToneCard : "border-border/50 bg-card"}`}>
           <div className="mb-3 flex items-center gap-2">
             <FileText className="h-4 w-4 text-emerald-300" />
             <span className="text-sm font-medium">Latest AI Pitch Report</span>
@@ -445,7 +453,7 @@ export default async function AppDashboard() {
           </p>
           <p className="mt-1 text-xs text-emerald-300">Clarity: {latestReport?.clarityScore ?? "-"}</p>
         </div>
-        <div className="rounded-xl border border-border/50 bg-card p-5">
+        <div className={`rounded-xl border p-5 ${isFounder ? founderToneCard : "border-border/50 bg-card"}`}>
           <div className="mb-3 flex items-center gap-2">
             <Clock3 className="h-4 w-4 text-cyan-300" />
             <span className="text-sm font-medium">Latest Activity</span>
@@ -457,10 +465,10 @@ export default async function AppDashboard() {
       {isFounder ? (
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-[1.08fr_0.92fr]">
           <div className="space-y-6">
-            <div className="rounded-2xl border border-border/50 bg-card p-6">
+            <div className={`rounded-2xl border p-6 ${founderToneCard}`}>
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium">Company Identity</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.08em]">Company Identity</p>
                   <p className="text-xs text-muted-foreground">Founder identity used across founder discovery, hiring, and investor visibility.</p>
                 </div>
                 {founderProfile?.isHiring ? (
@@ -511,10 +519,10 @@ export default async function AppDashboard() {
               ) : null}
             </div>
 
-            <div className="rounded-2xl border border-border/50 bg-card p-6">
+            <div className={`rounded-2xl border p-6 ${founderToneCard}`}>
               <div className="mb-4 flex items-center justify-between gap-3">
-                <p className="text-sm font-medium">Recommended Builders</p>
-                <Link href="/builders" className="text-xs text-blue-300">Browse all</Link>
+                <p className="text-sm font-semibold uppercase tracking-[0.08em]">Recommended Builders</p>
+                <Link href="/builders" className="text-xs text-orange-300 hover:text-orange-200">Browse all</Link>
               </div>
               {founderMatches.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Complete founder profile fields to unlock stronger builder recommendations.</p>
@@ -523,7 +531,7 @@ export default async function AppDashboard() {
                   {founderMatches.map((match) => {
                     const affiliation = getBuilderAffiliation(match.builder);
                     return (
-                      <div key={match.builder.id} className="rounded-lg border border-border/50 p-3">
+                      <div key={match.builder.id} className="rounded-lg border border-zinc-700/70 bg-zinc-900/40 p-3 transition-colors hover:border-zinc-500/80">
                         <div className="flex flex-wrap items-center gap-2">
                           <ProfileAvatar
                             src={match.builder.user.image}
@@ -534,12 +542,12 @@ export default async function AppDashboard() {
                           />
                           <p className="text-sm font-medium">{match.builder.user.name ?? "Builder"}</p>
                           <ProfileAffiliationTag label={affiliation.label} variant={affiliation.variant} />
-                          <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] text-cyan-200">
+                          <span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-2 py-0.5 text-[10px] text-orange-200">
                             {match.match.score}% match
                           </span>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">{match.match.reasons.join(" | ")}</p>
-                        <Link href={`/builders/${match.builder.handle ?? match.builder.user.id}`} className="mt-2 inline-block text-xs text-blue-300">
+                        <Link href={`/builders/${match.builder.handle ?? match.builder.user.id}`} className="mt-2 inline-block text-xs text-orange-300 hover:text-orange-200">
                           View profile
                         </Link>
                       </div>
@@ -548,29 +556,41 @@ export default async function AppDashboard() {
                 </div>
               )}
             </div>
+
+            <div className={`rounded-2xl border p-6 ${founderToneCard}`}>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold uppercase tracking-[0.08em]">Founder Workspace</p>
+                <Link href="/app/founder-os" className="text-xs text-orange-300 hover:text-orange-200">
+                  Open Founder OS
+                </Link>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Founder OS is now a separate operating system, accessed from sidebar Operating Systems or Apps / Launcher.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-6">
             {founderStartupRequired ? (
-              <div className="rounded-2xl border border-border/50 bg-card p-6">
+              <div className={`rounded-2xl border p-6 ${founderToneCard}`}>
                 <div className="mb-3 flex items-center gap-2">
-                  <Rocket className="h-4 w-4 text-cyan-300" />
-                  <p className="text-sm font-medium">Founder tools are locked</p>
+                  <Rocket className="h-4 w-4 text-orange-300" />
+                  <p className="text-sm font-semibold uppercase tracking-[0.08em]">Founder tools are locked</p>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Complete startup setup first. Once at least one startup is added, Hiring, KOL Premium, and investor-facing
                   tools will unlock automatically.
                 </p>
-                <Link href="/app/founder-os" className="mt-3 inline-flex items-center gap-1 text-xs text-cyan-300">
+                <Link href="/app/founder-os" className="mt-3 inline-flex items-center gap-1 text-xs text-orange-300 hover:text-orange-200">
                   Open Startup Manager <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
             ) : null}
             {!founderStartupRequired ? (
-            <div className="rounded-2xl border border-border/50 bg-card p-6">
+            <div className={`rounded-2xl border p-6 ${founderToneCard}`}>
               <div className="mb-3 flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-emerald-300" />
-                <p className="text-sm font-medium">Hiring Interests</p>
+                <p className="text-sm font-semibold uppercase tracking-[0.08em]">Hiring Interests</p>
               </div>
               {founderHiringInterests.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No builder interests yet. Turn on hiring in your profile to attract submissions.</p>
@@ -586,7 +606,7 @@ export default async function AppDashboard() {
                       </span>
                     </div>
                   ))}
-                  <Link href="/app/hiring" className="inline-flex items-center gap-1 text-xs text-blue-300">
+                  <Link href="/app/hiring" className="inline-flex items-center gap-1 text-xs text-orange-300 hover:text-orange-200">
                     Open hiring inbox <ArrowRight className="h-3 w-3" />
                   </Link>
                 </div>
@@ -595,10 +615,10 @@ export default async function AppDashboard() {
             ) : null}
 
             {!founderStartupRequired ? (
-            <div className="rounded-2xl border border-border/50 bg-card p-6">
+            <div className={`rounded-2xl border p-6 ${founderToneCard}`}>
               <div className="mb-3 flex items-center gap-2">
                 <Crown className="h-4 w-4 text-amber-300" />
-                <p className="text-sm font-medium">KOL Premium</p>
+                <p className="text-sm font-semibold uppercase tracking-[0.08em]">KOL Premium</p>
               </div>
               <p className="text-xs text-muted-foreground">
                 KOL requests: {kolRequestsCount} | Latest: {latestKolRequest?.status ?? "No request yet"}
@@ -616,10 +636,10 @@ export default async function AppDashboard() {
             ) : null}
 
             {!founderStartupRequired ? (
-            <div className="rounded-2xl border border-border/50 bg-card p-6">
+            <div className={`rounded-2xl border p-6 ${founderToneCard}`}>
               <div className="mb-3 flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-emerald-300" />
-                <p className="text-sm font-medium">Pitch Deck & AI Report</p>
+                <p className="text-sm font-semibold uppercase tracking-[0.08em]">Pitch Deck & AI Report</p>
               </div>
               <p className="text-xs text-muted-foreground">
                 Deck: {latestDeck ? latestDeck.originalFileName : "Not uploaded"} | Upload: {latestDeck?.uploadStatus ?? "N/A"} | Process: {latestDeck?.processingStatus ?? "N/A"} | Report: {latestReport?.status ?? "Not started"}
@@ -635,7 +655,7 @@ export default async function AppDashboard() {
                   <RetryAnalysisButton pitchDeckId={latestDeck.id} />
                 </div>
               ) : null}
-              <Link href="/pitchdeck" className="mt-3 inline-flex items-center gap-1 text-xs text-blue-300">
+              <Link href="/pitchdeck" className="mt-3 inline-flex items-center gap-1 text-xs text-orange-300 hover:text-orange-200">
                 Open pitch area <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
@@ -927,38 +947,22 @@ export default async function AppDashboard() {
         </section>
       ) : null}
 
-      <section className="rounded-2xl border border-border/50 bg-card p-6">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <p className="text-sm font-medium">{isInvestor ? "Investor Modules" : "Founder OS Modules"}</p>
-            <Link href={isInvestor ? "/app/kreatorboard" : "/app/founder-os"} className="text-xs text-cyan-300">
-            {isInvestor ? "Open Investor Workspace" : "Open Founder OS"}
+      {isInvestor ? (
+        <section className="rounded-2xl border border-border/50 bg-card p-6">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-sm font-medium">Investor Modules</p>
+            <Link href="/app/kreatorboard" className="text-xs text-cyan-300">
+              Open Investor Workspace
             </Link>
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground md:grid-cols-4">
-          {isInvestor ? (
-            <>
-              <span className="rounded-md border border-border/60 px-2 py-1">Founder Discovery</span>
-              <span className="rounded-md border border-border/60 px-2 py-1">Startup Signals</span>
-              <span className="rounded-md border border-border/60 px-2 py-1">Investor Workspace</span>
-              <span className="rounded-md border border-border/60 px-2 py-1">Pipeline Notes</span>
-            </>
-          ) : (
-            <>
-              <span className="rounded-md border border-border/60 px-2 py-1">Startup Manager</span>
-              <span className="rounded-md border border-border/60 px-2 py-1">Matches</span>
-              <span className="rounded-md border border-border/60 px-2 py-1">Hiring Pipeline</span>
-              <span className="rounded-md border border-border/60 px-2 py-1">AI Pitch</span>
-              <span className="rounded-md border border-border/60 px-2 py-1">Investor Connect</span>
-              <span className="rounded-md border border-border/60 px-2 py-1">Chat</span>
-              <span className="rounded-md border border-border/60 px-2 py-1">Market Insights</span>
-              <span className="rounded-md border border-border/60 px-2 py-1">GitHub Activity</span>
-              <span className="rounded-md border border-border/60 px-2 py-1">Jobs</span>
-              <span className="rounded-md border border-border/60 px-2 py-1">Meetings</span>
-              <span className="rounded-md border border-border/60 px-2 py-1">Payments Integration</span>
-            </>
-          )}
-        </div>
-      </section>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground md:grid-cols-4">
+            <span className="rounded-md border border-border/60 px-2 py-1">Founder Discovery</span>
+            <span className="rounded-md border border-border/60 px-2 py-1">Startup Signals</span>
+            <span className="rounded-md border border-border/60 px-2 py-1">Investor Workspace</span>
+            <span className="rounded-md border border-border/60 px-2 py-1">Pipeline Notes</span>
+          </div>
+        </section>
+      ) : null}
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Link href="/app/profile" className="group rounded-xl border border-border/50 bg-card p-5 transition-all hover:border-blue-500/30">

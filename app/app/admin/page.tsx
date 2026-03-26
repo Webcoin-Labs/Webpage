@@ -79,6 +79,7 @@ export default async function AdminPage() {
         { href: "/app/admin/moderation", label: "Moderation", icon: Shield },
         { href: "/app/admin/rewards", label: "Rewards", icon: Gift },
         { href: "/app/admin/notifications", label: "Notifications", icon: MessageSquare },
+        { href: "/app/admin/advisors", label: "Advisor Invites", icon: UsersRound },
     ];
 
     const createAssignmentFormAction = async (formData: FormData) => {

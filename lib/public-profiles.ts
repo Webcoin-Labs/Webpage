@@ -94,11 +94,20 @@ export async function getInvestorPublicByUsername(username: string, viewer: View
       investorProfile: {
         is: { isPublic: true },
       },
+      OR: [
+        { publicProfileSettings: { is: null } },
+        { publicProfileSettings: { is: { investorProfileLive: true } } },
+      ],
     },
     include: {
       investorProfile: {
         include: { company: true },
       },
+      profileContactMethods: {
+        where: { isEnabled: true },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      },
+      publicProfileSettings: true,
       investorCompanyMemberships: {
         where: { isPrimary: true },
         include: { company: true },
@@ -126,11 +135,20 @@ export async function getInvestorByCompanyAndUsername(companySlug: string, usern
           },
         },
       },
+      OR: [
+        { publicProfileSettings: { is: null } },
+        { publicProfileSettings: { is: { investorProfileLive: true } } },
+      ],
     },
     include: {
       investorProfile: {
         include: { company: true },
       },
+      profileContactMethods: {
+        where: { isEnabled: true },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      },
+      publicProfileSettings: true,
     },
   });
   if (!profile?.investorProfile) return profile;

@@ -6,7 +6,7 @@ import { MessageCircle, X, BookOpen, Calendar, MessageSquare } from "lucide-reac
 import Link from "next/link";
 
 const helpItems = [
-  { icon: BookOpen, label: "Docs", href: "/build" },
+  { icon: BookOpen, label: "Docs", href: "/app/docs" },
   { icon: Calendar, label: "Book Demo", href: "/", external: "https://calendly.com/webcoinlabs/demo" },
   { icon: MessageSquare, label: "Request Intro", href: "/app/intros" },
 ];

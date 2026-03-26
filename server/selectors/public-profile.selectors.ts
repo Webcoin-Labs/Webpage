@@ -14,6 +14,10 @@ export async function selectFounderPublicProfile(username: string, viewer: Viewe
     where: {
       username: username.toLowerCase(),
       founderProfile: { is: { publicVisible: true } },
+      OR: [
+        { publicProfileSettings: { is: null } },
+        { publicProfileSettings: { is: { founderProfileLive: true } } },
+      ],
     },
     select: {
       id: true,
@@ -27,6 +31,10 @@ export async function selectFounderPublicProfile(username: string, viewer: Viewe
       founderProfile: true,
       builderProfile: { select: { id: true } },
       publicProfileSettings: true,
+      profileContactMethods: {
+        where: { isEnabled: true },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      },
       ownedVentures: {
         where: { isPublic: true },
         orderBy: { updatedAt: "desc" },
@@ -67,6 +75,10 @@ export async function selectBuilderPublicProfile(username: string, viewer: Viewe
     where: {
       username: username.toLowerCase(),
       builderProfile: { is: { publicVisible: true } },
+      OR: [
+        { publicProfileSettings: { is: null } },
+        { publicProfileSettings: { is: { builderProfileLive: true } } },
+      ],
     },
     select: {
       id: true,
@@ -80,6 +92,10 @@ export async function selectBuilderPublicProfile(username: string, viewer: Viewe
       builderProfile: true,
       founderProfile: { select: { id: true } },
       publicProfileSettings: true,
+      profileContactMethods: {
+        where: { isEnabled: true },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      },
       builderProjects: { orderBy: { updatedAt: "desc" }, take: 10 },
       githubConnection: true,
       walletConnections: {

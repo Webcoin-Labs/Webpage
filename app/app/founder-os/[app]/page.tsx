@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import type { Role } from "@prisma/client";
+import { Prisma, type Role } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { founderModules, osRouteMeta } from "@/lib/os/modules";
@@ -15,6 +15,7 @@ import {
   upsertCofounderPreferences,
   upsertStartup,
 } from "@/app/actions/founder-os";
+import { connectAdvisorToProject } from "@/app/actions/advisor";
 import { listPitchDeckWorkspaceData } from "@/app/actions/pitchdeck";
 import {
   addBuilderRaiseAsk,
@@ -32,6 +33,7 @@ import {
 import { calculateCofounderMatchScore } from "@/lib/founder-os";
 import { recomputeMyScoresAction } from "@/app/actions/canonical-graph";
 import { PitchDeckWorkspace, type DeckRecord as WorkspaceDeckRecord } from "@/components/pitchdeck/PitchDeckWorkspace";
+import { EcosystemFeedPanel } from "@/components/ecosystem/EcosystemFeedPanel";
 
 export const metadata = {
   title: "Founder Workspace - Webcoin Labs",
@@ -41,12 +43,33 @@ function canUseFounderOs(role: Role) {
   return ["FOUNDER", "BUILDER", "ADMIN"].includes(role);
 }
 
+function isMissingTableError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021";
+}
+
+type AdvisorDirectoryRow = {
+  id: string;
+  headline: string | null;
+  expertise: string[];
+  hourlyRateUsd: number | null;
+  user: { name: string | null; username: string | null };
+};
+
+type ProjectAdvisorConnectionRow = {
+  id: string;
+  project: { id: string; name: string };
+  advisorProfile: { user: { name: string | null; username: string | null } };
+};
+
 export default async function FounderOsAppPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ app: string }>;
+  searchParams?: Promise<{ search?: string; scope?: string }>;
 }) {
   const { app } = await params;
+  const resolvedSearch = (await searchParams) ?? {};
   const moduleMeta = founderModules.find((module) => module.slug === app);
   if (!moduleMeta) notFound();
 
@@ -129,6 +152,18 @@ export default async function FounderOsAppPage({
           )}
         </article>
       </section>,
+    );
+  }
+
+  if (app === "ecosystem-feed") {
+    return sharedShell(
+      <EcosystemFeedPanel
+        basePath="/app/founder-os/ecosystem-feed"
+        defaultScope="FOUNDER"
+        search={resolvedSearch.search}
+        scope={resolvedSearch.scope}
+        viewerRole={session.user.role}
+      />,
     );
   }
 
@@ -712,6 +747,128 @@ export default async function FounderOsAppPage({
     );
   }
 
+  if (app === "advisor-connect") {
+    const projects = await db.project.findMany({
+      where: { ownerUserId: session.user.id },
+      select: { id: true, name: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 30,
+    });
+
+    let advisors: AdvisorDirectoryRow[] = [];
+    let connections: ProjectAdvisorConnectionRow[] = [];
+    let advisorStorageReady = true;
+    try {
+      [advisors, connections] = await Promise.all([
+        db.advisorProfile.findMany({
+          where: { publicVisible: true },
+          select: {
+            id: true,
+            headline: true,
+            expertise: true,
+            hourlyRateUsd: true,
+            user: { select: { name: true, username: true } },
+          },
+          orderBy: { updatedAt: "desc" },
+          take: 60,
+        }) as Promise<AdvisorDirectoryRow[]>,
+        db.projectAdvisorConnection.findMany({
+          where: { project: { ownerUserId: session.user.id } },
+          include: {
+            project: { select: { id: true, name: true } },
+            advisorProfile: { include: { user: { select: { name: true, username: true } } } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 80,
+        }) as Promise<ProjectAdvisorConnectionRow[]>,
+      ]);
+    } catch (error) {
+      if (!isMissingTableError(error)) throw error;
+      advisorStorageReady = false;
+      advisors = [];
+      connections = [];
+    }
+
+    const connectAdvisorAction = async (formData: FormData) => {
+      "use server";
+      await connectAdvisorToProject(formData);
+    };
+
+    return sharedShell(
+      <section className="space-y-4">
+        <article className="rounded-xl border border-border/60 bg-card p-4">
+          <p className="text-sm font-semibold">Connect advisor to project</p>
+          {!advisorStorageReady ? (
+            <p className="mt-2 text-sm text-amber-300">
+              Advisor module is not initialized yet. Run Prisma migration to create advisor tables, then refresh.
+            </p>
+          ) : projects.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">Create a project first before connecting advisors.</p>
+          ) : advisors.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">No advisor profiles available yet. Admin can invite advisors from /app/admin/advisors.</p>
+          ) : (
+            <form action={connectAdvisorAction} className="mt-2 space-y-2">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <select name="projectId" className="rounded-md border border-border bg-background px-3 py-2 text-sm" required>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+                <select name="advisorProfileId" className="rounded-md border border-border bg-background px-3 py-2 text-sm" required>
+                  {advisors.map((advisor) => (
+                    <option key={advisor.id} value={advisor.id}>
+                      {(advisor.user.name ?? advisor.user.username ?? "Advisor")} {advisor.hourlyRateUsd ? `($${advisor.hourlyRateUsd}/hr)` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button type="submit" className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200">
+                Connect advisor
+              </button>
+            </form>
+          )}
+        </article>
+
+        <article className="rounded-xl border border-border/60 bg-card p-4">
+          <p className="text-sm font-semibold">Advisor directory</p>
+          {advisors.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">No public advisors yet.</p>
+          ) : (
+            <div className="mt-2 grid gap-2 md:grid-cols-2">
+              {advisors.slice(0, 24).map((advisor) => (
+                <div key={advisor.id} className="rounded-md border border-border/50 p-3">
+                  <p className="text-sm font-medium">{advisor.user.name ?? advisor.user.username ?? "Advisor"}</p>
+                  <p className="text-xs text-muted-foreground">{advisor.headline ?? "Advisor profile"}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {(advisor.expertise ?? []).slice(0, 3).join(", ") || "No expertise tags"}
+                    {advisor.hourlyRateUsd ? ` · $${advisor.hourlyRateUsd}/hr` : ""}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+
+        <article className="rounded-xl border border-border/60 bg-card p-4">
+          <p className="text-sm font-semibold">Current project advisors</p>
+          {connections.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">No advisors connected yet.</p>
+          ) : (
+            <div className="mt-2 space-y-2">
+              {connections.map((connection) => (
+                <p key={connection.id} className="rounded-md border border-border/50 px-3 py-2 text-sm text-muted-foreground">
+                  {connection.project.name} · {connection.advisorProfile.user.name ?? connection.advisorProfile.user.username ?? "Advisor"}
+                </p>
+              ))}
+            </div>
+          )}
+        </article>
+      </section>,
+    );
+  }
+
   if (app === "ventures") {
     const ventures = await db.venture.findMany({
       where: { ownerUserId: session.user.id },
@@ -787,4 +944,3 @@ export default async function FounderOsAppPage({
     </section>,
   );
 }
-

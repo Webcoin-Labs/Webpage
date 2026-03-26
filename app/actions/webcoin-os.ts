@@ -196,11 +196,20 @@ export async function saveProfileIdentity(formData: FormData): Promise<ActionRes
       website: String(formData.get("website") ?? ""),
     });
 
+    const existingUser = await db.user.findUnique({
+      where: { id: user.id },
+      select: { username: true },
+    });
+    const normalizedUsername = parsed.username.trim();
+    if (existingUser?.username && existingUser.username !== normalizedUsername) {
+      return { success: false, error: "Username is locked and cannot be changed." };
+    }
+
     await db.user.update({
       where: { id: user.id },
       data: {
         name: parsed.name.trim(),
-        username: parsed.username.trim(),
+        username: normalizedUsername,
         bio: nullIfEmpty(parsed.bio),
         educationBackground: nullIfEmpty(parsed.educationBackground),
         socialLinks: {
@@ -217,7 +226,7 @@ export async function saveProfileIdentity(formData: FormData): Promise<ActionRes
       update: {},
     });
     await identityService.saveOnboardingProgress(user.id, "identity", {
-      username: parsed.username.trim(),
+      username: normalizedUsername,
     });
 
     revalidatePath("/app/onboarding");

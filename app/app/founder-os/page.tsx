@@ -104,12 +104,13 @@ export default async function FounderOsPage() {
       subtitle={founderMeta.subtitle}
       rootHref={founderMeta.root}
       modules={founderMeta.modules}
+      visualVariant="founder-bios"
       integrationConnectedCount={connectedIntegrations + (githubConnection ? 1 : 0) + (calendlyLink ? 1 : 0)}
       integrationTotalCount={5}
       rightPanel={
         <>
           <section className="rounded-xl border border-border/60 bg-card p-4">
-            <p className="text-xs uppercase tracking-[0.15em] text-cyan-300">Automation health</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-orange-300">Automation health</p>
             <div className="mt-2">
               <StatusPill
                 label={connectedIntegrations > 0 ? "Automation running" : "Needs integration setup"}
@@ -121,7 +122,7 @@ export default async function FounderOsPage() {
                 ? "Connectors are active. Keep sync healthy for accurate workflows."
                 : "No active integrations yet."}
             </p>
-            <Link href="/app/founder-os/integrations" className="mt-3 inline-flex text-xs text-cyan-300">
+            <Link href="/app/founder-os/integrations" className="mt-3 inline-flex text-xs text-orange-300 hover:text-orange-200">
               Open Integrations
             </Link>
           </section>
@@ -145,10 +146,10 @@ export default async function FounderOsPage() {
       </section>
 
       <section className="rounded-xl border border-border/60 bg-card p-4">
-        <p className="text-sm font-semibold">App Launcher</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.08em]">App Launcher</p>
         <p className="mt-1 text-xs text-muted-foreground">Open dedicated workspaces. No more stacked single-page forms.</p>
         <div className="mt-3">
-          <OsLauncherGrid rootHref={founderMeta.root} modules={founderMeta.modules} />
+          <OsLauncherGrid rootHref={founderMeta.root} modules={founderMeta.modules} visualVariant="founder-bios" />
         </div>
       </section>
 

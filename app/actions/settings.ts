@@ -84,31 +84,9 @@ export async function updateRole(role: string): Promise<SettingsResult> {
 export async function updateUsername(usernameRaw: string): Promise<SettingsResult> {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return { success: false, error: "Not authenticated" };
-
   const username = normalizeUsername(usernameRaw);
-  if (!username) return { success: false, error: "Username is required" };
   if (!isValidUsername(username)) {
-    return {
-      success: false,
-      error: "Username must be 3-20 characters and use only letters, numbers, or underscores.",
-    };
+    return { success: false, error: "Username format is invalid." };
   }
-
-  try {
-    await db.user.update({
-      where: { id: session.user.id },
-      data: { username },
-    });
-  } catch (e: unknown) {
-    const message = String(e);
-    if (message.includes("P2002")) {
-      return { success: false, error: "That username is already taken." };
-    }
-    return { success: false, error: "Unable to update username right now." };
-  }
-
-  revalidatePath("/app");
-  revalidatePath("/app/settings");
-  revalidatePath("/");
-  return { success: true };
+  return { success: false, error: "Username is locked and cannot be changed." };
 }

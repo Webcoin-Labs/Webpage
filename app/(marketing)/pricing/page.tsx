@@ -9,41 +9,41 @@ export const metadata: Metadata = {
 
 const tiers = [
   {
-    name: "Starter",
-    price: "Free",
-    subtitle: "Early founder validation",
+    name: "Lite",
+    price: "$4.99/mo",
+    subtitle: "For early founders getting started",
     features: [
       "Founder profile and project listing",
       "Builder discovery and matching",
       "Basic intro request flow",
       "Community events access",
     ],
-    cta: { label: "Get started", href: "/app" },
+    cta: { label: "Choose Lite", href: "/app" },
   },
   {
-    name: "Webcoin Plus",
-    price: "$20/mo",
-    subtitle: "Founder growth + premium discovery",
+    name: "Premium",
+    price: "$9.99/mo",
+    subtitle: "Founder growth + priority discovery",
     features: [
       "KOL Premium access and priority routing",
       "Up to 10 startup profiles",
       "Founder network visibility and ratings",
       "Pitch deck builder from scratch (coming soon)",
     ],
-    cta: { label: "Upgrade to Plus", href: "/contact" },
+    cta: { label: "Choose Premium", href: "/contact" },
     highlighted: true,
   },
   {
-    name: "Studio",
+    name: "Enterprise",
     price: "Custom",
-    subtitle: "Hands-on partner support",
+    subtitle: "Custom support for scaling teams",
     features: [
       "Dedicated acceleration support",
       "Partner ecosystem introductions",
       "Custom token/finance advisory",
       "Quarterly growth planning",
     ],
-    cta: { label: "Talk to sales", href: "/contact" },
+    cta: { label: "Discuss", href: "mailto:contact@webcoinlabs.com" },
   },
 ];
 
@@ -55,7 +55,7 @@ export default function PricingPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">Pricing</p>
           <h1 className="mt-3 text-4xl font-bold tracking-tight md:text-5xl">Choose the right acceleration tier</h1>
           <p className="mt-4 text-sm text-muted-foreground md:text-base">
-            Start free, then upgrade when you need advanced analysis, matching depth, and growth support.
+            Pick Lite or Premium now, and move to Enterprise when you need custom support.
           </p>
         </div>
 
@@ -78,15 +78,27 @@ export default function PricingPage() {
                 ))}
               </ul>
 
-              <Link
-                href={tier.cta.href}
-                className={`mt-6 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold ${
-                  tier.highlighted ? "bg-cyan-500 text-white hover:bg-cyan-500/90" : "border border-border hover:bg-accent"
-                }`}
-              >
-                {tier.cta.label}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
+              {tier.cta.href.startsWith("mailto:") ? (
+                <a
+                  href={tier.cta.href}
+                  className={`mt-6 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold ${
+                    tier.highlighted ? "bg-cyan-500 text-white hover:bg-cyan-500/90" : "border border-border hover:bg-accent"
+                  }`}
+                >
+                  {tier.cta.label}
+                  <ArrowRight className="h-4 w-4" />
+                </a>
+              ) : (
+                <Link
+                  href={tier.cta.href}
+                  className={`mt-6 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold ${
+                    tier.highlighted ? "bg-cyan-500 text-white hover:bg-cyan-500/90" : "border border-border hover:bg-accent"
+                  }`}
+                >
+                  {tier.cta.label}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              )}
             </div>
           ))}
         </div>

@@ -8,6 +8,12 @@ import {
   getInvestorPublicByUsername,
 } from "@/lib/public-profiles";
 import { authOptions } from "@/lib/auth";
+import { trackProfileView } from "@/lib/profile-views";
+import { db } from "@/server/db/client";
+import { mapPublicContactMethods } from "@/lib/contact-methods";
+import { PrivateProfileState } from "@/components/profile/PrivateProfileState";
+import { ProfileAvatar } from "@/components/common/ProfileAvatar";
+import { sendConnectionRequest } from "@/app/actions/connections";
 
 function InvestorCard({
   name,
@@ -44,8 +50,15 @@ function InvestorCard({
   );
 }
 
-export default async function InvestorPublicPage({ params }: { params: Promise<{ segments?: string[] }> }) {
+export default async function InvestorPublicPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ segments?: string[] }>;
+  searchParams?: Promise<{ connect?: string; source?: string; viewerRole?: string }>;
+}) {
   const { segments = [] } = await params;
+  const resolvedSearch = (await searchParams) ?? {};
   const session = await getServerSession(authOptions);
   const viewer = {
     userId: session?.user?.id,
@@ -111,15 +124,77 @@ export default async function InvestorPublicPage({ params }: { params: Promise<{
       );
     }
 
-    if (!investor || !investor.investorProfile) notFound();
+    if (!investor || !investor.investorProfile) {
+      const privateCandidate = await db.user.findFirst({
+        where: { username: segment.toLowerCase(), investorProfile: { isNot: null } },
+        select: { username: true, publicProfileSettings: { select: { openToConnections: true } } },
+      });
+      if (privateCandidate?.username) {
+        return (
+          <PrivateProfileState
+            username={privateCandidate.username}
+            roleLabel="Investor"
+            openToConnections={privateCandidate.publicProfileSettings?.openToConnections ?? true}
+            source={resolvedSearch.source}
+            viewerRole={resolvedSearch.viewerRole}
+          />
+        );
+      }
+      notFound();
+    }
+    await trackProfileView({
+      viewerUserId: session?.user?.id,
+      viewedUserId: investor.id,
+      source: "public_profile_investor",
+      roleContext: session?.user?.role ?? null,
+    });
+    const openToConnections = investor.publicProfileSettings?.openToConnections ?? true;
+    const publicContactMethods = openToConnections ? mapPublicContactMethods(investor.profileContactMethods ?? []) : [];
+    const recentPosts = await db.feedPost.findMany({
+      where: { authorUserId: investor.id, visibility: "PUBLIC" },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    });
 
     return (
       <main className="mx-auto max-w-4xl space-y-6 px-4 py-10">
-        <section className="rounded-2xl border border-border/60 bg-card p-6">
-          <p className="text-xs text-cyan-300">Investor Public Profile</p>
-          <h1 className="mt-1 text-2xl font-semibold">{investor.name ?? "Investor"}</h1>
-          <p className="text-sm text-muted-foreground">@{investor.username}</p>
+        <section className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/70 p-6">
+          <div className="flex items-center gap-3">
+            <ProfileAvatar
+              src={investor.image}
+              alt={investor.name ?? "Investor"}
+              fallback={(investor.name ?? investor.username ?? "I").charAt(0)}
+              className="h-14 w-14 rounded-xl"
+              fallbackClassName="bg-cyan-500/20 text-cyan-200"
+            />
+            <div>
+              <p className="text-xs text-cyan-300">Investor Public Profile</p>
+              <h1 className="mt-1 text-2xl font-semibold">{investor.name ?? "Investor"}</h1>
+              <p className="text-sm text-muted-foreground">@{investor.username}</p>
+            </div>
+          </div>
         </section>
+        {resolvedSearch.connect === "1" ? (
+          <section className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4 text-xs text-cyan-100">
+            {openToConnections
+              ? `Connection context: ${resolvedSearch.viewerRole ?? "Member"} from ${resolvedSearch.source ?? "profile"}.`
+              : "This investor is currently not open to new connection requests."}
+          </section>
+        ) : null}
+        {session?.user?.id && session.user.id !== investor.id && openToConnections ? (
+          <section className="rounded-xl border border-border/60 bg-card p-4">
+            <p className="text-sm font-semibold">Request connection</p>
+            <form action={sendConnectionRequest} className="mt-2 space-y-2">
+              <input type="hidden" name="toUserId" value={investor.id} />
+              <input type="hidden" name="toUsername" value={investor.username ?? ""} />
+              <input type="hidden" name="source" value={resolvedSearch.source ?? "public-profile-investor"} />
+              <textarea name="message" rows={2} placeholder="Short intro message (optional)" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+              <button type="submit" className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-200">
+                Send connection request
+              </button>
+            </form>
+          </section>
+        ) : null}
         <InvestorCard
           name={investor.name ?? "Investor"}
           username={investor.username}
@@ -134,6 +209,34 @@ export default async function InvestorPublicPage({ params }: { params: Promise<{
           }
           thesis={investor.investorProfile.investmentThesis}
         />
+        <section className="rounded-xl border border-border/60 bg-card p-4">
+          <p className="text-sm font-semibold">Connect</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {publicContactMethods.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No public contact methods available.</p>
+            ) : (
+              publicContactMethods.map((method) => (
+                <a key={`${method.type}-${method.href}`} href={method.href} target="_blank" rel="noreferrer" className="rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground">
+                  {method.label}
+                </a>
+              ))
+            )}
+          </div>
+        </section>
+        <section className="rounded-xl border border-border/60 bg-card p-4">
+          <p className="text-sm font-semibold">Recent updates</p>
+          {recentPosts.length === 0 ? (
+            <p className="mt-2 text-xs text-muted-foreground">No public updates yet.</p>
+          ) : (
+            <div className="mt-2 space-y-2">
+              {recentPosts.map((post) => (
+                <p key={post.id} className="rounded-md border border-border/60 px-3 py-2 text-xs text-muted-foreground">
+                  {post.postType} | {post.title}
+                </p>
+              ))}
+            </div>
+          )}
+        </section>
         <section className="rounded-xl border border-border/60 bg-card p-4 text-xs text-muted-foreground">
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
             <Globe2 className="h-4 w-4 text-cyan-300" /> Company/Fund
@@ -153,7 +256,30 @@ export default async function InvestorPublicPage({ params }: { params: Promise<{
   if (segments.length === 2) {
     const [companySlug, username] = segments;
     const investor = await getInvestorByCompanyAndUsername(companySlug, username, viewer);
-    if (!investor || !investor.investorProfile) notFound();
+    if (!investor || !investor.investorProfile) {
+      const privateCandidate = await db.user.findFirst({
+        where: { username: username.toLowerCase(), investorProfile: { isNot: null } },
+        select: { username: true, publicProfileSettings: { select: { openToConnections: true } } },
+      });
+      if (privateCandidate?.username) {
+        return (
+          <PrivateProfileState
+            username={privateCandidate.username}
+            roleLabel="Investor"
+            openToConnections={privateCandidate.publicProfileSettings?.openToConnections ?? true}
+            source={resolvedSearch.source}
+            viewerRole={resolvedSearch.viewerRole}
+          />
+        );
+      }
+      notFound();
+    }
+    await trackProfileView({
+      viewerUserId: session?.user?.id,
+      viewedUserId: investor.id,
+      source: "public_profile_investor_company",
+      roleContext: session?.user?.role ?? null,
+    });
 
     return (
       <main className="mx-auto max-w-4xl space-y-6 px-4 py-10">
@@ -161,7 +287,7 @@ export default async function InvestorPublicPage({ params }: { params: Promise<{
           <p className="text-xs text-cyan-300">Firm-Affiliated Investor</p>
           <h1 className="mt-1 text-2xl font-semibold">{investor.name ?? "Investor"}</h1>
           <p className="text-sm text-muted-foreground">
-            @{investor.username} • {investor.investorProfile.company?.name}
+            @{investor.username} | {investor.investorProfile.company?.name}
           </p>
         </section>
         <InvestorCard
@@ -178,6 +304,11 @@ export default async function InvestorPublicPage({ params }: { params: Promise<{
           }
           thesis={investor.investorProfile.investmentThesis}
         />
+        {resolvedSearch.connect === "1" ? (
+          <section className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4 text-xs text-cyan-100">
+            Connection context: {resolvedSearch.viewerRole ?? "Member"} from {resolvedSearch.source ?? "profile"}.
+          </section>
+        ) : null}
       </main>
     );
   }

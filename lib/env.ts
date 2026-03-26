@@ -12,6 +12,7 @@ const envSchema = z.object({
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
+  SIGNUP_FROM_EMAIL: z.string().optional(),
   PASSWORD_RESET_FROM_EMAIL: z.string().optional(),
   PASSWORD_RESET_WEBHOOK_URL: z.string().url().optional(),
   PASSWORD_RESET_WEBHOOK_TOKEN: z.string().optional(),

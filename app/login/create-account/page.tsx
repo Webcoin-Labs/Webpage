@@ -14,7 +14,11 @@ const labelClass = "block text-xs font-medium mb-1.5 text-foreground/90";
 
 export default function CreateAccountPage() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/app";
+  const rawCallbackUrl = searchParams.get("callbackUrl");
+  const callbackUrl =
+    rawCallbackUrl && rawCallbackUrl.startsWith("/") && !rawCallbackUrl.startsWith("//")
+      ? rawCallbackUrl
+      : "/app";
 
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -60,8 +64,12 @@ export default function CreateAccountPage() {
         callbackUrl,
         redirect: false,
       });
-      if (signInRes?.url) {
-        window.location.href = signInRes.url;
+      if (signInRes?.error) {
+        setMessage("Account created. Please sign in with your email and password.");
+        return;
+      }
+      if (signInRes?.ok) {
+        window.location.href = callbackUrl;
       } else {
         setMessage("Account created. Please sign in with your email and password.");
       }
@@ -226,7 +234,7 @@ export default function CreateAccountPage() {
                         required
                         minLength={8}
                         autoComplete="new-password"
-                        placeholder="••••••••"
+                        placeholder="********"
                         className={inputClass + " pl-9 pr-10"}
                       />
                       <button
@@ -265,10 +273,11 @@ export default function CreateAccountPage() {
           </div>
 
           <p className="text-center pb-8 text-sm text-muted-foreground">
-            <Link href="/" className="hover:text-foreground transition-colors">← Back to webcoinlabs.com</Link>
+            <Link href="/" className="hover:text-foreground transition-colors">Back to webcoinlabs.com</Link>
           </p>
         </div>
       </div>
     </div>
   );
 }
+

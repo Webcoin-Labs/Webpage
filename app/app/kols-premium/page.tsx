@@ -39,7 +39,7 @@ export default async function KolsPremiumPage() {
           </div>
           <h1 className="text-2xl font-bold">KOL Premium is available in Webcoin Plus</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Unlock KOL Premium for <strong>$20/month</strong> with priority routing, creator operations, up to 10 startup
+            Unlock KOL Premium for <strong>$9.99/month</strong> with priority routing, creator operations, up to 10 startup
             profiles, and upcoming pitch deck builder features.
           </p>
           <p className="mt-2 text-xs text-muted-foreground">

@@ -2,7 +2,7 @@
 
 import { useTransition, useState } from "react";
 import Link from "next/link";
-import { updateRole, updateUsername } from "@/app/actions/settings";
+import { updateRole } from "@/app/actions/settings";
 import { CheckCircle2 } from "lucide-react";
 
 const ROLES = [
@@ -27,8 +27,7 @@ export function SettingsForm({
   const [isPending, startTransition] = useTransition();
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
-  const [usernameValue, setUsernameValue] = useState(username ? `@${username}` : "");
-  const [usernameSaved, setUsernameSaved] = useState(false);
+  const [usernameValue] = useState(username ? `@${username}` : "");
 
   const handleRoleChange = (role: string) => {
     setError("");
@@ -43,56 +42,31 @@ export function SettingsForm({
     });
   };
 
-  const handleUsernameSave = () => {
-    setError("");
-    setSuccess(false);
-    setUsernameSaved(false);
-    startTransition(async () => {
-      const result = await updateUsername(usernameValue);
-      if (result.success) {
-        setUsernameSaved(true);
-      } else {
-        setError(result.error);
-      }
-    });
-  };
-
   return (
     <div className="p-6 rounded-xl border border-border/50 bg-card max-w-md">
       <h2 className="font-semibold mb-4">Profile</h2>
-      <p className="text-sm text-muted-foreground mb-4">{name && <span>{name}</span>} {email && <span className="text-muted-foreground">· {email}</span>}</p>
+      <p className="text-sm text-muted-foreground mb-2">{name && <span>{name}</span>} {email && <span className="text-muted-foreground">· {email}</span>}</p>
+      <p className="mb-4 text-xs text-muted-foreground">Name * and unique username * are required identity fields.</p>
 
       <div className="mb-6">
-        <h3 className="font-semibold mb-2">Username</h3>
+        <h3 className="font-semibold mb-2">Unique username *</h3>
         <p className="text-xs text-muted-foreground mb-3">
-          Your public handle used across profiles and directories. Example: <span className="text-foreground">@alex</span>
+          Your public handle is locked after account creation. Example: <span className="text-foreground">@alex</span>
         </p>
         <div className="flex gap-2">
           <input
             value={usernameValue}
-            onChange={(e) => setUsernameValue(e.target.value)}
             placeholder="@yourname"
             className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-cyan-500/40"
-            disabled={isPending}
+            disabled
+            readOnly
             inputMode="text"
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
           />
-          <button
-            type="button"
-            onClick={handleUsernameSave}
-            disabled={isPending}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-60"
-          >
-            Save
-          </button>
         </div>
-        {usernameSaved && (
-          <div className="mt-2 flex items-center gap-2 text-xs text-cyan-400">
-            <CheckCircle2 className="h-4 w-4" /> Username updated.
-          </div>
-        )}
+        <p className="mt-2 text-xs text-muted-foreground">If you need a different username, create a new linked account.</p>
       </div>
 
       <h2 className="font-semibold mb-3">Role</h2>

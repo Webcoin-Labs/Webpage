@@ -39,10 +39,12 @@ export type OsModule = {
 
 export const founderModules: OsModule[] = [
   { slug: "command-center", title: "Command Center", description: "Execution priorities and weekly brief.", icon: Rocket },
+  { slug: "ecosystem-feed", title: "Ecosystem Feed", description: "Discover founder, builder, and investor activity.", icon: Network },
   { slug: "ventures", title: "Venture Workspace", description: "Manage ventures and active execution context.", icon: FolderKanban },
   { slug: "launch-readiness", title: "Launch Readiness", description: "Readiness scoring, blockers, and milestones.", icon: ShieldCheck },
   { slug: "builder-discovery", title: "Builder Discovery", description: "Find builders and collaboration-fit signals.", icon: Search },
   { slug: "investor-connect", title: "Investor Connect", description: "Pipeline, intros, and investor relationships.", icon: Handshake },
+  { slug: "advisor-connect", title: "Advisor Connect", description: "Connect verified advisors to specific projects.", icon: Users },
   { slug: "data-room", title: "Data Room", description: "Track assets, decks, and diligence materials.", icon: NotebookPen },
   { slug: "pitch-deck", title: "Pitch Deck AI", description: "Analyze deck quality and readiness from real files.", icon: Sparkles },
   { slug: "raise-round", title: "Raise Round", description: "Fundraising workflow and commitment tracking.", icon: Wallet },
@@ -54,6 +56,7 @@ export const founderModules: OsModule[] = [
 ];
 
 export const builderModules: OsModule[] = [
+  { slug: "ecosystem-feed", title: "Ecosystem Feed", description: "Cross-role activity and discovery feed.", icon: Network },
   { slug: "proof-profile", title: "Proof Profile", description: "Identity, proof score, and builder signal profile.", icon: Briefcase },
   { slug: "projects", title: "Projects", description: "Work portfolio and contribution context.", icon: FolderKanban },
   { slug: "github", title: "GitHub Activity", description: "Repository and contribution sync workflow.", icon: GitBranch },
@@ -66,6 +69,7 @@ export const builderModules: OsModule[] = [
 ];
 
 export const investorModules: OsModule[] = [
+  { slug: "ecosystem-feed", title: "Ecosystem Feed", description: "Cross-role activity and discovery feed.", icon: Network },
   { slug: "deal-flow", title: "Deal Flow Inbox", description: "Incoming ventures and status pipeline.", icon: Inbox },
   { slug: "ventures", title: "Venture Discovery", description: "Discover and filter active opportunities.", icon: Compass },
   { slug: "diligence", title: "Diligence Workspace", description: "Evidence-led venture evaluation workspace.", icon: ShieldCheck },

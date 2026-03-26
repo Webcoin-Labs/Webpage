@@ -7,6 +7,7 @@ import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { z } from "zod";
 import { env } from "@/lib/env";
 import { dispatchPasswordResetEmail } from "@/lib/notifications/passwordReset";
+import { dispatchSignupWelcomeEmail } from "@/lib/notifications/signup";
 import { logger } from "@/lib/logger";
 
 const USERNAME_REGEX = /^[a-z0-9_-]{3,30}$/;
@@ -69,7 +70,7 @@ export async function register(data: {
   if (existingUsername) return { success: false, error: "This username is already taken." };
 
   const hashedPassword = await hash(password, 12);
-  await db.user.create({
+  const createdUser = await db.user.create({
     data: {
       email,
       username,
@@ -85,6 +86,19 @@ export async function register(data: {
       },
     },
   });
+
+  const delivery = await dispatchSignupWelcomeEmail({
+    toEmail: createdUser.email,
+    name: createdUser.name,
+  });
+  if (!delivery.delivered) {
+    logger.error({
+      scope: "auth.register.welcomeEmail",
+      message: "Welcome email delivery failed.",
+      data: { email: createdUser.email, provider: delivery.provider, error: delivery.error },
+    });
+  }
+
   return { success: true };
 }
 

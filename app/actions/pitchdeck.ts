@@ -4,7 +4,7 @@ import path from "path";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { SubscriptionTier } from "@prisma/client";
+import { Prisma, SubscriptionTier } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
@@ -30,6 +30,23 @@ const payloadSchema = z.object({
 export type PitchDeckActionResult =
   | { success: true; pitchDeckId: string; reportId: string }
   | { success: false; error: string };
+
+type DeckWithWorkspace = Prisma.PitchDeckGetPayload<{
+  include: {
+    reports: { orderBy: { createdAt: "desc" }; take: 1 };
+    sections: { orderBy: { sectionOrder: "asc" } };
+    versions: { orderBy: { createdAt: "desc" }; take: 20 };
+  };
+}>;
+
+function isMissingPitchWorkspaceTableError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("does not exist in the current database") &&
+    (message.includes("pitchdecksection") || message.includes("pitchdeckversion"))
+  );
+}
 
 function isAsyncAnalysisEnabled() {
   return String(process.env.PITCH_ANALYSIS_QUEUE_MODE ?? "").toLowerCase() === "async";
@@ -94,14 +111,28 @@ async function hasPremiumPitchDeckAccess(userId: string, role: string) {
 }
 
 async function ensureDeckOwnership(deckId: string, actor: { id: string; role: string }) {
-  const deck = await db.pitchDeck.findUnique({
-    where: { id: deckId },
-    include: {
-      reports: { orderBy: { createdAt: "desc" }, take: 1 },
-      sections: { orderBy: { sectionOrder: "asc" } },
-      versions: { orderBy: { createdAt: "desc" }, take: 20 },
-    },
-  });
+  let deck: DeckWithWorkspace | null = null;
+  try {
+      deck = await db.pitchDeck.findUnique({
+      where: { id: deckId },
+      include: {
+        reports: { orderBy: { createdAt: "desc" }, take: 1 },
+        sections: { orderBy: { sectionOrder: "asc" } },
+        versions: { orderBy: { createdAt: "desc" }, take: 20 },
+      },
+    });
+  } catch (error) {
+    if (!isMissingPitchWorkspaceTableError(error)) throw error;
+    const fallbackDeck = await db.pitchDeck.findUnique({
+      where: { id: deckId },
+      include: {
+        reports: { orderBy: { createdAt: "desc" }, take: 1 },
+      },
+    });
+    if (fallbackDeck) {
+      deck = { ...fallbackDeck, sections: [], versions: [] } as DeckWithWorkspace;
+    }
+  }
   if (!deck) throw new Error("Pitch deck not found.");
   if (actor.role !== "ADMIN" && deck.userId !== actor.id) throw new Error("Unauthorized for this pitch deck.");
   return deck;
@@ -256,49 +287,58 @@ async function processPitchDeck(
     const sectionReviews = buildSectionReviews(extractedText);
     const missingSectionKeys = detectMissingSectionKeys(sectionReviews, analysis.output.deckType);
     const missingLabels = missingSectionKeys.map((key) => keyToSectionTitle(key));
-    await db.pitchDeckSection.deleteMany({ where: { pitchDeckId: deck.id } });
-    if (sectionReviews.length > 0) {
-      await db.pitchDeckSection.createMany({
-        data: sectionReviews.map((section) => ({
+    try {
+      await db.pitchDeckSection.deleteMany({ where: { pitchDeckId: deck.id } });
+      if (sectionReviews.length > 0) {
+        await db.pitchDeckSection.createMany({
+          data: sectionReviews.map((section) => ({
+            pitchDeckId: deck.id,
+            reportId: report.id,
+            sectionKey: section.key,
+            sectionTitle: section.title,
+            sectionOrder: section.order,
+            extractedText: section.extractedText,
+            qualityLabel: section.qualityLabel,
+            goodPoints: section.goodPoints,
+            unclearPoints: section.unclearPoints,
+            missingPoints: section.missingPoints,
+            fixSummary: section.fixSummary,
+          })),
+        });
+      }
+      await db.pitchDeckVersion.create({
+        data: {
           pitchDeckId: deck.id,
+          userId: deck.userId,
           reportId: report.id,
-          sectionKey: section.key,
-          sectionTitle: section.title,
-          sectionOrder: section.order,
-          extractedText: section.extractedText,
-          qualityLabel: section.qualityLabel,
-          goodPoints: section.goodPoints,
-          unclearPoints: section.unclearPoints,
-          missingPoints: section.missingPoints,
-          fixSummary: section.fixSummary,
-        })),
+          name: `Original analysis ${new Date().toLocaleDateString()}`,
+          versionType: "ORIGINAL",
+          contentJson: {
+            generatedFrom: "analysis",
+            missingSections: missingLabels,
+            reportSnapshot: {
+              deckType: analysis.output.deckType,
+              clarityScore: analysis.output.clarityScore,
+              completenessScore: analysis.output.completenessScore,
+              investorReadinessScore: analysis.output.investorReadinessScore,
+              strengths: analysis.output.strengths,
+              gtmGaps: analysis.output.gtmGaps,
+              risks: analysis.output.risks,
+              nextSteps: analysis.output.nextSteps,
+              missingInformation: analysis.output.missingInformation,
+            },
+            sections: sectionReviews,
+          } as object,
+        },
+      });
+    } catch (error) {
+      if (!isMissingPitchWorkspaceTableError(error)) throw error;
+      logger.warn({
+        scope: "pitchdeck.process.workspaceTables",
+        message: "Pitch deck workspace tables missing. Continuing with core report only.",
+        data: { pitchDeckId: deck.id },
       });
     }
-    await db.pitchDeckVersion.create({
-      data: {
-        pitchDeckId: deck.id,
-        userId: deck.userId,
-        reportId: report.id,
-        name: `Original analysis ${new Date().toLocaleDateString()}`,
-        versionType: "ORIGINAL",
-        contentJson: {
-          generatedFrom: "analysis",
-          missingSections: missingLabels,
-          reportSnapshot: {
-            deckType: analysis.output.deckType,
-            clarityScore: analysis.output.clarityScore,
-            completenessScore: analysis.output.completenessScore,
-            investorReadinessScore: analysis.output.investorReadinessScore,
-            strengths: analysis.output.strengths,
-            gtmGaps: analysis.output.gtmGaps,
-            risks: analysis.output.risks,
-            nextSteps: analysis.output.nextSteps,
-            missingInformation: analysis.output.missingInformation,
-          },
-          sections: sectionReviews,
-        } as object,
-      },
-    });
 
     await db.pitchDeck.update({
       where: { id: deck.id },
@@ -541,19 +581,8 @@ export async function listPitchDecksForFounder(limit = 12) {
 
 export async function listPitchDeckWorkspaceData(limit = 20) {
   const session = await assertFounderOrAdmin();
-  const [isPremium, decks, projects, ventures] = await Promise.all([
+  const [isPremium, projects, ventures] = await Promise.all([
     hasPremiumPitchDeckAccess(session.user.id, session.user.role),
-    db.pitchDeck.findMany({
-      where: { userId: session.user.id },
-      include: {
-        reports: { orderBy: { createdAt: "desc" }, take: 1 },
-        sections: { orderBy: { sectionOrder: "asc" } },
-        versions: { orderBy: { createdAt: "desc" }, take: 25 },
-        project: { select: { id: true, name: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: Math.min(Math.max(limit, 1), 40),
-    }),
     db.project.findMany({
       where: { ownerUserId: session.user.id },
       select: { id: true, name: true },
@@ -567,6 +596,37 @@ export async function listPitchDeckWorkspaceData(limit = 20) {
       take: 20,
     }),
   ]);
+  const takeLimit = Math.min(Math.max(limit, 1), 40);
+  let decks: Array<Record<string, unknown>> = [];
+  try {
+    decks = await db.pitchDeck.findMany({
+      where: { userId: session.user.id },
+      include: {
+        reports: { orderBy: { createdAt: "desc" }, take: 1 },
+        sections: { orderBy: { sectionOrder: "asc" } },
+        versions: { orderBy: { createdAt: "desc" }, take: 25 },
+        project: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: takeLimit,
+    });
+  } catch (error) {
+    if (!isMissingPitchWorkspaceTableError(error)) throw error;
+    const fallbackDecks = await db.pitchDeck.findMany({
+      where: { userId: session.user.id },
+      include: {
+        reports: { orderBy: { createdAt: "desc" }, take: 1 },
+        project: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: takeLimit,
+    });
+    decks = fallbackDecks.map((deck) => ({
+      ...deck,
+      sections: [],
+      versions: [],
+    }));
+  }
 
   return {
     isPremium,
