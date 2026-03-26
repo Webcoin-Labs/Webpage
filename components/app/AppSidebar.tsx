@@ -8,14 +8,14 @@ import { useEffect, useState } from "react";
 import {
   BellRing,
   BookOpen,
-  ChevronLeft,
-  ChevronRight,
+  ChevronDown,
   Compass,
   FolderKanban,
   Inbox,
   LayoutDashboard,
   LogOut,
   Rocket,
+  Search,
   Settings,
   User,
   Wrench,
@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ProfileAvatar } from "@/components/common/ProfileAvatar";
 import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag";
+import { founderModules } from "@/lib/os/modules";
 
 interface SidebarUser {
   id: string;
@@ -84,13 +85,11 @@ function NavSection({
   pathname,
   role,
   enabledWorkspaces,
-  collapsed,
 }: {
   items: NavItem[];
   pathname: string;
   role: string;
   enabledWorkspaces: AppWorkspace[];
-  collapsed: boolean;
 }) {
   return (
     <>
@@ -104,16 +103,14 @@ function NavSection({
               key={`${item.href}-${item.label}`}
               href={item.href}
               className={cn(
-                "group flex items-center rounded-lg px-3 py-2.5 text-sm transition-colors",
-                collapsed ? "justify-center" : "gap-3",
+                "group flex items-center gap-2.5 rounded-[var(--radius-lg)] px-2.5 py-[7px] text-[12px] font-medium transition-all duration-150 mx-1.5 my-[1px]",
                 isActive
-                  ? "bg-accent text-foreground"
-                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                  ? "bg-[var(--bg-active)] text-[var(--text-primary)] border-l-2 border-[var(--accent-color)]"
+                  : "text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)] border-l-2 border-transparent",
               )}
-              title={collapsed ? item.label : undefined}
             >
-              <Icon className="h-4 w-4 shrink-0" />
-              {!collapsed ? <span className="truncate">{item.label}</span> : null}
+              <Icon className="h-[15px] w-[15px] shrink-0" />
+              <span className="truncate">{item.label}</span>
             </Link>
           );
         })}
@@ -131,104 +128,176 @@ export function AppSidebar({
   enabledWorkspaces?: AppWorkspace[];
 }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const founderOsVisible =
+    canAccessRole(osItems[0], user.role) && canAccessWorkspace(osItems[0], enabledWorkspaces);
+  const founderOsActive = pathname.startsWith("/app/founder-os");
+  const [founderOsExpanded, setFounderOsExpanded] = useState(founderOsActive);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("webcoin.sidebar.collapsed");
-    if (saved === "1") {
-      setCollapsed(true);
-    }
-  }, []);
-
-  const toggleCollapsed = () => {
-    const nextValue = !collapsed;
-    setCollapsed(nextValue);
-    window.localStorage.setItem("webcoin.sidebar.collapsed", nextValue ? "1" : "0");
-  };
+    if (founderOsActive) setFounderOsExpanded(true);
+  }, [founderOsActive]);
 
   return (
     <aside
-      className={cn(
-        "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border/50 bg-card/70 backdrop-blur-xl md:flex",
-        collapsed ? "w-20" : "w-72",
-      )}
+      className="sticky top-0 hidden h-screen w-[230px] shrink-0 flex-col md:flex"
+      style={{
+        backgroundColor: "var(--bg-surface)",
+        borderRight: "0.5px solid var(--border-subtle)",
+      }}
     >
-      <div className={cn("flex h-16 items-center border-b border-border/50", collapsed ? "justify-center px-2" : "justify-between px-4")}>
-        <Link href="/" className={cn("flex items-center", collapsed ? "justify-center" : "gap-2")}>
-          <Image src="/logo/webcoinlogo.webp" alt="Webcoin Labs" width={28} height={28} className="hidden rounded-md dark:block" />
-          <Image src="/logo/webcoinlight.webp" alt="Webcoin Labs" width={28} height={28} className="rounded-md dark:hidden" />
-          {!collapsed ? <span className="text-sm font-bold text-foreground">Webcoin Labs</span> : null}
-        </Link>
-        {!collapsed ? (
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            className="rounded-md border border-border/60 bg-card px-2 py-1 text-muted-foreground hover:text-foreground"
-            aria-label="Collapse sidebar"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-        ) : null}
+      {/* Logo + Brand */}
+      <div className="flex items-center gap-2.5 px-4 py-4">
+        <div
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-[13px] font-bold text-white"
+          style={{ backgroundColor: "var(--accent-color)" }}
+        >
+          W
+        </div>
+        <span className="text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>
+          Webcoin Labs
+        </span>
       </div>
 
-      {collapsed ? (
-        <div className="flex justify-center border-b border-border/50 py-2">
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            className="rounded-md border border-border/60 bg-card p-1.5 text-muted-foreground hover:text-foreground"
-            aria-label="Expand sidebar"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      ) : (
-        <div className="border-b border-border/50 px-4 py-4">
-          <div className="flex items-center gap-3">
-            <ProfileAvatar
-              src={user.image}
-              alt={user.name ?? "User"}
-              fallback={user.name?.charAt(0) ?? user.email?.charAt(0) ?? "U"}
-              className="h-8 w-8 rounded-full"
-              fallbackClassName="bg-blue-500 text-xs font-bold text-white"
-            />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{user.name ?? "User"}</p>
-              <div className="mt-1 flex items-center gap-1.5">
-                <span className="rounded bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-medium text-cyan-300">{user.role}</span>
-                {affiliation ? <ProfileAffiliationTag label={affiliation.label} variant={affiliation.variant} size="sm" /> : null}
-              </div>
+      {/* User Card */}
+      <div className="mx-3 mb-3 rounded-[10px] p-2.5" style={{
+        backgroundColor: "var(--bg-elevated)",
+        border: "0.5px solid var(--border-subtle)",
+      }}>
+        <div className="flex items-center gap-2.5">
+          <ProfileAvatar
+            src={user.image}
+            alt={user.name ?? "User"}
+            fallback={user.name?.charAt(0) ?? user.email?.charAt(0) ?? "U"}
+            className="h-8 w-8 rounded-lg"
+            fallbackClassName="rounded-lg text-xs font-bold text-white bg-violet-600"
+          />
+          <div className="min-w-0">
+            <p className="truncate text-[12px] font-medium" style={{ color: "var(--text-primary)" }}>
+              {user.name ?? "User"}
+            </p>
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <span
+                className="rounded px-1.5 py-0.5 text-[10px] font-medium"
+                style={{
+                  backgroundColor: "var(--accent-dim)",
+                  color: "var(--accent-soft)",
+                }}
+              >
+                {user.role}
+              </span>
+              {affiliation ? <ProfileAffiliationTag label={affiliation.label} variant={affiliation.variant} size="sm" /> : null}
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      <nav className="flex-1 space-y-4 overflow-y-auto p-3">
+      {/* Search Pill */}
+      <div className="mx-3 mb-3">
+        <div
+          className="flex items-center gap-2 rounded-lg px-3 py-2"
+          style={{
+            backgroundColor: "var(--bg-elevated)",
+            border: "0.5px solid var(--border-subtle)",
+          }}
+        >
+          <Search className="h-3.5 w-3.5" style={{ color: "var(--text-muted)" }} />
+          <span className="flex-1 text-[12px]" style={{ color: "var(--text-muted)" }}>
+            Search...
+          </span>
+          <kbd
+            className="rounded px-1.5 py-0.5 text-[10px] font-medium"
+            style={{
+              backgroundColor: "var(--bg-hover)",
+              color: "var(--text-muted)",
+              border: "0.5px solid var(--border-subtle)",
+            }}
+          >
+            ⌘K
+          </kbd>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 space-y-5 overflow-y-auto px-1.5 py-2">
         <div>
-          {!collapsed ? <p className="px-2 pb-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">System</p> : null}
-          <div className="space-y-0.5">
-            <NavSection items={systemItems} pathname={pathname} role={user.role} enabledWorkspaces={enabledWorkspaces} collapsed={collapsed} />
-          </div>
+          <p
+            className="mb-1 px-3 text-[10px] font-medium uppercase tracking-[0.14em]"
+            style={{ color: "var(--text-muted)" }}
+          >
+            System
+          </p>
+          <NavSection items={systemItems} pathname={pathname} role={user.role} enabledWorkspaces={enabledWorkspaces} />
         </div>
         <div>
-          {!collapsed ? <p className="px-2 pb-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Operating Systems</p> : null}
-          <div className="space-y-0.5">
-            <NavSection items={osItems} pathname={pathname} role={user.role} enabledWorkspaces={enabledWorkspaces} collapsed={collapsed} />
-          </div>
+          <p
+            className="mb-1 px-3 text-[10px] font-medium uppercase tracking-[0.14em]"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Operating Systems
+          </p>
+          <NavSection items={osItems} pathname={pathname} role={user.role} enabledWorkspaces={enabledWorkspaces} />
+          {founderOsVisible ? (
+            <div className="mt-1 px-1.5">
+              <button
+                type="button"
+                onClick={() => setFounderOsExpanded((current) => !current)}
+                className={cn(
+                  "group flex w-full items-center justify-between rounded-[var(--radius-lg)] px-2.5 py-[7px] text-[12px] font-medium transition-all duration-150",
+                  founderOsActive
+                    ? "bg-[var(--bg-active)] text-[var(--text-primary)]"
+                    : "text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]",
+                )}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Rocket className="h-[15px] w-[15px] shrink-0" />
+                  <span className="truncate">Founder OS Apps</span>
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 shrink-0 transition-transform duration-150",
+                    founderOsExpanded ? "rotate-180" : "",
+                  )}
+                />
+              </button>
+              {founderOsExpanded ? (
+                <div className="mt-1 space-y-1 border-l border-[var(--border-subtle)] pl-3 ml-4">
+                  {founderModules.map((module) => {
+                    const href = `/app/founder-os/${module.slug}`;
+                    const isActive = pathname === href;
+                    const Icon = module.icon;
+
+                    return (
+                      <Link
+                        key={module.slug}
+                        href={href}
+                        className={cn(
+                          "flex items-center gap-2 rounded-[var(--radius-md)] px-2.5 py-2 text-[11px] transition-all duration-150",
+                          isActive
+                            ? "bg-[var(--bg-active)] text-[var(--text-primary)] border-l-2 border-[var(--accent-color)]"
+                            : "text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)] border-l-2 border-transparent",
+                        )}
+                      >
+                        <Icon className="h-[13px] w-[13px] shrink-0" />
+                        <span className="truncate">{module.title}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </nav>
 
-      <div className="space-y-0.5 border-t border-border/50 p-3">
+      {/* Bottom */}
+      <div className="p-3" style={{ borderTop: "0.5px solid var(--border-subtle)" }}>
         <button
           onClick={() => signOut({ callbackUrl: "/" })}
-          className={cn(
-            "flex w-full items-center rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground",
-            collapsed ? "justify-center" : "gap-3",
-          )}
-          title={collapsed ? "Sign Out" : undefined}
+          className="flex w-full items-center gap-2.5 rounded-[var(--radius-lg)] px-2.5 py-[7px] text-[12px] font-medium transition-all duration-150 mx-0 hover:opacity-80"
+          style={{ color: "var(--text-muted)" }}
         >
-          <LogOut className="h-4 w-4" />
-          {!collapsed ? "Sign Out" : null}
+          <LogOut className="h-[15px] w-[15px]" />
+          <span>Sign Out</span>
         </button>
       </div>
     </aside>
@@ -242,7 +311,13 @@ export function AppMobileNav({ user, enabledWorkspaces = [] }: { user: SidebarUs
     .slice(0, 9);
 
   return (
-    <div className="border-b border-border/50 bg-background/95 px-3 py-2 md:hidden">
+    <div
+      className="px-3 py-2 md:hidden"
+      style={{
+        backgroundColor: "var(--bg-surface)",
+        borderBottom: "0.5px solid var(--border-subtle)",
+      }}
+    >
       <div className="flex gap-2 overflow-x-auto pb-1">
         {visible.map((item) => {
           const Icon = item.icon;
@@ -252,9 +327,15 @@ export function AppMobileNav({ user, enabledWorkspaces = [] }: { user: SidebarUs
               key={`${item.href}-${item.label}`}
               href={item.href}
               className={cn(
-                "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs",
-                isActive ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-300" : "border-border/70 bg-card text-muted-foreground",
+                "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs transition-colors",
+                isActive
+                  ? "text-[var(--accent-soft)]"
+                  : "text-[var(--text-muted)]",
               )}
+              style={{
+                borderColor: isActive ? "var(--border-accent)" : "var(--border-subtle)",
+                backgroundColor: isActive ? "var(--accent-dim)" : "var(--bg-elevated)",
+              }}
             >
               <Icon className="h-3.5 w-3.5" />
               {item.label}
@@ -265,4 +346,3 @@ export function AppMobileNav({ user, enabledWorkspaces = [] }: { user: SidebarUs
     </div>
   );
 }
-

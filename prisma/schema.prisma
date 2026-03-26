@@ -1352,6 +1352,7 @@ model FeedPost {
   @@index([visibility, createdAt])
   @@index([authorUserId, createdAt])
   @@index([postType, createdAt])
+  @@index([visibility, postType, createdAt])
 }
 
 model ProfileView {
@@ -1368,6 +1369,7 @@ model ProfileView {
 
   @@index([viewedUserId, createdAt])
   @@index([viewerUserId, viewedUserId, createdAt])
+  @@index([viewedUserId, source, createdAt])
 }
 
 model ProfileContactMethod {
@@ -2299,6 +2301,7 @@ model Notification {
 
   @@index([createdAt])
   @@index([createdById, createdAt])
+  @@index([createdAt, id])
 }
 
 model NotificationRead {
@@ -2312,6 +2315,7 @@ model NotificationRead {
 
   @@unique([notificationId, userId])
   @@index([userId, readAt])
+  @@index([userId, notificationId])
 }
 
 model InviteOnlyCode {

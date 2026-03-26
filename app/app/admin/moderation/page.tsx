@@ -159,7 +159,12 @@ export default async function AdminModerationPage() {
           <p className="text-sm text-muted-foreground">No profile images uploaded yet.</p>
         ) : (
           imageUsers.map((u) => {
-            const suspicious = Boolean(u.imageStorageKey && u.image && !u.image.startsWith("/"));
+            const suspicious = Boolean(
+              u.imageStorageKey &&
+                u.image &&
+                !u.image.startsWith("/") &&
+                !/^https?:\/\//i.test(u.image)
+            );
             return (
               <div key={u.id} className="rounded-xl border border-border/50 bg-card p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">

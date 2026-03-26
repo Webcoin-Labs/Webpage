@@ -1,7 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { BellRing, Command, Plus, Search, Wifi } from "lucide-react";
@@ -125,44 +124,106 @@ export default async function AppLayout({
   });
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen" style={{ backgroundColor: "var(--bg-base)" }}>
       <AppSidebar
         user={session.user}
         affiliation={sidebarAffiliation}
         enabledWorkspaces={enabledWorkspaces.map((item) => item.workspace)}
       />
-      <main className="ml-0 min-h-screen flex-1">
-        <div className="flex h-16 items-center border-b border-border/50 px-6 md:hidden">
+      <main className="min-h-screen flex-1">
+        <div
+          className="flex h-14 items-center px-5 md:hidden"
+          style={{
+            backgroundColor: "var(--bg-surface)",
+            borderBottom: "0.5px solid var(--border-subtle)",
+          }}
+        >
           <div className="flex items-center gap-2">
-            <Image src="/logo/webcoinlogo.webp" alt="Webcoin Labs" width={28} height={28} className="hidden rounded-md dark:block" />
-            <Image src="/logo/webcoinlight.webp" alt="Webcoin Labs" width={28} height={28} className="rounded-md dark:hidden" />
-            <span className="font-bold text-foreground">Webcoin Labs</span>
+            <div
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-[13px] font-bold text-white"
+              style={{ backgroundColor: "var(--accent-color)" }}
+            >
+              W
+            </div>
+            <span className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>Webcoin Labs</span>
           </div>
         </div>
-        <div className="hidden items-center justify-between gap-3 border-b border-border/40 px-6 py-2 text-xs text-muted-foreground md:flex">
-          <label className="flex min-w-[320px] max-w-[520px] flex-1 items-center gap-2 rounded-lg border border-border/60 bg-card px-3 py-2">
-            <Search className="h-3.5 w-3.5" />
+        <div
+          className="hidden items-center justify-between gap-3 px-5 py-2 text-xs md:flex"
+          style={{
+            backgroundColor: "var(--bg-surface)",
+            borderBottom: "0.5px solid var(--border-subtle)",
+            color: "var(--text-muted)",
+          }}
+        >
+          <label
+            className="flex min-w-[320px] max-w-[520px] flex-1 items-center gap-2 rounded-[var(--radius-md)] px-3 py-2"
+            style={{
+              backgroundColor: "var(--bg-elevated)",
+              border: "0.5px solid var(--border-subtle)",
+            }}
+          >
+            <Search className="h-3.5 w-3.5" style={{ color: "var(--text-muted)" }} />
             <input
               placeholder="Search workspaces, apps, people..."
-              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/80"
+              className="w-full bg-transparent text-sm outline-none"
+              style={{ color: "var(--text-primary)" }}
             />
           </label>
           <div className="flex items-center gap-2">
-            <button type="button" className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-card px-2.5 py-1.5">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs"
+              style={{
+                backgroundColor: "var(--bg-elevated)",
+                border: "0.5px solid var(--border-subtle)",
+                color: "var(--text-muted)",
+              }}
+            >
               <Command className="h-3.5 w-3.5" /> Command
             </button>
-            <button type="button" className="inline-flex items-center gap-1 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1.5 text-cyan-200">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-white"
+              style={{
+                backgroundColor: "var(--accent-color)",
+                border: "0.5px solid var(--border-accent)",
+              }}
+            >
               <Plus className="h-3.5 w-3.5" /> Quick Create
             </button>
-            <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-card px-2.5 py-1.5">
-              <Wifi className="h-3.5 w-3.5 text-emerald-300" /> Sync Active
+            <span
+              className="inline-flex items-center gap-1 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs"
+              style={{
+                backgroundColor: "var(--bg-elevated)",
+                border: "0.5px solid var(--border-subtle)",
+                color: "var(--text-muted)",
+              }}
+            >
+              <Wifi className="h-3.5 w-3.5" style={{ color: "var(--green)" }} /> Sync Active
             </span>
-            <Link href="/app/notifications" className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-card px-2.5 py-1.5 hover:text-foreground">
+            <Link
+              href="/app/notifications"
+              className="inline-flex items-center gap-1 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs transition-colors hover:text-[var(--text-primary)]"
+              style={{
+                backgroundColor: "var(--bg-elevated)",
+                border: "0.5px solid var(--border-subtle)",
+                color: "var(--text-muted)",
+              }}
+            >
               <BellRing className="h-3.5 w-3.5" /> {unreadNotifications}
             </Link>
             <AppTopNavUserMenu name={session.user.name} email={session.user.email} image={session.user.image} />
             {session.user.role === "ADMIN" ? (
-              <Link href="/app/admin/notifications" className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-amber-200">
+              <Link
+                href="/app/admin/notifications"
+                className="rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium"
+                style={{
+                  backgroundColor: "var(--accent-dim)",
+                  border: "0.5px solid var(--border-accent)",
+                  color: "var(--accent-soft)",
+                }}
+              >
                 Broadcast
               </Link>
             ) : null}

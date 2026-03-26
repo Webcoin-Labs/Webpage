@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { OpenClawConnectionStatus, Prisma, Role } from "@prisma/client";
+import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
@@ -13,8 +15,36 @@ import { logError, logEvent } from "@/lib/telemetry";
 import { runUploadSafetyChecks } from "@/lib/security/upload-scan";
 import { buildTokenomicsWorkbook, parseTokenomicsWorkbook } from "@/lib/tokenomics/sheet";
 import { validateTokenomicsRows } from "@/lib/tokenomics/validation";
+import { env } from "@/lib/env";
 
 type Result = { success: true; message?: string } | { success: false; error: string };
+
+const aiTokenomicsSchema = z.object({
+  modelName: z.string().min(2),
+  scenarioName: z.string().min(2),
+  tokenSymbol: z.string().min(1).max(12),
+  notes: z.string().min(1),
+  allocations: z.array(
+    z.object({
+      label: z.string().min(1),
+      percentage: z.number().min(0).max(100),
+      cliffMonths: z.number().int().min(0).max(120).optional(),
+      vestingMonths: z.number().int().min(0).max(120).optional(),
+      unlockCadence: z.string().min(1).max(40).optional(),
+      notes: z.string().max(200).optional(),
+    }),
+  ).min(3),
+});
+
+type TokenomicsDraftRow = {
+  label: string;
+  percentage?: number;
+  tokenAmount?: number;
+  cliffMonths?: number;
+  vestingMonths?: number;
+  unlockCadence?: string;
+  notes?: string;
+};
 
 function n(value: FormDataEntryValue | null, fallback = 0) {
   if (value === null) return fallback;
@@ -105,6 +135,122 @@ async function createTokenomicsRevision(input: {
       snapshotJson: { rows: input.rows },
     },
   });
+}
+
+function normalizeTokenomicsRows(totalSupply: number, rows: TokenomicsDraftRow[]) {
+  return rows.map((row) => ({
+    label: row.label.trim(),
+    percentage: row.percentage ?? 0,
+    tokenAmount: totalSupply > 0 && typeof row.percentage === "number" ? (totalSupply * row.percentage) / 100 : undefined,
+    cliffMonths: row.cliffMonths ?? 0,
+    vestingMonths: row.vestingMonths ?? 0,
+    unlockCadence: row.unlockCadence ?? "Monthly",
+    notes: row.notes ?? "",
+  }));
+}
+
+function buildHeuristicTokenomicsDraft(input: {
+  tokenSymbol: string;
+  projectCategory: string;
+  launchGoal: string;
+  fundraisingPlan: string;
+  communityPriority: string;
+}) {
+  const communityHeavy = input.communityPriority === "high";
+  const fundraisingHeavy = input.fundraisingPlan === "institutional" || input.fundraisingPlan === "seed";
+  const allocations: TokenomicsDraftRow[] = [
+    { label: "Community & Ecosystem", percentage: communityHeavy ? 28 : 22, cliffMonths: 0, vestingMonths: 48, unlockCadence: "Monthly", notes: "Incentives, grants, ambassadors, and ecosystem activation." },
+    { label: "Treasury", percentage: 20, cliffMonths: 0, vestingMonths: 48, unlockCadence: "Quarterly", notes: "Long-term protocol runway and strategic flexibility." },
+    { label: "Core Team", percentage: fundraisingHeavy ? 18 : 20, cliffMonths: 12, vestingMonths: 36, unlockCadence: "Monthly", notes: "Aligned contributor vesting with meaningful retention." },
+    { label: "Investors", percentage: fundraisingHeavy ? 18 : 12, cliffMonths: 12, vestingMonths: 24, unlockCadence: "Monthly", notes: "Private round and strategic backers." },
+    { label: "Liquidity & Market Making", percentage: input.launchGoal === "tge" ? 10 : 8, cliffMonths: 0, vestingMonths: 12, unlockCadence: "Monthly", notes: "Liquidity support and exchange readiness." },
+    { label: "Advisors", percentage: 4, cliffMonths: 6, vestingMonths: 24, unlockCadence: "Monthly", notes: "Targeted operator and technical support." },
+  ];
+  const total = allocations.reduce((sum, row) => sum + (row.percentage ?? 0), 0);
+  if (total !== 100) {
+    allocations[1].percentage = (allocations[1].percentage ?? 0) + (100 - total);
+  }
+
+  return {
+    modelName: `${input.projectCategory} Token Model`,
+    scenarioName: input.launchGoal === "tge" ? "TGE Launch Scenario" : "Foundation Scenario",
+    tokenSymbol: input.tokenSymbol.toUpperCase(),
+    notes: `Drafted for a ${input.projectCategory.toLowerCase()} project with a ${input.launchGoal.toLowerCase()} launch goal and ${input.fundraisingPlan.toLowerCase()} fundraising posture.`,
+    allocations,
+  };
+}
+
+async function generateAiTokenomicsDraft(input: {
+  ventureName: string;
+  tokenSymbol: string;
+  totalSupply: number;
+  projectCategory: string;
+  launchGoal: string;
+  fundraisingPlan: string;
+  communityPriority: string;
+}) {
+  if (!env.GEMINI_API_KEY) {
+    return buildHeuristicTokenomicsDraft(input);
+  }
+
+  const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({
+    model: env.GEMINI_MODEL ?? "gemini-2.5-flash",
+    generationConfig: {
+      responseMimeType: "application/json",
+      temperature: 0.4,
+    },
+  });
+
+  const prompt = `
+You are the tokenomics design copilot for Webcoin Labs.
+Produce a realistic first-pass token allocation draft for an early-stage web3 startup.
+
+Constraints:
+- Return only valid JSON.
+- Total allocation percentages must sum to exactly 100.
+- Prefer 5 to 7 allocation buckets.
+- Include conservative vesting defaults.
+- Avoid exotic structures unless clearly necessary.
+- Optimize for a founder who wants a professional editable starting point, not a final immutable answer.
+
+Inputs:
+- Venture: ${input.ventureName}
+- Token symbol: ${input.tokenSymbol}
+- Total supply: ${input.totalSupply}
+- Category: ${input.projectCategory}
+- Launch goal: ${input.launchGoal}
+- Fundraising plan: ${input.fundraisingPlan}
+- Community priority: ${input.communityPriority}
+
+JSON schema:
+{
+  "modelName": string,
+  "scenarioName": string,
+  "tokenSymbol": string,
+  "notes": string,
+  "allocations": [
+    {
+      "label": string,
+      "percentage": number,
+      "cliffMonths": number,
+      "vestingMonths": number,
+      "unlockCadence": string,
+      "notes": string
+    }
+  ]
+}
+`.trim();
+
+  const response = await model.generateContent(prompt);
+  const content = response.response.text();
+  const parsed = JSON.parse(content);
+  const validated = aiTokenomicsSchema.parse(parsed);
+  const total = validated.allocations.reduce((sum, row) => sum + row.percentage, 0);
+  if (Math.abs(total - 100) > 0.001) {
+    throw new Error("AI draft percentages must sum to 100.");
+  }
+  return validated;
 }
 
 async function withOpenClawToken<T>(
@@ -575,6 +721,127 @@ export async function createTokenomicsScenario(formData: FormData): Promise<Resu
     logError("tokenomics_scenario_create_failed", { message: e instanceof Error ? e.message : "Unknown error" });
     return { success: false, error: e instanceof Error ? e.message : "Tokenomics scenario failed." };
   }
+}
+
+export async function generateAiTokenomicsScenario(formData: FormData) {
+  const user = await requireUser();
+  allow(user.role, ["FOUNDER"]);
+  const ventureId = String(formData.get("ventureId") ?? "");
+  await verifyVenture(user.id, user.role, ventureId);
+
+  const venture = await db.venture.findUnique({
+    where: { id: ventureId },
+    select: { id: true, name: true },
+  });
+  if (!venture) {
+    throw new Error("Venture not found.");
+  }
+
+  const tokenSymbol = String(formData.get("tokenSymbol") ?? "TOKEN").trim().toUpperCase();
+  const totalSupply = Math.max(0, n(formData.get("totalSupply"), 0));
+  const projectCategory = String(formData.get("projectCategory") ?? "Protocol").trim() || "Protocol";
+  const launchGoal = String(formData.get("launchGoal") ?? "TGE").trim() || "TGE";
+  const fundraisingPlan = String(formData.get("fundraisingPlan") ?? "Seed").trim() || "Seed";
+  const communityPriority = String(formData.get("communityPriority") ?? "Medium").trim().toLowerCase() || "medium";
+  if (!tokenSymbol) throw new Error("Token symbol is required.");
+  if (!totalSupply) throw new Error("Total supply is required.");
+
+  const aiDraft = await generateAiTokenomicsDraft({
+    ventureName: venture.name,
+    tokenSymbol,
+    totalSupply,
+    projectCategory,
+    launchGoal,
+    fundraisingPlan,
+    communityPriority,
+  });
+
+  const normalizedRows = normalizeTokenomicsRows(totalSupply, aiDraft.allocations);
+  const validation = validateTokenomicsRows(normalizedRows);
+  if (!validation.valid) {
+    throw new Error(validation.issues[0] ?? "Generated tokenomics draft is invalid.");
+  }
+
+  const created = await db.$transaction(async (tx) => {
+    const tokenModel = await tx.tokenomicsModel.create({
+      data: {
+        ventureId,
+        createdById: user.id,
+        name: aiDraft.modelName,
+        totalSupply: new Prisma.Decimal(totalSupply),
+        tokenSymbol: aiDraft.tokenSymbol,
+        notes: aiDraft.notes,
+      },
+    });
+
+    const scenario = await tx.tokenomicsScenario.create({
+      data: {
+        modelId: tokenModel.id,
+        name: aiDraft.scenarioName,
+        circulatingSupply: new Prisma.Decimal(
+          normalizedRows
+            .filter((row) => (row.cliffMonths ?? 0) === 0)
+            .reduce((sum, row) => sum + (row.tokenAmount ?? 0), 0),
+        ),
+      },
+    });
+
+    await Promise.all(
+      normalizedRows.map((row, index) =>
+        tx.tokenomicsAllocationRow.create({
+          data: {
+            scenarioId: scenario.id,
+            label: row.label,
+            percentage: d(row.percentage),
+            tokenAmount: d(row.tokenAmount),
+            cliffMonths: row.cliffMonths ?? null,
+            vestingMonths: row.vestingMonths ?? null,
+            unlockCadence: row.unlockCadence ?? null,
+            notes: row.notes ?? null,
+            rowOrder: index,
+          },
+        }),
+      ),
+    );
+
+    await createTokenomicsRevision({
+      scenarioId: scenario.id,
+      userId: user.id,
+      reason: "ai_generated_initial_draft",
+      rows: normalizedRows,
+    });
+
+    return {
+      modelId: tokenModel.id,
+      modelName: tokenModel.name,
+      tokenSymbol: tokenModel.tokenSymbol ?? tokenSymbol,
+      totalSupply,
+      notes: tokenModel.notes ?? aiDraft.notes,
+      scenarioId: scenario.id,
+      scenarioName: scenario.name,
+      ventureName: venture.name,
+      rows: normalizedRows,
+    };
+  });
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "tokenomics_ai_generate",
+    entityType: "TokenomicsScenario",
+    entityId: created.scenarioId,
+    metadata: {
+      ventureId,
+      modelId: created.modelId,
+      projectCategory,
+      launchGoal,
+      fundraisingPlan,
+      communityPriority,
+    },
+  });
+
+  revalidatePath("/app/founder-os");
+
+  return created;
 }
 
 export async function upsertAllocationRows(formData: FormData): Promise<Result> {

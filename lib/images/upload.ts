@@ -10,7 +10,7 @@ type UploadVariant = "avatar" | "company-logo";
 type OptimizedImage = {
   fileUrl: string;
   storageKey: string;
-  mimeType: "image/webp";
+  mimeType: "image/webp" | "image/avif";
   fileSize: number;
   width: number | null;
   height: number | null;
@@ -42,8 +42,8 @@ function getVariantConfig(variant: UploadVariant) {
 }
 
 function buildStorageKey(variant: UploadVariant, entityId: string): string {
-  if (variant === "avatar") return `avatars/${entityId}.webp`;
-  return `company-logos/${entityId}.webp`;
+  if (variant === "avatar") return `avatars/${entityId}`;
+  return `company-logos/${entityId}`;
 }
 
 export function validateImageFile(file: File | null): string | null {
@@ -90,22 +90,29 @@ export async function optimizeAndStoreImage(
     throw new Error(`Image is too small. Minimum size is ${MIN_IMAGE_DIMENSION}px by ${MIN_IMAGE_DIMENSION}px.`);
   }
 
-  const transformed = sharp(buffer, { failOn: "error", limitInputPixels: MAX_INPUT_PIXELS }).rotate().resize({
+  const transformed = sharp(buffer, { failOn: "error", limitInputPixels: MAX_INPUT_PIXELS })
+    .rotate()
+    .resize({
     width: config.width,
     height: config.height,
     fit: config.fit,
     withoutEnlargement: true,
   });
 
-  const optimizedBuffer = await transformed.webp({ quality: 82, effort: 5 }).toBuffer();
+  const webpBuffer = await transformed.clone().webp({ quality: 82, effort: 5 }).toBuffer();
+  const avifBuffer = await transformed.clone().avif({ quality: 64, effort: 6 }).toBuffer();
+  const useAvif = avifBuffer.length > 0 && avifBuffer.length < webpBuffer.length;
+  const optimizedBuffer = useAvif ? avifBuffer : webpBuffer;
+  const mimeType = useAvif ? "image/avif" : "image/webp";
+  const extension = useAvif ? "avif" : "webp";
   const optimizedMeta = await sharp(optimizedBuffer).metadata();
 
   const fileBase = sanitizeFileBase(file.name);
-  const storageKey = buildStorageKey(variant, entityId);
+  const storageKey = `${buildStorageKey(variant, entityId)}.${extension}`;
   const storage = getFileStorage();
   const stored = await storage.store({
-    fileName: `${fileBase}.webp`,
-    contentType: "image/webp",
+    fileName: `${fileBase}.${extension}`,
+    contentType: mimeType,
     buffer: optimizedBuffer,
     visibility: "public",
     pathPrefix: config.pathPrefix,
@@ -115,7 +122,7 @@ export async function optimizeAndStoreImage(
   return {
     fileUrl: stored.fileUrl,
     storageKey: stored.storageKey,
-    mimeType: "image/webp",
+    mimeType,
     fileSize: optimizedBuffer.length,
     width: optimizedMeta.width ?? null,
     height: optimizedMeta.height ?? null,

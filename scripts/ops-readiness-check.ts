@@ -43,6 +43,9 @@ const gates: Gate[] = [
       if (provider === "local") {
         return { ok: false, detail: "STORAGE_PROVIDER is local; production should use managed object storage." };
       }
+      if (provider === "vercel_blob" && !envPresent("BLOB_READ_WRITE_TOKEN")) {
+        return { ok: false, detail: "BLOB_READ_WRITE_TOKEN is required when STORAGE_PROVIDER=vercel_blob." };
+      }
       return { ok: true, detail: `Storage provider: ${provider}` };
     },
   },

@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-    darkMode: ["class"],
+    darkMode: ["class", "[data-theme='dark']"],
     content: [
         "./pages/**/*.{ts,tsx}",
         "./components/**/*.{ts,tsx}",
@@ -52,34 +52,53 @@ const config: Config = {
                     DEFAULT: "hsl(var(--card))",
                     foreground: "hsl(var(--card-foreground))",
                 },
-                // Brand colors
-                navy: {
-                    950: "#030712",
-                    900: "#0a0f1e",
-                    800: "#0d1529",
-                    700: "#111c3a",
-                    600: "#16244d",
-                },
-                cyan: {
-                    400: "#22d3ee",
-                    500: "#06b6d4",
-                    600: "#0891b2",
+                /* Brand palette — deep purple command center */
+                purple: {
+                    50: "#faf5ff",
+                    100: "#f3e8ff",
+                    200: "#e9d5ff",
+                    300: "#d8b4fe",
+                    400: "#c084fc",
+                    500: "#a855f7",
+                    600: "#9333ea",
+                    700: "#7c3aed",
+                    800: "#6d28d9",
+                    900: "#5b21b6",
+                    950: "#1a0f35",
                 },
                 violet: {
                     400: "#a78bfa",
                     500: "#8b5cf6",
                     600: "#7c3aed",
+                    700: "#6d28d9",
                 },
-                gold: {
+                emerald: {
+                    300: "#6ee7b7",
+                    400: "#34d399",
+                    500: "#22c55e",
+                },
+                amber: {
+                    300: "#fcd34d",
                     400: "#fbbf24",
                     500: "#f59e0b",
                 },
+                rose: {
+                    400: "#fb7185",
+                    500: "#ef4444",
+                },
+                cyan: {
+                    300: "#67e8f9",
+                    400: "#22d3ee",
+                    500: "#06b6d4",
+                },
             },
             boxShadow: {
-                "soft": "0 8px 30px rgba(0, 0, 0, 0.04)",
-                "soft-hover": "0 12px 40px rgba(0, 0, 0, 0.08)",
-                "glass": "0 4px 20px rgba(0, 0, 0, 0.03)",
-                "glass-hover": "0 8px 30px rgba(0, 0, 0, 0.06)",
+                "soft": "0 8px 30px rgba(0, 0, 0, 0.12)",
+                "soft-hover": "0 12px 40px rgba(0, 0, 0, 0.18)",
+                "glass": "0 4px 20px rgba(0, 0, 0, 0.08)",
+                "glass-hover": "0 8px 30px rgba(0, 0, 0, 0.12)",
+                "glow-purple": "0 0 24px rgba(124, 58, 237, 0.12)",
+                "glow-purple-lg": "0 0 48px rgba(124, 58, 237, 0.18)",
             },
             borderRadius: {
                 lg: "var(--radius)",
@@ -114,8 +133,8 @@ const config: Config = {
                     "50%": { transform: "translateY(-20px)" },
                 },
                 "pulse-glow": {
-                    "0%, 100%": { boxShadow: "0 0 20px rgba(34,211,238,0.3)" },
-                    "50%": { boxShadow: "0 0 60px rgba(34,211,238,0.6)" },
+                    "0%, 100%": { boxShadow: "0 0 20px rgba(124,58,237,0.2)" },
+                    "50%": { boxShadow: "0 0 48px rgba(124,58,237,0.35)" },
                 },
                 "gradient-shift": {
                     "0%, 100%": { backgroundPosition: "0% 50%" },

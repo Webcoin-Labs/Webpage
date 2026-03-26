@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -27,6 +28,7 @@ import { ProfileAvatar } from "@/components/common/ProfileAvatar";
 import { CompanyLogo } from "@/components/common/CompanyLogo";
 import { HiringInterestForm } from "@/components/hiring/HiringInterestForm";
 import { RetryAnalysisButton } from "@/components/pitchdeck/RetryAnalysisButton";
+import { measureAsync } from "@/lib/perf/measure";
 
 function getCompletionScore(fields: Array<unknown>) {
   const filled = fields.filter((value) => {
@@ -57,6 +59,18 @@ function asKolPayload(value: unknown): KolPayload {
   if (!value || typeof value !== "object") return {};
   return value as KolPayload;
 }
+
+const getRecommendedBuildersCached = unstable_cache(
+  async (userId: string) => getRecommendedBuildersForFounder(userId, 4),
+  ["dashboard-recommended-builders"],
+  { revalidate: 120 },
+);
+
+const getRecommendedProjectsCached = unstable_cache(
+  async (userId: string) => getRecommendedProjectsForBuilder(userId, 4),
+  ["dashboard-recommended-projects"],
+  { revalidate: 120 },
+);
 
 export default async function AppDashboard() {
   const session = await getServerSession(authOptions);
@@ -98,7 +112,8 @@ export default async function AppDashboard() {
     latestJobApplication,
     builderProjects,
     investorOperatingProfile,
-  ] = await Promise.all([
+  ] = await measureAsync("dashboard.page", "load-data", () =>
+    Promise.all([
     safe(isInvestor ? Promise.resolve(0) : db.application.count({ where: { userId: user.id } }), 0),
     safe(db.project.count({ where: { ownerUserId: user.id } }), 0),
     safe(isFounder ? db.startup.count({ where: { founderId: user.id } }) : Promise.resolve(0), 0),
@@ -154,15 +169,15 @@ export default async function AppDashboard() {
         : Promise.resolve(null),
       null,
     ),
-    safe(isFounder ? getRecommendedBuildersForFounder(user.id, 6) : Promise.resolve([]), []),
-    safe(isBuilder ? getRecommendedProjectsForBuilder(user.id, 6) : Promise.resolve([]), []),
+    safe(isFounder ? getRecommendedBuildersCached(user.id) : Promise.resolve([]), []),
+    safe(isBuilder ? getRecommendedProjectsCached(user.id) : Promise.resolve([]), []),
     safe(
       isBuilder
         ? db.jobPost.findMany({
             where: { status: "OPEN" },
             orderBy: { createdAt: "desc" },
             include: { project: { select: { id: true, name: true } } },
-            take: 6,
+            take: 4,
           })
         : Promise.resolve([]),
       [],
@@ -175,7 +190,7 @@ export default async function AppDashboard() {
             where: { publicVisible: true },
             select: { id: true, name: true, stage: true, chainFocus: true, tagline: true },
             orderBy: { createdAt: "desc" },
-            take: 6,
+            take: 4,
           }),
           [],
         )
@@ -185,7 +200,7 @@ export default async function AppDashboard() {
           db.hiringInterest.findMany({
             where: { founderId: user.id },
             orderBy: { createdAt: "desc" },
-            take: 6,
+            take: 4,
           }),
           [],
         )
@@ -200,7 +215,7 @@ export default async function AppDashboard() {
               _count: { select: { hiringInterests: true } },
             },
             orderBy: { updatedAt: "desc" },
-            take: 4,
+            take: 3,
           }),
           [],
         )
@@ -254,13 +269,14 @@ export default async function AppDashboard() {
           db.builderProject.findMany({
             where: { builderId: user.id },
             orderBy: { updatedAt: "desc" },
-            take: 4,
+            take: 3,
           }),
           [],
         )
       : Promise.resolve([]),
     isInvestor ? safe(db.investor.findUnique({ where: { userId: user.id } }), null) : Promise.resolve(null),
-  ]);
+  ]),
+  { userId: user.id, role: user.role });
 
   const latestReport = latestDeck?.reports[0];
 
@@ -329,7 +345,7 @@ export default async function AppDashboard() {
           ? `Reviewed ${investorProjects[0].name} recently.`
           : "No investor activity yet."
         : "Admin activity is available in admin panels.";
-  const founderToneCard = "border-zinc-700/70 bg-zinc-950/70";
+  const founderToneCard = "border-[var(--border-subtle)] bg-[var(--bg-surface)]";
 
   return (
     <div className="space-y-8 py-8">
@@ -341,10 +357,10 @@ export default async function AppDashboard() {
               alt={user.name ?? "User"}
               fallback={user.name?.charAt(0) ?? "U"}
               className="h-12 w-12 rounded-xl"
-              fallbackClassName="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 text-lg text-cyan-300"
+              fallbackClassName="bg-gradient-to-br from-violet-500/20 to-purple-500/20 text-lg text-violet-300"
             />
             <div>
-              {isFounder ? <p className="text-[10px] uppercase tracking-[0.22em] text-orange-300/90">// Founder Command Interface</p> : null}
+              {isFounder ? <p className="text-[10px] uppercase tracking-[0.22em] text-violet-300/90">Founder Command Interface</p> : null}
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className={isFounder ? "text-3xl font-black uppercase tracking-tight" : "text-xl font-semibold"}>
                   {isFounder ? "Founder Dashboard" : `Welcome back${user.name ? `, ${user.name.split(" ")[0]}` : ""}`}
@@ -374,7 +390,7 @@ export default async function AppDashboard() {
               </p>
             </div>
           </div>
-          <span className={`w-fit rounded-full border px-3 py-1 text-xs font-medium ${isFounder ? "border-orange-500/40 text-orange-300" : "border-cyan-500/40 text-cyan-300"}`}>
+          <span className={`w-fit rounded-full border px-3 py-1 text-xs font-medium ${isFounder ? "border-orange-500/40 text-violet-300" : "border-violet-500/40 text-violet-300"}`}>
             {user.role}
           </span>
         </div>
@@ -394,11 +410,11 @@ export default async function AppDashboard() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/app/profile" className="inline-flex items-center gap-2 rounded-lg bg-blue-500/10 px-4 py-2 text-sm font-medium text-blue-300 hover:bg-blue-500/20">
+            <Link href="/app/profile" className="inline-flex items-center gap-2 rounded-lg bg-violet-500/10 px-4 py-2 text-sm font-medium text-violet-300 hover:bg-violet-500/20">
               Complete Profile <ArrowRight className="h-4 w-4" />
             </Link>
             {founderStartupRequired ? (
-              <Link href="/app/founder-os" className="inline-flex items-center gap-2 rounded-lg bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-500/20">
+              <Link href="/app/founder-os" className="inline-flex items-center gap-2 rounded-lg bg-emerald-500/8 px-4 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-500/20">
                 Add Startup <ArrowRight className="h-4 w-4" />
               </Link>
             ) : null}
@@ -409,7 +425,7 @@ export default async function AppDashboard() {
       <section className="grid grid-cols-1 gap-4 md:grid-cols-5">
         <div className={`rounded-xl border p-5 ${isFounder ? founderToneCard : "border-border/50 bg-card"}`}>
           <div className="mb-3 flex items-center gap-2">
-            <User className="h-4 w-4 text-blue-300" />
+            <User className="h-4 w-4 text-violet-300" />
             <span className="text-sm font-medium">Profile Completion</span>
           </div>
           <p className="text-2xl font-semibold">{completion}%</p>
@@ -423,13 +439,13 @@ export default async function AppDashboard() {
             <span className="text-sm font-medium">{isBuilder ? "Builder Projects" : "Projects"}</span>
           </div>
           <p className="text-2xl font-semibold">{isBuilder ? builderProjects.length : projectCount}</p>
-          <Link href={isBuilder ? "/app/builder-projects" : "/app/projects"} className="mt-2 inline-flex items-center gap-1 text-xs text-blue-300">
+          <Link href={isBuilder ? "/app/builder-projects" : "/app/projects"} className="mt-2 inline-flex items-center gap-1 text-xs text-violet-300">
             {isBuilder ? "Manage builder projects" : "Manage projects"} <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
         <div className={`rounded-xl border p-5 ${isFounder ? founderToneCard : "border-border/50 bg-card"}`}>
           <div className="mb-3 flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-emerald-300" />
+            <Building2 className="h-4 w-4 text-emerald-400" />
             <span className="text-sm font-medium">{isFounder ? "Hiring Status" : "Availability"}</span>
           </div>
           <p className="text-lg font-semibold">
@@ -445,17 +461,17 @@ export default async function AppDashboard() {
         </div>
         <div className={`rounded-xl border p-5 ${isFounder ? founderToneCard : "border-border/50 bg-card"}`}>
           <div className="mb-3 flex items-center gap-2">
-            <FileText className="h-4 w-4 text-emerald-300" />
+            <FileText className="h-4 w-4 text-emerald-400" />
             <span className="text-sm font-medium">Latest AI Pitch Report</span>
           </div>
           <p className="text-sm text-muted-foreground">
             {latestDeck ? `${latestDeck.originalFileName} | ${latestReport?.status ?? "QUEUED"}` : "No pitch deck uploaded yet."}
           </p>
-          <p className="mt-1 text-xs text-emerald-300">Clarity: {latestReport?.clarityScore ?? "-"}</p>
+          <p className="mt-1 text-xs text-emerald-400">Clarity: {latestReport?.clarityScore ?? "-"}</p>
         </div>
         <div className={`rounded-xl border p-5 ${isFounder ? founderToneCard : "border-border/50 bg-card"}`}>
           <div className="mb-3 flex items-center gap-2">
-            <Clock3 className="h-4 w-4 text-cyan-300" />
+            <Clock3 className="h-4 w-4 text-violet-300" />
             <span className="text-sm font-medium">Latest Activity</span>
           </div>
           <p className="text-sm text-muted-foreground">{latestActivityLabel}</p>
@@ -472,7 +488,7 @@ export default async function AppDashboard() {
                   <p className="text-xs text-muted-foreground">Founder identity used across founder discovery, hiring, and investor visibility.</p>
                 </div>
                 {founderProfile?.isHiring ? (
-                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] text-emerald-200">
+                  <span className="rounded-full border border-emerald-500/25 bg-emerald-500/8 px-2.5 py-0.5 text-[11px] text-emerald-300">
                     Hiring
                   </span>
                 ) : null}
@@ -507,7 +523,7 @@ export default async function AppDashboard() {
                 <span>Jobs posted: {myPostedJobs}</span>
                 <span>Intro requests: {introRequests}</span>
                 {founderProfile?.website ? (
-                  <a href={founderProfile.website} target="_blank" rel="noopener noreferrer" className="text-blue-300 hover:text-blue-200">
+                  <a href={founderProfile.website} target="_blank" rel="noopener noreferrer" className="text-violet-300 hover:text-blue-200">
                     Website
                   </a>
                 ) : null}
@@ -522,7 +538,7 @@ export default async function AppDashboard() {
             <div className={`rounded-2xl border p-6 ${founderToneCard}`}>
               <div className="mb-4 flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold uppercase tracking-[0.08em]">Recommended Builders</p>
-                <Link href="/builders" className="text-xs text-orange-300 hover:text-orange-200">Browse all</Link>
+                <Link href="/builders" className="text-xs text-violet-300 hover:text-violet-200">Browse all</Link>
               </div>
               {founderMatches.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Complete founder profile fields to unlock stronger builder recommendations.</p>
@@ -538,16 +554,16 @@ export default async function AppDashboard() {
                             alt={match.builder.user.name ?? "Builder"}
                             fallback={(match.builder.user.name ?? "B").charAt(0)}
                             className="h-7 w-7 rounded-full border border-border/60"
-                            fallbackClassName="bg-cyan-500/10 text-[10px] text-cyan-300"
+                            fallbackClassName="bg-violet-500/10 text-[10px] text-violet-300"
                           />
                           <p className="text-sm font-medium">{match.builder.user.name ?? "Builder"}</p>
                           <ProfileAffiliationTag label={affiliation.label} variant={affiliation.variant} />
-                          <span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-2 py-0.5 text-[10px] text-orange-200">
+                          <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-200">
                             {match.match.score}% match
                           </span>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">{match.match.reasons.join(" | ")}</p>
-                        <Link href={`/builders/${match.builder.handle ?? match.builder.user.id}`} className="mt-2 inline-block text-xs text-orange-300 hover:text-orange-200">
+                        <Link href={`/builders/${match.builder.handle ?? match.builder.user.id}`} className="mt-2 inline-block text-xs text-violet-300 hover:text-violet-200">
                           View profile
                         </Link>
                       </div>
@@ -560,7 +576,7 @@ export default async function AppDashboard() {
             <div className={`rounded-2xl border p-6 ${founderToneCard}`}>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold uppercase tracking-[0.08em]">Founder Workspace</p>
-                <Link href="/app/founder-os" className="text-xs text-orange-300 hover:text-orange-200">
+                <Link href="/app/founder-os" className="text-xs text-violet-300 hover:text-violet-200">
                   Open Founder OS
                 </Link>
               </div>
@@ -574,14 +590,14 @@ export default async function AppDashboard() {
             {founderStartupRequired ? (
               <div className={`rounded-2xl border p-6 ${founderToneCard}`}>
                 <div className="mb-3 flex items-center gap-2">
-                  <Rocket className="h-4 w-4 text-orange-300" />
+                  <Rocket className="h-4 w-4 text-violet-300" />
                   <p className="text-sm font-semibold uppercase tracking-[0.08em]">Founder tools are locked</p>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Complete startup setup first. Once at least one startup is added, Hiring, KOL Premium, and investor-facing
                   tools will unlock automatically.
                 </p>
-                <Link href="/app/founder-os" className="mt-3 inline-flex items-center gap-1 text-xs text-orange-300 hover:text-orange-200">
+                <Link href="/app/founder-os" className="mt-3 inline-flex items-center gap-1 text-xs text-violet-300 hover:text-violet-200">
                   Open Startup Manager <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
@@ -589,7 +605,7 @@ export default async function AppDashboard() {
             {!founderStartupRequired ? (
             <div className={`rounded-2xl border p-6 ${founderToneCard}`}>
               <div className="mb-3 flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-emerald-300" />
+                <MessageSquare className="h-4 w-4 text-emerald-400" />
                 <p className="text-sm font-semibold uppercase tracking-[0.08em]">Hiring Interests</p>
               </div>
               {founderHiringInterests.length === 0 ? (
@@ -606,7 +622,7 @@ export default async function AppDashboard() {
                       </span>
                     </div>
                   ))}
-                  <Link href="/app/hiring" className="inline-flex items-center gap-1 text-xs text-orange-300 hover:text-orange-200">
+                  <Link href="/app/hiring" className="inline-flex items-center gap-1 text-xs text-violet-300 hover:text-violet-200">
                     Open hiring inbox <ArrowRight className="h-3 w-3" />
                   </Link>
                 </div>
@@ -624,7 +640,7 @@ export default async function AppDashboard() {
                 KOL requests: {kolRequestsCount} | Latest: {latestKolRequest?.status ?? "No request yet"}
               </p>
               {latestKolRequest ? (
-                <p className="mt-2 text-xs text-amber-200/90">
+                <p className="mt-2 text-xs text-amber-300">
                   Tier: {asKolPayload(latestKolRequest.requestPayload).priorityTier ?? "STANDARD"} | Updated{" "}
                   {new Date(latestKolRequest.updatedAt).toLocaleDateString()}
                 </p>
@@ -638,13 +654,13 @@ export default async function AppDashboard() {
             {!founderStartupRequired ? (
             <div className={`rounded-2xl border p-6 ${founderToneCard}`}>
               <div className="mb-3 flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-emerald-300" />
+                <Sparkles className="h-4 w-4 text-emerald-400" />
                 <p className="text-sm font-semibold uppercase tracking-[0.08em]">Pitch Deck & AI Report</p>
               </div>
               <p className="text-xs text-muted-foreground">
                 Deck: {latestDeck ? latestDeck.originalFileName : "Not uploaded"} | Upload: {latestDeck?.uploadStatus ?? "N/A"} | Process: {latestDeck?.processingStatus ?? "N/A"} | Report: {latestReport?.status ?? "Not started"}
               </p>
-              <p className="mt-2 text-xs text-emerald-300">
+              <p className="mt-2 text-xs text-emerald-400">
                 Type: {latestReport?.deckType ?? "unclear"} | Clarity: {latestReport?.clarityScore ?? "-"} | Investor Readiness: {latestReport?.investorReadinessScore ?? "-"}
               </p>
               {latestReport?.marketPositioningSummary ? (
@@ -655,7 +671,7 @@ export default async function AppDashboard() {
                   <RetryAnalysisButton pitchDeckId={latestDeck.id} />
                 </div>
               ) : null}
-              <Link href="/pitchdeck" className="mt-3 inline-flex items-center gap-1 text-xs text-orange-300 hover:text-orange-200">
+              <Link href="/pitchdeck" className="mt-3 inline-flex items-center gap-1 text-xs text-violet-300 hover:text-violet-200">
                 Open pitch area <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
@@ -669,7 +685,7 @@ export default async function AppDashboard() {
           <div className="space-y-6">
             <div className="rounded-2xl border border-border/50 bg-card p-6">
               <div className="mb-3 flex items-center gap-2">
-                <User className="h-4 w-4 text-cyan-300" />
+                <User className="h-4 w-4 text-violet-300" />
                 <p className="text-sm font-medium">Builder Identity</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -678,12 +694,12 @@ export default async function AppDashboard() {
                   alt={user.name ?? "Builder"}
                   fallback={(user.name ?? "B").charAt(0)}
                   className="h-8 w-8 rounded-full border border-border/60"
-                  fallbackClassName="bg-cyan-500/10 text-xs text-cyan-300"
+                  fallbackClassName="bg-violet-500/10 text-xs text-violet-300"
                 />
                 <p className="text-base font-semibold">{user.name ?? "Builder"}</p>
                 <ProfileAffiliationTag label={builderAffiliation.label} variant={builderAffiliation.variant} />
                 {builderProfile?.openToWork ? (
-                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-200">
+                  <span className="rounded-full border border-emerald-500/25 bg-emerald-500/8 px-2 py-0.5 text-[10px] text-emerald-300">
                     Open to work
                   </span>
                 ) : null}
@@ -691,36 +707,36 @@ export default async function AppDashboard() {
               <p className="mt-1 text-xs text-muted-foreground">{builderProfile?.headline ?? builderProfile?.title ?? "Add your headline"}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {(builderProfile?.skills ?? []).slice(0, 6).map((skill) => (
-                  <span key={skill} className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-0.5 text-[10px] text-cyan-200">
+                  <span key={skill} className="rounded-full border border-violet-500/20 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-200">
                     {skill}
                   </span>
                 ))}
               </div>
               <div className="mt-3 flex flex-wrap gap-3 text-xs">
                 {builderProfile?.linkedin ? (
-                  <a href={builderProfile.linkedin} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-cyan-300">
+                  <a href={builderProfile.linkedin} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-violet-300">
                     <ExternalLink className="h-3.5 w-3.5" /> LinkedIn
                   </a>
                 ) : null}
                 {builderProfile?.twitter ? (
-                  <span className="inline-flex items-center gap-1 text-cyan-300">
+                  <span className="inline-flex items-center gap-1 text-violet-300">
                     <ExternalLink className="h-3.5 w-3.5" /> {builderProfile.twitter}
                   </span>
                 ) : null}
                 {builderProfile?.resumeUrl ? (
-                  <a href={builderProfile.resumeUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-300">
+                  <a href={builderProfile.resumeUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-400">
                     <FileText className="h-3.5 w-3.5" /> Resume
                   </a>
                 ) : null}
               </div>
               {builderProfile?.achievements ? (
-                <p className="mt-3 rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-2 text-xs text-muted-foreground">
-                  <span className="font-medium text-cyan-200">Achievements:</span> {builderProfile.achievements}
+                <p className="mt-3 rounded-lg border border-violet-500/20 bg-violet-500/5 p-2 text-xs text-muted-foreground">
+                  <span className="font-medium text-violet-200">Achievements:</span> {builderProfile.achievements}
                 </p>
               ) : null}
               {builderProfile?.openSourceContributions ? (
                 <p className="mt-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2 text-xs text-muted-foreground">
-                  <span className="font-medium text-emerald-200">Open source:</span> {builderProfile.openSourceContributions}
+                  <span className="font-medium text-emerald-300">Open source:</span> {builderProfile.openSourceContributions}
                 </p>
               ) : null}
             </div>
@@ -731,7 +747,7 @@ export default async function AppDashboard() {
                   <Award className="h-4 w-4 text-amber-300" />
                   <p className="text-sm font-medium">Builder Portfolio</p>
                 </div>
-                <Link href="/app/builder-projects" className="text-xs text-blue-300">
+                <Link href="/app/builder-projects" className="text-xs text-violet-300">
                   Manage portfolio
                 </Link>
               </div>
@@ -746,7 +762,7 @@ export default async function AppDashboard() {
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-sm font-medium">{project.title}</p>
                         {project.githubUrl ? (
-                          <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-cyan-300">
+                          <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-violet-300">
                             <Github className="h-3.5 w-3.5" /> GitHub
                           </a>
                         ) : null}
@@ -754,7 +770,7 @@ export default async function AppDashboard() {
                       {project.tagline ? <p className="mt-1 text-xs text-muted-foreground">{project.tagline}</p> : null}
                       <div className="mt-2 flex flex-wrap gap-2">
                         {project.techStack.slice(0, 5).map((item) => (
-                          <span key={item} className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-0.5 text-[10px] text-cyan-200">
+                          <span key={item} className="rounded-full border border-violet-500/20 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-200">
                             {item}
                           </span>
                         ))}
@@ -768,7 +784,7 @@ export default async function AppDashboard() {
             <div className="rounded-2xl border border-border/50 bg-card p-6">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <p className="text-sm font-medium">Recommended Projects</p>
-                <Link href="/projects" className="text-xs text-blue-300">Browse all</Link>
+                <Link href="/projects" className="text-xs text-violet-300">Browse all</Link>
               </div>
               {builderMatches.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Complete your builder profile to unlock stronger project recommendations.</p>
@@ -780,7 +796,7 @@ export default async function AppDashboard() {
                       <div key={match.project.id} className="rounded-lg border border-border/50 p-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-medium">{match.project.name}</p>
-                          <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] text-cyan-200">
+                          <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-200">
                             {match.match.score}% match
                           </span>
                         </div>
@@ -788,13 +804,13 @@ export default async function AppDashboard() {
                           <p className="text-xs text-muted-foreground">{match.project.owner.name ?? "Founder"}</p>
                           {founderTag ? <ProfileAffiliationTag label={founderTag.label} variant="founder" /> : null}
                           {match.project.owner.founderProfile?.isHiring ? (
-                            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-200">
+                            <span className="rounded-full border border-emerald-500/25 bg-emerald-500/8 px-2 py-0.5 text-[10px] text-emerald-300">
                               Hiring
                             </span>
                           ) : null}
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">{match.match.reasons.join(" | ")}</p>
-                        <Link href={`/projects/${match.project.slug ?? match.project.id}`} className="mt-2 inline-block text-xs text-blue-300">
+                        <Link href={`/projects/${match.project.slug ?? match.project.id}`} className="mt-2 inline-block text-xs text-violet-300">
                           View project
                         </Link>
                       </div>
@@ -808,12 +824,12 @@ export default async function AppDashboard() {
           <div className="space-y-6">
             <div className="rounded-2xl border border-border/50 bg-card p-6">
               <div className="mb-3 flex items-center gap-2">
-                <BriefcaseBusiness className="h-4 w-4 text-cyan-300" />
+                <BriefcaseBusiness className="h-4 w-4 text-violet-300" />
                 <p className="text-sm font-medium">Jobs</p>
               </div>
               <p className="text-2xl font-semibold">{openJobs.length}</p>
               <p className="mt-1 text-xs text-muted-foreground">Open roles | {myJobApplicationsCount} applied</p>
-              <Link href="/app/jobs" className="mt-3 inline-flex items-center gap-1 text-xs text-blue-300">
+              <Link href="/app/jobs" className="mt-3 inline-flex items-center gap-1 text-xs text-violet-300">
                 Browse jobs <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
@@ -821,7 +837,7 @@ export default async function AppDashboard() {
             <div className="rounded-2xl border border-border/50 bg-card p-6">
               <div className="mb-4 flex items-center justify-between gap-2">
                 <p className="text-sm font-medium">Founders Hiring</p>
-                <Link href="/app/hiring" className="text-xs text-blue-300">View all</Link>
+                <Link href="/app/hiring" className="text-xs text-violet-300">View all</Link>
               </div>
               {hiringFounders.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No active hiring founders right now.</p>
@@ -902,10 +918,10 @@ export default async function AppDashboard() {
                 LinkedIn: {investorProfile?.linkedin ? "Available" : "Missing"}
               </span>
             </div>
-            <Link href="/app/kreatorboard" className="mt-3 inline-flex items-center gap-1 text-xs text-cyan-300">
+            <Link href="/app/kreatorboard" className="mt-3 inline-flex items-center gap-1 text-xs text-violet-300">
               Open investor workspace <ArrowRight className="h-3 w-3" />
             </Link>
-            <a href="https://t.me/rishu" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-cyan-300">
+            <a href="https://t.me/rishu" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-violet-300">
               Connect with Rishu on Telegram <ArrowRight className="h-3 w-3" />
             </a>
           </div>
@@ -913,8 +929,8 @@ export default async function AppDashboard() {
             <p className="text-sm font-medium">Network Updates</p>
             <p className="mt-2 text-xs text-muted-foreground">Use founder and startup directories for live discovery.</p>
             <div className="mt-4 flex gap-3 text-xs">
-              <Link href="/app/founders" className="text-blue-300">Founders</Link>
-              <Link href="/startups" className="text-blue-300">Startups</Link>
+              <Link href="/app/founders" className="text-violet-300">Founders</Link>
+              <Link href="/startups" className="text-violet-300">Startups</Link>
             </div>
             {investorProjects.length > 0 ? (
               <div className="mt-4 space-y-2">
@@ -937,10 +953,10 @@ export default async function AppDashboard() {
           <p className="text-sm font-medium">Admin controls</p>
           <p className="mt-2 text-xs text-muted-foreground">Manage jobs, leads, events, pitch reports, moderation, and hiring interests.</p>
           <div className="mt-3 flex flex-wrap gap-3 text-sm">
-            <Link href="/app/admin" className="inline-flex items-center gap-2 text-blue-300">
+            <Link href="/app/admin" className="inline-flex items-center gap-2 text-violet-300">
               Open admin center <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link href="/app/admin/hiring-interests" className="inline-flex items-center gap-2 text-blue-300">
+            <Link href="/app/admin/hiring-interests" className="inline-flex items-center gap-2 text-violet-300">
               Hiring submissions <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -951,7 +967,7 @@ export default async function AppDashboard() {
         <section className="rounded-2xl border border-border/50 bg-card p-6">
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="text-sm font-medium">Investor Modules</p>
-            <Link href="/app/kreatorboard" className="text-xs text-cyan-300">
+            <Link href="/app/kreatorboard" className="text-xs text-violet-300">
               Open Investor Workspace
             </Link>
           </div>
@@ -967,8 +983,8 @@ export default async function AppDashboard() {
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Link href="/app/profile" className="group rounded-xl border border-border/50 bg-card p-5 transition-all hover:border-blue-500/30">
           <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10">
-              <User className="h-4 w-4 text-blue-300" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/10">
+              <User className="h-4 w-4 text-violet-300" />
             </div>
             <span className="text-sm font-medium">Profile</span>
           </div>
@@ -996,11 +1012,11 @@ export default async function AppDashboard() {
         </Link>
         <Link
           href={isInvestor ? "/app/kreatorboard" : "/app/apply"}
-          className="group rounded-xl border border-border/50 bg-card p-5 transition-all hover:border-emerald-500/30"
+          className="group rounded-xl border border-border/50 bg-card p-5 transition-all hover:border-emerald-500/25"
         >
           <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10">
-              <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/8">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
             </div>
             <span className="text-sm font-medium">{isInvestor ? "Investor Workspace" : "Applications"}</span>
           </div>

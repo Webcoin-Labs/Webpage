@@ -178,20 +178,20 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="flex flex-col bg-background text-foreground">
-      <section className="relative overflow-hidden border-b border-border">
+    <div className="flex flex-col" style={{ backgroundColor: "var(--bg-base)", color: "var(--text-primary)" }}>
+      <section className="relative overflow-hidden" style={{ borderBottom: "0.5px solid var(--border-subtle)" }}>
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0 bg-[radial-gradient(1200px_600px_at_18%_0%,rgba(44,114,255,0.35),transparent_52%),radial-gradient(900px_520px_at_90%_100%,rgba(56,189,248,0.14),transparent_58%)]" />
-          <div className="absolute -left-[12%] -top-[26%] h-[720px] w-[720px] rounded-full border border-blue-300/15" />
-          <div className="absolute left-[22%] -top-[30%] h-[980px] w-[980px] rounded-full border border-blue-200/10" />
-          <div className="absolute -right-[22%] top-[14%] h-[780px] w-[780px] rounded-full border border-cyan-200/10" />
-          <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(2,8,23,0.04),rgba(2,8,23,0.7))]" />
+          <div className="absolute inset-0 bg-[radial-gradient(1200px_600px_at_18%_0%,rgba(124,58,237,0.25),transparent_52%),radial-gradient(900px_520px_at_90%_100%,rgba(167,139,250,0.1),transparent_58%)]" />
+          <div className="absolute -left-[12%] -top-[26%] h-[720px] w-[720px] rounded-full border border-violet-400/10" />
+          <div className="absolute left-[22%] -top-[30%] h-[980px] w-[980px] rounded-full border border-violet-300/8" />
+          <div className="absolute -right-[22%] top-[14%] h-[780px] w-[780px] rounded-full border border-purple-300/8" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(9,9,11,0.04),rgba(9,9,11,0.7))]" />
         </div>
 
         <div className="container relative z-10 mx-auto max-w-7xl px-6 py-24 lg:py-32">
           <div className="grid items-center gap-12 lg:grid-cols-[1.18fr_0.82fr]">
             <AnimatedSection>
-              <p className="inline-flex items-center rounded-full border border-blue-300/25 bg-blue-400/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-blue-100">
+              <p className="inline-flex items-center rounded-full border border-violet-400/25 bg-violet-500/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-violet-200">
                 Builder-first venture infrastructure
               </p>
               <h1 className="mt-6 text-4xl font-semibold leading-[1.03] tracking-tight md:text-6xl">
@@ -219,7 +219,8 @@ export default async function HomePage() {
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
                   href="/app"
-                  className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 text-sm font-medium text-white transition hover:bg-blue-500"
+                  className="inline-flex items-center gap-2 rounded-full bg-violet-600 px-6 py-3 text-sm font-medium text-white transition hover:bg-violet-500"
+                  style={{ boxShadow: "0 8px 20px -8px rgba(124,58,237,0.5)" }}
                 >
                   Launch App <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -229,7 +230,7 @@ export default async function HomePage() {
                 >
                   Talk to Sales
                 </Link>
-                <Link href="/pitchdeck" className="inline-flex items-center gap-2 px-1 py-3 text-sm text-blue-200 hover:text-blue-100">
+                <Link href="/pitchdeck" className="inline-flex items-center gap-2 px-1 py-3 text-sm text-violet-300 hover:text-violet-200">
                   Get free AI pitch analysis
                 </Link>
               </div>
@@ -242,7 +243,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="border-b border-border bg-muted/10 py-20">
+      <section className="py-20" style={{ borderBottom: "0.5px solid var(--border-subtle)", backgroundColor: "var(--bg-surface)" }}>
         <div className="container mx-auto max-w-7xl px-6">
           <AnimatedSection className="mx-auto max-w-3xl text-center">
             <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Ecosystem access</p>
@@ -276,10 +277,10 @@ export default async function HomePage() {
       <CapabilityRevealGrid />
       <ProductsSection />
 
-      <section className="border-b border-border py-24">
+      <section className="py-24" style={{ borderBottom: "0.5px solid var(--border-subtle)" }}>
         <div className="container mx-auto grid max-w-7xl gap-10 px-6 lg:grid-cols-2">
           <AnimatedSection>
-            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Operating advantages</p>
+            <p className="text-xs uppercase tracking-[0.16em]" style={{ color: "var(--text-muted)" }}>Operating advantages</p>
             <h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">
               Designed for fast-moving founders and high-context builders.
             </h2>
@@ -290,25 +291,25 @@ export default async function HomePage() {
           </AnimatedSection>
           <AnimatedSection delay={0.06}>
             <div className="grid gap-4">
-              <div className="rounded-2xl border border-border/70 bg-card p-5">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <ShieldCheck className="h-4 w-4 text-emerald-300" /> Credibility-first identity layer
+              <div className="rounded-xl p-5" style={{ backgroundColor: "var(--bg-elevated)", border: "0.5px solid var(--border-subtle)" }}>
+                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" /> Credibility-first identity layer
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
                   Structured builder and founder profiles with verified context, social proof, and discoverability.
                 </p>
               </div>
-              <div className="rounded-2xl border border-border/70 bg-card p-5">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <Sparkles className="h-4 w-4 text-blue-300" /> Productive AI, not novelty
+              <div className="rounded-xl p-5" style={{ backgroundColor: "var(--bg-elevated)", border: "0.5px solid var(--border-subtle)" }}>
+                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                  <Sparkles className="h-4 w-4 text-violet-400" /> Productive AI, not novelty
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
                   AI is integrated as a workflow multiplier across deck analysis, matching, and operational planning.
                 </p>
               </div>
-              <div className="rounded-2xl border border-border/70 bg-card p-5">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <UsersRound className="h-4 w-4 text-cyan-300" /> Network execution at scale
+              <div className="rounded-xl p-5" style={{ backgroundColor: "var(--bg-elevated)", border: "0.5px solid var(--border-subtle)" }}>
+                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                  <UsersRound className="h-4 w-4 text-violet-300" /> Network execution at scale
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
                   Hiring, intros, events, and partner coordination are unified into one production-grade command layer.
@@ -319,9 +320,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="border-b border-border bg-muted/10 py-24">
+      <section className="py-24" style={{ borderBottom: "0.5px solid var(--border-subtle)", backgroundColor: "var(--bg-surface)" }}>
         <div className="container mx-auto max-w-7xl px-6">
-          <div className="rounded-3xl border border-border/70 bg-card p-6 md:p-8">
+          <div className="rounded-2xl p-6 md:p-8" style={{ backgroundColor: "var(--bg-elevated)", border: "0.5px solid var(--border-subtle)" }}>
             <AnimatedSection className="mx-auto max-w-3xl text-center">
               <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">AI operating layer</p>
               <h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">Actionable intelligence for founder execution.</h2>
@@ -331,8 +332,8 @@ export default async function HomePage() {
                 const Icon = item.icon;
                 return (
                   <AnimatedSection key={item.title}>
-                    <div className="flex items-start gap-4 rounded-2xl border border-border/70 bg-background/60 p-5 transition-colors hover:border-border hover:bg-accent/30">
-                      <div className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-card">
+                    <div className="flex items-start gap-4 rounded-xl p-5 transition-colors hover:bg-[var(--bg-hover)]" style={{ backgroundColor: "var(--bg-surface)", border: "0.5px solid var(--border-subtle)" }}>
+                      <div className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "var(--bg-hover)", border: "0.5px solid var(--border-subtle)" }}>
                         <Icon className="h-5 w-5 text-muted-foreground" />
                       </div>
                       <div>
@@ -348,7 +349,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="border-b border-border py-24">
+      <section className="py-24" style={{ borderBottom: "0.5px solid var(--border-subtle)" }}>
         <div className="container mx-auto grid max-w-7xl items-start gap-10 px-6 lg:grid-cols-[0.95fr_1.05fr]">
           <AnimatedSection>
             <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Builder discovery</p>
@@ -367,7 +368,7 @@ export default async function HomePage() {
                     const chain = builder.preferredChains.join(", ") || "Multi-chain";
                     const openTo = builder.openTo.join(", ") || "Collaboration";
                     return (
-                      <div key={builder.id} className="rounded-2xl border border-border/70 bg-card p-6">
+                      <div key={builder.id} className="rounded-xl p-6" style={{ backgroundColor: "var(--bg-elevated)", border: "0.5px solid var(--border-subtle)" }}>
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <div className="flex items-center gap-2">
@@ -376,17 +377,17 @@ export default async function HomePage() {
                                 alt={name}
                                 fallback={name.charAt(0)}
                                 className="h-8 w-8 rounded-full"
-                                fallbackClassName="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 text-xs text-cyan-200"
+                                fallbackClassName="bg-gradient-to-br from-violet-500/20 to-purple-500/20 text-xs text-violet-200"
                               />
                               <div className="text-sm font-semibold text-foreground">{name}</div>
                               <ProfileAffiliationTag label={affiliation.label} variant={affiliation.variant} />
                             </div>
                             <div className="mt-1 text-xs text-muted-foreground">{role}</div>
                             <div className="mt-2 text-xs text-muted-foreground">Chain expertise: {chain}</div>
-                            <div className="mt-2 text-xs text-emerald-300">Open to: {openTo}</div>
+                            <div className="mt-2 text-xs text-emerald-400">Open to: {openTo}</div>
                           </div>
                           <div className="flex flex-col gap-2">
-                            <Link href="/app/hiring" className="rounded-full bg-blue-600 px-4 py-2 text-center text-xs font-medium text-white transition hover:bg-blue-500">
+                            <Link href="/app/hiring" className="rounded-full bg-violet-600 px-4 py-2 text-center text-xs font-medium text-white transition hover:bg-violet-500">
                               Connect
                             </Link>
                             <Link
@@ -401,10 +402,10 @@ export default async function HomePage() {
                     );
                   })
                 : (
-                    <div className="rounded-2xl border border-dashed border-border/70 bg-card p-6">
+                    <div className="rounded-xl border border-dashed p-6" style={{ backgroundColor: "var(--bg-elevated)", borderColor: "var(--border-default)" }}>
                       <p className="text-sm text-muted-foreground">No public builders available yet. Complete builder onboarding to appear here.</p>
                       <div className="mt-3 flex gap-2">
-                        <Link href="/app/onboarding" className="rounded-full bg-blue-600 px-4 py-2 text-center text-xs font-medium text-white transition hover:bg-blue-500">
+                        <Link href="/app/onboarding" className="rounded-full bg-violet-600 px-4 py-2 text-center text-xs font-medium text-white transition hover:bg-violet-500">
                           Complete onboarding
                         </Link>
                         <Link href="/builders" className="rounded-full border border-border px-4 py-2 text-center text-xs font-medium text-foreground transition hover:bg-accent">
@@ -418,40 +419,40 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="border-b border-border py-20">
+      <section className="py-20" style={{ borderBottom: "0.5px solid var(--border-subtle)" }}>
         <div className="container mx-auto max-w-7xl px-6">
           <AnimatedSection>
-            <div className="rounded-2xl border border-border/70 bg-card p-8">
+            <div className="rounded-xl p-8" style={{ backgroundColor: "var(--bg-elevated)", border: "0.5px solid var(--border-subtle)" }}>
               <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Inside the app</p>
               <h3 className="mt-3 text-2xl font-semibold">Live platform modules</h3>
               <p className="mt-2 text-sm text-muted-foreground">
                 Production modules for hiring, jobs, events, intros, and KOL workflows.
               </p>
               <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-4">
-                <Link href="/app/jobs" className="rounded-xl border border-border/60 bg-background p-4 transition hover:bg-accent/40">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <BriefcaseBusiness className="h-4 w-4 text-cyan-300" />
+                <Link href="/app/jobs" className="rounded-lg p-4 transition hover:bg-[var(--bg-hover)]" style={{ backgroundColor: "var(--bg-surface)", border: "0.5px solid var(--border-subtle)" }}>
+                  <div className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    <BriefcaseBusiness className="h-4 w-4 text-violet-400" />
                     Jobs
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">{networkCounts.openJobs} open roles</p>
                 </Link>
-                <Link href="/app/hiring" className="rounded-xl border border-border/60 bg-background p-4 transition hover:bg-accent/40">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <UsersRound className="h-4 w-4 text-emerald-300" />
+                <Link href="/app/hiring" className="rounded-lg p-4 transition hover:bg-[var(--bg-hover)]" style={{ backgroundColor: "var(--bg-surface)", border: "0.5px solid var(--border-subtle)" }}>
+                  <div className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    <UsersRound className="h-4 w-4 text-emerald-400" />
                     Hiring
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">{networkCounts.hiringFounders} founders hiring</p>
                 </Link>
-                <Link href="/app/events" className="rounded-xl border border-border/60 bg-background p-4 transition hover:bg-accent/40">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <CalendarDays className="h-4 w-4 text-blue-300" />
+                <Link href="/app/events" className="rounded-lg p-4 transition hover:bg-[var(--bg-hover)]" style={{ backgroundColor: "var(--bg-surface)", border: "0.5px solid var(--border-subtle)" }}>
+                  <div className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    <CalendarDays className="h-4 w-4 text-violet-300" />
                     Events
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">{networkCounts.publishedEvents} published events</p>
                 </Link>
-                <Link href="/app/kols-premium" className="rounded-xl border border-border/60 bg-background p-4 transition hover:bg-accent/40">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <Crown className="h-4 w-4 text-amber-300" />
+                <Link href="/app/kols-premium" className="rounded-lg p-4 transition hover:bg-[var(--bg-hover)]" style={{ backgroundColor: "var(--bg-surface)", border: "0.5px solid var(--border-subtle)" }}>
+                  <div className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    <Crown className="h-4 w-4 text-amber-400" />
                     KOL Premium
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">{networkCounts.kolRequests} KOL requests tracked</p>
@@ -462,7 +463,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="border-b border-border py-24">
+      <section className="py-24" style={{ borderBottom: "0.5px solid var(--border-subtle)" }}>
         <div className="container mx-auto max-w-6xl px-6">
           <AnimatedSection className="mx-auto max-w-2xl text-center">
             <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Book a strategy call</p>

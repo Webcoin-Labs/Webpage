@@ -16,7 +16,8 @@ const envSchema = z.object({
   PASSWORD_RESET_FROM_EMAIL: z.string().optional(),
   PASSWORD_RESET_WEBHOOK_URL: z.string().url().optional(),
   PASSWORD_RESET_WEBHOOK_TOKEN: z.string().optional(),
-  STORAGE_PROVIDER: z.enum(["r2", "local"]).default("r2"),
+  STORAGE_PROVIDER: z.enum(["vercel_blob", "r2", "local"]).default("vercel_blob"),
+  BLOB_READ_WRITE_TOKEN: z.string().optional(),
   LOCAL_STORAGE_ROOT: z.string().optional(),
   PUBLIC_UPLOAD_ROOT: z.string().optional(),
   R2_ACCOUNT_ID: z.string().optional(),
@@ -80,6 +81,10 @@ if (!isProdBuild) {
         throw new Error("R2_ENDPOINT must be a valid URL when STORAGE_PROVIDER=r2.");
       }
     }
+  }
+
+  if (data.STORAGE_PROVIDER === "vercel_blob" && !data.BLOB_READ_WRITE_TOKEN) {
+    throw new Error("BLOB_READ_WRITE_TOKEN must be set when STORAGE_PROVIDER=vercel_blob.");
   }
 }
 

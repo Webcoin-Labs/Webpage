@@ -95,6 +95,13 @@ function statusClass(status: UploadModerationStatus) {
   return "text-muted-foreground";
 }
 
+function resolveOpenUrl(item: Item) {
+  if (item.assetType === "PITCH_DECK" && item.pitchDeck?.id) {
+    return `/api/uploads/private/pitch-deck/${item.pitchDeck.id}`;
+  }
+  return item.fileUrl;
+}
+
 export function AdminUploadModerationTable({ items }: { items: Item[] }) {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -222,6 +229,7 @@ export function AdminUploadModerationTable({ items }: { items: Item[] }) {
           <tbody>
             {items.map((item) => {
               const rowPending = rowLoadingId === item.id;
+              const openUrl = resolveOpenUrl(item);
               return (
                 <tr key={item.id} className="border-t border-border/40">
                   <td className="px-3 py-2">
@@ -248,7 +256,14 @@ export function AdminUploadModerationTable({ items }: { items: Item[] }) {
                       <button type="button" onClick={() => setActiveTimelineId(item.id)} className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground" title="Timeline">
                         <History className="h-4 w-4" />
                       </button>
-                      <a href={item.fileUrl} target="_blank" rel="noreferrer" className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground" title="Open file">
+                      <a
+                        href={openUrl || "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                        title="Open file"
+                        aria-disabled={!openUrl}
+                      >
                         <Eye className="h-4 w-4" />
                       </a>
                       <button type="button" disabled={rowPending} onClick={() => runRowAction(item.id, "flag")} className="rounded-md p-2 text-amber-300 hover:bg-amber-500/10 disabled:opacity-50" title="Flag">

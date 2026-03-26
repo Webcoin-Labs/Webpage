@@ -14,6 +14,7 @@ import {
 } from "@/lib/uploads/assets";
 import { logger } from "@/lib/logger";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
+import { measureAsync } from "@/lib/perf/measure";
 
 const urlField = z.string().url().optional().or(z.literal(""));
 const imageRefField = z
@@ -153,7 +154,12 @@ async function resolveAvatarUpdateForUser(
     if (existingStorageKey) {
       await storage.delete(existingStorageKey).catch(() => undefined);
     }
-    const storedImage = await optimizeAndStoreImage(uploadedAvatar, "avatar", userId);
+    const storedImage = await measureAsync(
+      "profile.image",
+      "optimize-avatar",
+      () => optimizeAndStoreImage(uploadedAvatar, "avatar", userId),
+      { userId }
+    );
     return {
       image: storedImage.fileUrl,
       imageStorageKey: storedImage.storageKey,
@@ -443,10 +449,16 @@ export async function upsertFounderProfile(formData: FormData): Promise<ProfileR
       if (existingFounderProfile?.companyLogoStorageKey) {
         await storage.delete(existingFounderProfile.companyLogoStorageKey).catch(() => undefined);
       }
-      uploadedCompanyLogo = await optimizeAndStoreImage(
-        companyLogoFile,
-        "company-logo",
-        existingFounderProfile?.id ?? session.user.id
+      uploadedCompanyLogo = await measureAsync(
+        "profile.image",
+        "optimize-company-logo",
+        () =>
+          optimizeAndStoreImage(
+            companyLogoFile,
+            "company-logo",
+            existingFounderProfile?.id ?? session.user.id
+          ),
+        { userId: session.user.id }
       );
     } catch (error) {
       logger.error({

@@ -21,19 +21,16 @@ import {
   addBuilderRaiseAsk,
   connectOpenClaw,
   createOrUpdateActiveRound,
-  createTokenomicsScenario,
-  importTokenomicsSheet,
-  rollbackTokenomicsScenarioRevision,
   sendTelegramReply,
   syncTelegramThreads,
   updateRoundProgress,
   updateRoundStatus,
-  upsertAllocationRows,
 } from "@/app/actions/founder-os-expansion";
 import { calculateCofounderMatchScore } from "@/lib/founder-os";
 import { recomputeMyScoresAction } from "@/app/actions/canonical-graph";
 import { PitchDeckWorkspace, type DeckRecord as WorkspaceDeckRecord } from "@/components/pitchdeck/PitchDeckWorkspace";
 import { EcosystemFeedPanel } from "@/components/ecosystem/EcosystemFeedPanel";
+import { TokenomicsStudioClient } from "@/components/tokenomics/TokenomicsStudioClient";
 
 export const metadata = {
   title: "Founder Workspace - Webcoin Labs",
@@ -277,91 +274,48 @@ export default async function FounderOsAppPage({
       }),
     ]);
 
-    const createTokenomicsScenarioAction = async (formData: FormData) => {
-      "use server";
-      await createTokenomicsScenario(formData);
-    };
-    const upsertAllocationRowsAction = async (formData: FormData) => {
-      "use server";
-      await upsertAllocationRows(formData);
-    };
-    const importTokenomicsSheetAction = async (formData: FormData) => {
-      "use server";
-      await importTokenomicsSheet(formData);
-    };
-    const rollbackTokenomicsRevisionAction = async (formData: FormData) => {
-      "use server";
-      await rollbackTokenomicsScenarioRevision(formData);
-    };
-
     return sharedShell(
-      <section className="space-y-4">
-        <article className="rounded-xl border border-border/60 bg-card p-4">
-          <p className="text-sm font-semibold">Tokenomics Studio</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Dedicated modeling workspace with scenario builder and CSV/XLSX import/export.
-          </p>
-          {ventures.length === 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">Create a venture first to model tokenomics.</p>
-          ) : (
-            <form action={createTokenomicsScenarioAction} className="mt-3 space-y-2">
-              <div className="grid gap-2 sm:grid-cols-2">
-                <select name="ventureId" className="rounded-md border border-border bg-background px-3 py-2 text-sm" required>
-                  {ventures.map((venture) => <option key={venture.id} value={venture.id}>{venture.name}</option>)}
-                </select>
-                <input name="name" placeholder="Model name" className="rounded-md border border-border bg-background px-3 py-2 text-sm" required />
-              </div>
-              <div className="grid gap-2 sm:grid-cols-3">
-                <input name="totalSupply" type="number" step="0.0001" placeholder="Total supply" className="rounded-md border border-border bg-background px-3 py-2 text-sm" required />
-                <input name="tokenSymbol" placeholder="Token symbol" className="rounded-md border border-border bg-background px-3 py-2 text-sm" />
-                <input name="scenarioName" placeholder="Scenario name" defaultValue="Base Scenario" className="rounded-md border border-border bg-background px-3 py-2 text-sm" />
-              </div>
-              <button type="submit" className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200">
-                Create model
-              </button>
-            </form>
-          )}
-        </article>
-        {tokenomicsModels.map((model) => (
-          <article key={model.id} className="rounded-xl border border-border/60 bg-card p-4">
-            <p className="text-sm font-semibold">{model.name} ({model.tokenSymbol ?? "TOKEN"})</p>
-            <p className="text-xs text-muted-foreground">Venture: {model.venture.name}</p>
-            {model.scenarios.map((scenario) => (
-              <div key={scenario.id} className="mt-3 rounded-md border border-border/50 p-3">
-                <p className="text-xs font-medium">{scenario.name}</p>
-                <form action={upsertAllocationRowsAction} className="mt-2 space-y-2">
-                  <input type="hidden" name="scenarioId" value={scenario.id} />
-                  <input type="hidden" name="revisionReason" value="table_editor_update" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input name="rowLabel" placeholder="Allocation label" className="rounded-md border border-border bg-background px-2 py-1 text-xs" />
-                    <input name="rowPercentage" placeholder="Allocation %" type="number" step="0.0001" className="rounded-md border border-border bg-background px-2 py-1 text-xs" />
-                  </div>
-                  <button type="submit" className="rounded-md border border-border px-2 py-1 text-xs">Save allocation</button>
-                </form>
-                <form action={importTokenomicsSheetAction} className="mt-2 flex gap-2">
-                  <input type="hidden" name="scenarioId" value={scenario.id} />
-                  <input type="file" name="file" accept=".csv,.xlsx,.xls" className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-xs" />
-                  <button type="submit" className="rounded-md border border-border px-2 py-1 text-xs">Import</button>
-                </form>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <a href={`/api/tokenomics/${scenario.id}/export?format=csv`} className="rounded-md border border-border px-2 py-1 text-xs text-cyan-300">Export CSV</a>
-                  <a href={`/api/tokenomics/${scenario.id}/export?format=xlsx`} className="rounded-md border border-border px-2 py-1 text-xs text-cyan-300">Export XLSX</a>
-                </div>
-                {scenario.revisions.length > 0 ? (
-                  <form action={rollbackTokenomicsRevisionAction} className="mt-2 flex gap-2">
-                    <select name="revisionId" className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-xs">
-                      {scenario.revisions.map((revision) => (
-                        <option key={revision.id} value={revision.id}>Revision #{revision.revisionNumber}</option>
-                      ))}
-                    </select>
-                    <button type="submit" className="rounded-md border border-border px-2 py-1 text-xs">Rollback</button>
-                  </form>
-                ) : null}
-              </div>
-            ))}
+      ventures.length === 0 ? (
+        <section className="space-y-4">
+          <article className="rounded-xl border border-border/60 bg-card p-4">
+            <p className="text-sm font-semibold">Tokenomics Studio</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              AI-assisted tokenomics works best once a venture exists, because the draft should be anchored to a real startup context.
+            </p>
+            <p className="mt-3 text-sm text-muted-foreground">Create a venture first to generate and edit tokenomics here.</p>
           </article>
-        ))}
-      </section>,
+        </section>
+      ) : (
+        <TokenomicsStudioClient
+          ventures={ventures.map((venture) => ({ id: venture.id, name: venture.name }))}
+          initialModels={tokenomicsModels.map((model) => ({
+            id: model.id,
+            name: model.name,
+            tokenSymbol: model.tokenSymbol,
+            totalSupply: Number(model.totalSupply),
+            notes: model.notes,
+            ventureName: model.venture.name,
+            scenarios: model.scenarios.map((scenario) => ({
+              id: scenario.id,
+              name: scenario.name,
+              revisions: scenario.revisions.map((revision) => ({
+                id: revision.id,
+                revisionNumber: revision.revisionNumber,
+              })),
+              allocations: scenario.allocations.map((row) => ({
+                id: row.id,
+                label: row.label,
+                percentage: row.percentage ? Number(row.percentage) : null,
+                tokenAmount: row.tokenAmount ? Number(row.tokenAmount) : null,
+                cliffMonths: row.cliffMonths,
+                vestingMonths: row.vestingMonths,
+                unlockCadence: row.unlockCadence,
+                notes: row.notes,
+              })),
+            })),
+          }))}
+        />
+      ),
     );
   }
 

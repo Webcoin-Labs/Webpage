@@ -15,6 +15,7 @@ import { generateImprovedDeck, generateMissingSection, rewritePitchDeckSection }
 import { buildSectionReviews, detectMissingSectionKeys, keyToSectionTitle } from "@/lib/pitchdeck/workspace";
 import { upsertPitchDeckUploadAsset } from "@/lib/uploads/assets";
 import { logger } from "@/lib/logger";
+import { measureAsync } from "@/lib/perf/measure";
 
 const MAX_FILE_BYTES = 14 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx"]);
@@ -208,6 +209,10 @@ async function processPitchDeck(
   deckId: string,
   actor: { id: string; role: string }
 ): Promise<PitchDeckActionResult> {
+  return measureAsync(
+    "pitchdeck.process",
+    "process",
+    async () => {
   const deck = await db.pitchDeck.findUnique({
     where: { id: deckId },
     include: {
@@ -401,6 +406,9 @@ async function processPitchDeck(
     revalidatePath("/app/admin/pitch-decks");
     return { success: false, error: message };
   }
+    },
+    { deckId, actorId: actor.id, actorRole: actor.role }
+  );
 }
 
 export async function uploadPitchDeck(formData: FormData): Promise<PitchDeckActionResult> {
@@ -461,9 +469,11 @@ export async function uploadPitchDeck(formData: FormData): Promise<PitchDeckActi
   });
 
   try {
+    await measureAsync("pitchdeck.upload", "store-source-file", async () => {
     const storage = getFileStorage();
     const extension = detectedKind === "PDF" ? "pdf" : "docx";
-    const storageKey = `pitch-decks/${deck.id}.${extension}`;
+    const storageKey = `private/pitch-decks/${deck.id}.${extension}`;
+    const privateProxyUrl = `/api/uploads/private/pitch-deck/${deck.id}`;
     const stored = await storage.store({
       fileName: safeFile.name,
       contentType:
@@ -472,18 +482,20 @@ export async function uploadPitchDeck(formData: FormData): Promise<PitchDeckActi
           : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       buffer: fileBuffer,
       storageKey,
+      visibility: "private",
+      pathPrefix: "private/pitch-decks",
     });
     await db.pitchDeck.update({
       where: { id: deck.id },
       data: {
-        fileUrl: stored.fileUrl,
+        fileUrl: privateProxyUrl,
         storageKey: stored.storageKey,
         uploadStatus: "STORED",
       },
     });
     await upsertPitchDeckUploadAsset(deck.id, {
       ownerUserId: session.user.id,
-      fileUrl: stored.fileUrl,
+      fileUrl: privateProxyUrl,
       storageKey: stored.storageKey,
       mimeType:
         detectedKind === "PDF"
@@ -492,6 +504,7 @@ export async function uploadPitchDeck(formData: FormData): Promise<PitchDeckActi
       fileSize: safeFile.size,
       originalName: safeFile.name,
     });
+    }, { userId: session.user.id, deckId: deck.id });
   } catch (error) {
     const message = error instanceof Error ? error.message : "File upload failed.";
     logger.error({

@@ -4,6 +4,12 @@ const configuredImageDomains = [
     "avatars.githubusercontent.com",
     "res.cloudinary.com",
 ];
+const configuredImageRemotePatterns = [
+    {
+        protocol: "https",
+        hostname: "**.r2.cloudflarestorage.com",
+    },
+];
 
 if (process.env.R2_ENDPOINT) {
     try {
@@ -18,10 +24,18 @@ if (process.env.R2_ENDPOINT) {
 
 const nextConfig = {
     images: {
-        remotePatterns: configuredImageDomains.map((hostname) => ({
-            protocol: "https",
-            hostname,
-        })),
+        formats: ["image/avif", "image/webp"],
+        remotePatterns: [
+            ...configuredImageDomains.map((hostname) => ({
+                protocol: "https",
+                hostname,
+            })),
+            ...configuredImageRemotePatterns,
+            {
+                protocol: "https",
+                hostname: "**.public.blob.vercel-storage.com",
+            },
+        ],
     },
     serverExternalPackages: [
         "@prisma/client",

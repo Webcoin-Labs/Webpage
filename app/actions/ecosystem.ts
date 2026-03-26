@@ -5,6 +5,7 @@ import { z } from "zod";
 import { ContactMethodType, FeedPostType, FeedPostVisibility, Role, Prisma } from "@prisma/client";
 import { db } from "@/server/db/client";
 import { requireSessionUser } from "@/server/policies/authz";
+import { measureAsync } from "@/lib/perf/measure";
 
 type ActionResult = { success: true; message?: string } | { success: false; error: string };
 
@@ -63,19 +64,25 @@ export async function createFeedPost(formData: FormData): Promise<ActionResult> 
     }
   }
 
-  await db.feedPost.create({
-    data: {
-      authorUserId: user.id,
-      authorRole: user.role,
-      postType: parsed.data.postType,
-      title: parsed.data.title,
-      body: parsed.data.body,
-      visibility: parsed.data.visibility,
-      metadata: (metadata ?? undefined) as Prisma.InputJsonValue | undefined,
-      relatedVentureId: parsed.data.relatedVentureId || null,
-      relatedProjectId: parsed.data.relatedProjectId || null,
-    },
-  });
+  await measureAsync(
+    "ecosystem.feed",
+    "create-post",
+    () =>
+      db.feedPost.create({
+        data: {
+          authorUserId: user.id,
+          authorRole: user.role,
+          postType: parsed.data.postType,
+          title: parsed.data.title,
+          body: parsed.data.body,
+          visibility: parsed.data.visibility,
+          metadata: (metadata ?? undefined) as Prisma.InputJsonValue | undefined,
+          relatedVentureId: parsed.data.relatedVentureId || null,
+          relatedProjectId: parsed.data.relatedProjectId || null,
+        },
+      }),
+    { authorUserId: user.id, postType: parsed.data.postType }
+  );
 
   revalidatePath("/app/ecosystem-feed");
   revalidatePath("/app/founder-os/ecosystem-feed");

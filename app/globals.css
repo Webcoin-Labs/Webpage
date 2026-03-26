@@ -3,59 +3,116 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ================================================================
+   DESIGN TOKENS — Deep Purple Command Center
+   ================================================================ */
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 220 35% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 220 35% 12%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 35% 12%;
-    --primary: 214 82% 46%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222 35% 14%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 217 12% 44%;
-    --accent: 210 30% 96%;
-    --accent-foreground: 222 35% 14%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214 24% 90%;
-    --input: 214 24% 90%;
-    --ring: 214 82% 46%;
-    --radius: 0.75rem;
+  :root,
+  [data-theme="dark"] {
+    /* Surfaces */
+    --bg-base: #09090b;
+    --bg-surface: #0c0c0e;
+    --bg-elevated: #111114;
+    --bg-hover: #18181c;
+    --bg-active: #1a1030;
 
-    --mesh-color-1: hsla(214, 82%, 46%, 0.05);
-    --mesh-color-2: hsla(200, 90%, 45%, 0.04);
+    /* Borders */
+    --border-subtle: #1c1c20;
+    --border-default: #242428;
+    --border-accent: #5b21b6;
+
+    /* Text */
+    --text-primary: #f4f4f5;
+    --text-secondary: #a1a1aa;
+    --text-muted: #52525b;
+
+    /* Accent */
+    --accent-color: #7c3aed;
+    --accent-soft: #a78bfa;
+    --accent-dim: #1a0f35;
+
+    /* Semantic */
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --cyan: #22d3ee;
+
+    /* Radii */
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+
+    /* ---- Tailwind/shadcn bridge tokens ---- */
+    --background: 240 6% 4%;          /* #09090b */
+    --foreground: 240 5% 96%;         /* #f4f4f5 */
+    --card: 240 8% 5%;               /* #0c0c0e */
+    --card-foreground: 240 5% 96%;
+    --popover: 240 10% 7%;           /* #111114 */
+    --popover-foreground: 240 5% 96%;
+    --primary: 263 70% 58%;           /* #7c3aed */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 10%;
+    --secondary-foreground: 240 5% 96%;
+    --muted: 240 5% 10%;
+    --muted-foreground: 240 4% 46%;   /* #71717a */
+    --accent: 260 50% 14%;           /* bg-active */
+    --accent-foreground: 240 5% 96%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 5% 14%;            /* #242428 */
+    --input: 240 5% 14%;
+    --ring: 263 70% 58%;
+    --radius: 0.625rem;              /* 10px */
+
+    --mesh-color-1: hsla(263, 70%, 58%, 0.08);
+    --mesh-color-2: hsla(280, 60%, 50%, 0.06);
   }
 
-  .dark {
-    --background: 224 71% 4%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 6%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 6%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 214 82% 46%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 217.2 32.6% 12%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 10%;
-    --muted-foreground: 215 20.2% 65%;
-    --accent: 217.2 32.6% 12%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 14%;
-    --input: 217.2 32.6% 14%;
-    --ring: 214 82% 46%;
+  [data-theme="light"] {
+    --bg-base: #f9f9fb;
+    --bg-surface: #ffffff;
+    --bg-elevated: #f4f4f6;
+    --bg-hover: #ededf2;
+    --bg-active: #ede9fe;
 
-    --mesh-color-1: hsla(214, 82%, 46%, 0.12);
-    --mesh-color-2: hsla(200, 90%, 45%, 0.12);
+    --border-subtle: #e4e4e8;
+    --border-default: #d1d1d8;
+    --border-accent: #7c3aed;
+
+    --text-primary: #09090b;
+    --text-secondary: #52525b;
+    --text-muted: #a1a1aa;
+
+    --accent-color: #7c3aed;
+    --accent-soft: #6d28d9;
+    --accent-dim: #ede9fe;
+
+    /* ---- Tailwind/shadcn bridge tokens (light) ---- */
+    --background: 240 4% 98%;        /* #f9f9fb */
+    --foreground: 240 6% 4%;         /* #09090b */
+    --card: 0 0% 100%;
+    --card-foreground: 240 6% 4%;
+    --popover: 240 5% 96%;
+    --popover-foreground: 240 6% 4%;
+    --primary: 263 70% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 4%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 263 83% 95%;           /* #ede9fe */
+    --accent-foreground: 240 6% 4%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 5% 84%;
+    --input: 240 5% 84%;
+    --ring: 263 70% 58%;
+
+    --mesh-color-1: hsla(263, 70%, 58%, 0.05);
+    --mesh-color-2: hsla(280, 60%, 50%, 0.04);
   }
 }
-
 
 @layer base {
   * {
@@ -63,6 +120,8 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
   }
   html {
     scroll-behavior: smooth;
@@ -115,7 +174,7 @@
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 0.7rem;
   line-height: 1.4;
-  color: hsl(var(--foreground));
+  color: var(--text-primary);
   opacity: 0.05;
   padding: 2rem 1.5rem;
   animation: binary-scroll 40s linear infinite;
@@ -131,34 +190,35 @@
 
 @layer utilities {
   .gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-violet-400 to-cyan-400;
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(90deg, #a78bfa, #7c3aed, #a78bfa);
     background-size: 200% auto;
     animation: gradient-shift 4s linear infinite;
   }
 
   .gradient-border {
     position: relative;
-    background: hsl(var(--card));
-    border-radius: var(--radius);
+    background: var(--bg-surface);
+    border-radius: var(--radius-md);
   }
 
   .gradient-border::before {
     content: "";
     position: absolute;
     inset: -1px;
-    border-radius: calc(var(--radius) + 1px);
-    background: linear-gradient(135deg, #22d3ee22, #8b5cf622, #22d3ee22);
+    border-radius: calc(var(--radius-md) + 1px);
+    background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(167,139,250,0.1), rgba(124,58,237,0.15));
     z-index: -1;
   }
 
-  .glow-cyan {
-    box-shadow: 0 0 30px rgba(34, 211, 238, 0.15);
+  .glow-accent {
+    box-shadow: 0 0 30px rgba(124, 58, 237, 0.15);
   }
 
-  .glow-violet {
-    box-shadow: 0 0 30px rgba(139, 92, 246, 0.15);
+  .glow-soft {
+    box-shadow: 0 0 30px rgba(124, 58, 237, 0.08);
   }
-  
+
   .mesh-bg {
     background-image:
       radial-gradient(at 40% 20%, var(--mesh-color-2) 0px, transparent 50%),
@@ -171,21 +231,21 @@
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: hsl(var(--background));
+  background: var(--bg-base);
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
+  background: var(--border-default);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground));
+  background: var(--text-muted);
 }
 
 /* Selection color */
 ::selection {
-  background-color: rgba(34, 211, 238, 0.2);
-  color: hsl(var(--foreground));
+  background-color: rgba(124, 58, 237, 0.25);
+  color: var(--text-primary);
 }

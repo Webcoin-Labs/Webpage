@@ -13,6 +13,7 @@
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test tests/e2e/smoke.spec.ts",
     "typecheck": "tsc --noEmit",
+    "perf:budget": "ts-node --transpile-only scripts/check-performance-budget.ts",
     "audit:prod": "pnpm audit --prod",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
@@ -25,7 +26,7 @@
     "certify:integrations": "ts-node --transpile-only scripts/certify-integrations.ts",
     "check:ops-readiness": "ts-node --transpile-only scripts/ops-readiness-check.ts",
     "bootstrap:secrets": "ts-node --transpile-only scripts/bootstrap-secrets.ts",
-    "release:gate": "pnpm prisma generate && pnpm prisma db push --skip-generate && pnpm typecheck && pnpm test && pnpm test:e2e && pnpm check:ops-readiness"
+    "release:gate": "pnpm prisma generate && pnpm prisma db push --skip-generate && pnpm typecheck && pnpm test && pnpm test:e2e && pnpm perf:budget && pnpm check:ops-readiness"
   },
   "prisma": {
     "seed": "ts-node --transpile-only prisma/seed.ts"
@@ -48,6 +49,7 @@
     "@tsparticles/engine": "^3.9.1",
     "@tsparticles/react": "^3.0.0",
     "@tsparticles/slim": "^3.9.1",
+    "@vercel/blob": "^2.3.1",
     "@vercel/speed-insights": "^2.0.0",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
+import { IBM_Plex_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { AuthProvider } from "@/components/providers/AuthProvider";
@@ -8,7 +8,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
-const spaceGrotesk = Space_Grotesk({
+const inter = Inter({
     subsets: ["latin"],
     variable: "--font-sans",
     display: "swap",
@@ -85,9 +85,9 @@ export default async function RootLayout({
 
     return (
         <html lang="en" suppressHydrationWarning>
-            <body className={`${spaceGrotesk.variable} ${plexMono.variable} font-sans`}>
+            <body className={`${inter.variable} ${plexMono.variable} font-sans`}>
                 <ThemeProvider
-                    attribute="class"
+                    attribute="data-theme"
                     defaultTheme="dark"
                     enableSystem
                     disableTransitionOnChange

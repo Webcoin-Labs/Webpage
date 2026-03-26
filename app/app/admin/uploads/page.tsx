@@ -107,7 +107,7 @@ async function backfillUploadAssets() {
   for (const deck of decks) {
     await upsertPitchDeckUploadAsset(deck.id, {
       ownerUserId: deck.userId,
-      fileUrl: deck.fileUrl,
+      fileUrl: `/api/uploads/private/pitch-deck/${deck.id}`,
       storageKey: deck.storageKey ?? null,
       mimeType: deck.fileType,
       fileSize: deck.fileSize,
