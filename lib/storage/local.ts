@@ -31,7 +31,19 @@ export class LocalFileStorage implements FileStorage {
 
   constructor(privateRootPath?: string, publicRootPath?: string) {
     this.privateRootPath = privateRootPath ?? env.LOCAL_STORAGE_ROOT ?? path.join(process.cwd(), ".data");
-    this.publicRootPath = publicRootPath ?? env.PUBLIC_UPLOAD_ROOT ?? path.join(process.cwd(), "public");
+    const configuredPublicRoot = publicRootPath ?? env.PUBLIC_UPLOAD_ROOT;
+    if (!configuredPublicRoot) {
+      this.publicRootPath = path.join(process.cwd(), "public");
+    } else if (path.isAbsolute(configuredPublicRoot)) {
+      // Support URL-style values like "/uploads" by mapping them under /public.
+      if (configuredPublicRoot.startsWith("/") && !configuredPublicRoot.startsWith("//")) {
+        this.publicRootPath = path.join(process.cwd(), "public", configuredPublicRoot.replace(/^\/+/, ""));
+      } else {
+        this.publicRootPath = configuredPublicRoot;
+      }
+    } else {
+      this.publicRootPath = path.join(process.cwd(), configuredPublicRoot);
+    }
   }
 
   async store(input: StoreFileInput): Promise<StoredFile> {

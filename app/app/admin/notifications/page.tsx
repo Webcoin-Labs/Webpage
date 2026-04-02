@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { createBroadcastNotification } from "@/app/actions/notifications";
 import { createInviteOnlyCode } from "@/app/actions/invite-community";
@@ -8,7 +7,7 @@ import { createInviteOnlyCode } from "@/app/actions/invite-community";
 export const metadata = { title: "Admin Notifications - Webcoin Labs" };
 
 export default async function AdminNotificationsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") redirect("/app");
 
   const [notifications, inviteCodes] = await Promise.all([
@@ -119,3 +118,4 @@ export default async function AdminNotificationsPage() {
     </div>
   );
 }
+

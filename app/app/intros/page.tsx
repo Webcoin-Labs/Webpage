@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import Link from "next/link";
 import { Plus } from "lucide-react";
@@ -8,7 +7,7 @@ import { IntroRequestsList } from "./IntroRequestsList";
 export const metadata = { title: "Intro Requests - Webcoin Labs" };
 
 export default async function IntrosPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   const user = session!.user;
 
   const requests = await db.introRequest.findMany({
@@ -63,3 +62,4 @@ export default async function IntrosPage() {
     </div>
   );
 }
+

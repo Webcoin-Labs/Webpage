@@ -1,11 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { OpenClawConnectionStatus, Prisma, Role } from "@prisma/client";
 import { z } from "zod";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { decryptSecret, encryptSecret } from "@/lib/security/crypto";
@@ -64,7 +63,7 @@ function d(value: number | null | undefined) {
 }
 
 async function requireUser() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) throw new Error("Not authenticated.");
   return session.user;
 }
@@ -552,10 +551,41 @@ export async function connectOpenClaw(formData: FormData): Promise<Result> {
       metadata: { workspaceExternalId: data.workspaceExternalId ?? s(formData.get("workspaceExternalId")) },
     });
     revalidatePath("/app/founder-os");
+    revalidatePath("/app/founder-os/integrations");
+    revalidatePath("/app/settings");
     return { success: true };
   } catch (e) {
     logError("openclaw_connect_failed", { message: e instanceof Error ? e.message : "Unknown error" });
     return { success: false, error: e instanceof Error ? e.message : "OpenClaw connection failed." };
+  }
+}
+
+export async function disconnectOpenClaw(): Promise<Result> {
+  try {
+    const user = await requireUser();
+    allow(user.role, ["FOUNDER"]);
+    await db.openClawConnection.updateMany({
+      where: { userId: user.id },
+      data: {
+        status: "DISCONNECTED",
+        encryptedAccessToken: null,
+        encryptedRefreshToken: null,
+        tokenExpiresAt: null,
+        externalWorkspaceId: null,
+        lastSyncedAt: null,
+      },
+    });
+    await writeAuditLog({
+      userId: user.id,
+      action: "openclaw_disconnect",
+      entityType: "OpenClawConnection",
+    });
+    revalidatePath("/app/founder-os");
+    revalidatePath("/app/settings");
+    return { success: true };
+  } catch (e) {
+    logError("openclaw_disconnect_failed", { message: e instanceof Error ? e.message : "Unknown error" });
+    return { success: false, error: e instanceof Error ? e.message : "OpenClaw disconnect failed." };
   }
 }
 
@@ -626,6 +656,8 @@ export async function syncTelegramThreads(formData?: FormData): Promise<Result> 
       metadata: { workspaceId: selected.id, syncedThreadCount: sync.threads.length },
     });
     revalidatePath("/app/founder-os");
+    revalidatePath("/app/founder-os/integrations");
+    revalidatePath("/app/settings");
     return { success: true };
   } catch (e) {
     if (userId && e instanceof OpenClawApiError && (e.status === 401 || e.status === 403)) {
@@ -1150,3 +1182,4 @@ export async function linkFounderBuilderIdentity(formData: FormData): Promise<Re
     return { success: false, error: e instanceof Error ? e.message : "Profile link failed." };
   }
 }
+

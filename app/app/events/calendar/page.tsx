@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -11,7 +10,7 @@ export const metadata = {
 };
 
 export default async function EventsCalendarPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -56,3 +55,4 @@ export default async function EventsCalendarPage() {
     </div>
   );
 }
+

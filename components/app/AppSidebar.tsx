@@ -1,9 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signOut } from "@/lib/auth-client";
 import { useEffect, useState } from "react";
 import {
   BellRing,
@@ -23,7 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ProfileAvatar } from "@/components/common/ProfileAvatar";
 import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag";
-import { founderModules } from "@/lib/os/modules";
+import { builderModules, founderModules, investorModules } from "@/lib/os/modules";
 
 interface SidebarUser {
   id: string;
@@ -50,12 +49,11 @@ type NavItem = {
 };
 
 const systemItems: NavItem[] = [
-  { href: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/app/ecosystem-feed", label: "Ecosystem Feed", icon: Compass },
   { href: "/app/workspaces", label: "Apps / Launcher", icon: Compass },
   { href: "/app/notifications", label: "Inbox", icon: Inbox },
   { href: "/app/events", label: "Tasks / Activity", icon: BellRing },
   { href: "/app/founders", label: "People / Network", icon: User },
-  { href: "/app/ecosystem-feed", label: "Ecosystem Feed", icon: Compass },
   { href: "/app/docs", label: "Docs", icon: BookOpen },
   { href: "/app/projects", label: "Files / Data Room", icon: FolderKanban, roles: ["FOUNDER", "ADMIN"] },
   { href: "/app/builder-projects", label: "Files / Data Room", icon: FolderKanban, roles: ["BUILDER", "ADMIN"] },
@@ -64,8 +62,8 @@ const systemItems: NavItem[] = [
 ];
 
 const osItems: NavItem[] = [
-  { href: "/app/founder-os", label: "Founder OS", icon: Rocket, roles: ["FOUNDER", "BUILDER", "ADMIN"], workspace: "FOUNDER_OS" },
-  { href: "/app/builder-os", label: "Builder OS", icon: Rocket, roles: ["BUILDER", "FOUNDER", "ADMIN"], workspace: "BUILDER_OS" },
+  { href: "/app/founder-os", label: "Founder OS", icon: Rocket, roles: ["FOUNDER", "ADMIN"], workspace: "FOUNDER_OS" },
+  { href: "/app/builder-os", label: "Builder OS", icon: Rocket, roles: ["BUILDER", "ADMIN"], workspace: "BUILDER_OS" },
   { href: "/app/investor-os", label: "Investor OS", icon: Rocket, roles: ["INVESTOR", "ADMIN"], workspace: "INVESTOR_OS" },
 ];
 
@@ -79,6 +77,10 @@ function canAccessWorkspace(item: NavItem, enabledWorkspaces: AppWorkspace[]) {
   if (!item.workspace) return true;
   return enabledWorkspaces.includes(item.workspace);
 }
+
+const founderSidebarModules = founderModules.filter((module) => module.slug !== "ecosystem-feed");
+const builderSidebarModules = builderModules.filter((module) => module.slug !== "ecosystem-feed");
+const investorSidebarModules = investorModules.filter((module) => module.slug !== "ecosystem-feed");
 
 function NavSection({
   items,
@@ -128,21 +130,35 @@ export function AppSidebar({
   enabledWorkspaces?: AppWorkspace[];
 }) {
   const pathname = usePathname();
-  const founderOsVisible =
-    canAccessRole(osItems[0], user.role) && canAccessWorkspace(osItems[0], enabledWorkspaces);
+  const founderOsVisible = canAccessRole(osItems[0], user.role) && canAccessWorkspace(osItems[0], enabledWorkspaces);
   const founderOsActive = pathname.startsWith("/app/founder-os");
   const [founderOsExpanded, setFounderOsExpanded] = useState(founderOsActive);
+  const builderOsVisible = canAccessRole(osItems[1], user.role) && canAccessWorkspace(osItems[1], enabledWorkspaces);
+  const builderOsActive = pathname.startsWith("/app/builder-os");
+  const [builderOsExpanded, setBuilderOsExpanded] = useState(builderOsActive);
+  const investorOsVisible = canAccessRole(osItems[2], user.role) && canAccessWorkspace(osItems[2], enabledWorkspaces);
+  const investorOsActive = pathname.startsWith("/app/investor-os");
+  const [investorOsExpanded, setInvestorOsExpanded] = useState(investorOsActive);
 
   useEffect(() => {
     if (founderOsActive) setFounderOsExpanded(true);
   }, [founderOsActive]);
+  useEffect(() => {
+    if (builderOsActive) setBuilderOsExpanded(true);
+  }, [builderOsActive]);
+  useEffect(() => {
+    if (investorOsActive) setInvestorOsExpanded(true);
+  }, [investorOsActive]);
 
   return (
     <aside
-      className="sticky top-0 hidden h-screen w-[230px] shrink-0 flex-col md:flex"
+      className="sticky top-3 left-3 hidden h-[calc(100vh-24px)] w-[246px] shrink-0 flex-col overflow-hidden rounded-[28px] md:flex"
       style={{
         backgroundColor: "var(--bg-surface)",
         borderRight: "0.5px solid var(--border-subtle)",
+        border: "0.5px solid var(--border-subtle)",
+        marginLeft: "12px",
+        marginBottom: "12px",
       }}
     >
       {/* Logo + Brand */}
@@ -159,25 +175,38 @@ export function AppSidebar({
       </div>
 
       {/* User Card */}
-      <div className="mx-3 mb-3 rounded-[10px] p-2.5" style={{
+      <div className="mx-3 mb-3 overflow-hidden rounded-[14px] p-3" style={{
         backgroundColor: "var(--bg-elevated)",
         border: "0.5px solid var(--border-subtle)",
       }}>
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-start gap-3">
           <ProfileAvatar
             src={user.image}
             alt={user.name ?? "User"}
             fallback={user.name?.charAt(0) ?? user.email?.charAt(0) ?? "U"}
-            className="h-8 w-8 rounded-lg"
-            fallbackClassName="rounded-lg text-xs font-bold text-white bg-violet-600"
+            className="h-11 w-11 shrink-0 rounded-xl"
+            fallbackClassName="rounded-xl bg-violet-600 text-sm font-bold text-white"
           />
-          <div className="min-w-0">
-            <p className="truncate text-[12px] font-medium" style={{ color: "var(--text-primary)" }}>
+          <div className="min-w-0 flex-1">
+            <p
+              className="line-clamp-2 break-words text-[13px] font-semibold leading-4"
+              style={{ color: "var(--text-primary)" }}
+              title={user.name ?? "User"}
+            >
               {user.name ?? "User"}
             </p>
-            <div className="mt-0.5 flex items-center gap-1.5">
+            {user.email ? (
+              <p
+                className="mt-1 truncate text-[11px]"
+                style={{ color: "var(--text-muted)" }}
+                title={user.email}
+              >
+                {user.email}
+              </p>
+            ) : null}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span
-                className="rounded px-1.5 py-0.5 text-[10px] font-medium"
+                className="rounded-full px-2 py-0.5 text-[10px] font-medium"
                 style={{
                   backgroundColor: "var(--accent-dim)",
                   color: "var(--accent-soft)",
@@ -218,51 +247,53 @@ export function AppSidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-5 overflow-y-auto px-1.5 py-2">
+      <nav className="flex-1 space-y-5 overflow-y-auto px-2 py-2">
         <div>
           <p
             className="mb-1 px-3 text-[10px] font-medium uppercase tracking-[0.14em]"
             style={{ color: "var(--text-muted)" }}
           >
-            System
+            Workspace
           </p>
-          <NavSection items={systemItems} pathname={pathname} role={user.role} enabledWorkspaces={enabledWorkspaces} />
-        </div>
-        <div>
-          <p
-            className="mb-1 px-3 text-[10px] font-medium uppercase tracking-[0.14em]"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Operating Systems
-          </p>
-          <NavSection items={osItems} pathname={pathname} role={user.role} enabledWorkspaces={enabledWorkspaces} />
-          {founderOsVisible ? (
-            <div className="mt-1 px-1.5">
+          {builderOsVisible ? (
+            <div className="mt-2 px-1.5">
               <button
                 type="button"
-                onClick={() => setFounderOsExpanded((current) => !current)}
+                onClick={() => setBuilderOsExpanded((current) => !current)}
                 className={cn(
-                  "group flex w-full items-center justify-between rounded-[var(--radius-lg)] px-2.5 py-[7px] text-[12px] font-medium transition-all duration-150",
-                  founderOsActive
+                  "group flex w-full items-center justify-between rounded-[16px] px-2.5 py-[9px] text-[12px] font-medium transition-all duration-150",
+                  builderOsActive
                     ? "bg-[var(--bg-active)] text-[var(--text-primary)]"
                     : "text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]",
                 )}
               >
                 <span className="flex items-center gap-2.5">
                   <Rocket className="h-[15px] w-[15px] shrink-0" />
-                  <span className="truncate">Founder OS Apps</span>
+                  <span className="truncate">Builder OS</span>
                 </span>
                 <ChevronDown
                   className={cn(
                     "h-4 w-4 shrink-0 transition-transform duration-150",
-                    founderOsExpanded ? "rotate-180" : "",
+                    builderOsExpanded ? "rotate-180" : "",
                   )}
                 />
               </button>
-              {founderOsExpanded ? (
-                <div className="mt-1 space-y-1 border-l border-[var(--border-subtle)] pl-3 ml-4">
-                  {founderModules.map((module) => {
-                    const href = `/app/founder-os/${module.slug}`;
+              {builderOsExpanded ? (
+                <div className="mt-2 ml-4 space-y-1 border-l border-[var(--border-subtle)] pl-3">
+                  <Link
+                    href="/app/builder-os"
+                    className={cn(
+                      "flex items-center gap-2 rounded-[14px] px-2.5 py-2 text-[11px] transition-all duration-150",
+                      pathname === "/app/builder-os"
+                        ? "bg-[var(--bg-active)] text-[var(--text-primary)] border-l-2 border-[var(--accent-color)]"
+                        : "text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)] border-l-2 border-transparent",
+                    )}
+                  >
+                    <Rocket className="h-[13px] w-[13px] shrink-0" />
+                    <span className="truncate">Overview</span>
+                  </Link>
+                  {builderSidebarModules.map((module) => {
+                    const href = `/app/builder-os/${module.slug}`;
                     const isActive = pathname === href;
                     const Icon = module.icon;
 
@@ -271,7 +302,7 @@ export function AppSidebar({
                         key={module.slug}
                         href={href}
                         className={cn(
-                          "flex items-center gap-2 rounded-[var(--radius-md)] px-2.5 py-2 text-[11px] transition-all duration-150",
+                          "flex items-center gap-2 rounded-[14px] px-2.5 py-2 text-[11px] transition-all duration-150",
                           isActive
                             ? "bg-[var(--bg-active)] text-[var(--text-primary)] border-l-2 border-[var(--accent-color)]"
                             : "text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)] border-l-2 border-transparent",
@@ -286,6 +317,139 @@ export function AppSidebar({
               ) : null}
             </div>
           ) : null}
+          {founderOsVisible ? (
+            <div className="mt-2 px-1.5">
+              <button
+                type="button"
+                onClick={() => setFounderOsExpanded((current) => !current)}
+                className={cn(
+                  "group flex w-full items-center justify-between rounded-[16px] px-2.5 py-[9px] text-[12px] font-medium transition-all duration-150",
+                  founderOsActive
+                    ? "bg-[var(--bg-active)] text-[var(--text-primary)]"
+                    : "text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]",
+                )}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Rocket className="h-[15px] w-[15px] shrink-0" />
+                  <span className="truncate">Founder OS</span>
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 shrink-0 transition-transform duration-150",
+                    founderOsExpanded ? "rotate-180" : "",
+                  )}
+                />
+              </button>
+              {founderOsExpanded ? (
+                <div className="mt-2 space-y-1 border-l border-[var(--border-subtle)] pl-3 ml-4">
+                  <Link
+                    href="/app/founder-os"
+                    className={cn(
+                      "flex items-center gap-2 rounded-[14px] px-2.5 py-2 text-[11px] transition-all duration-150",
+                      pathname === "/app/founder-os"
+                        ? "bg-[var(--bg-active)] text-[var(--text-primary)] border-l-2 border-[var(--accent-color)]"
+                        : "text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)] border-l-2 border-transparent",
+                    )}
+                  >
+                    <Rocket className="h-[13px] w-[13px] shrink-0" />
+                    <span className="truncate">Overview</span>
+                  </Link>
+                  {founderSidebarModules.map((module) => {
+                    const href = `/app/founder-os/${module.slug}`;
+                    const isActive = pathname === href;
+                    const Icon = module.icon;
+
+                    return (
+                      <Link
+                        key={module.slug}
+                        href={href}
+                        className={cn(
+                          "flex items-center gap-2 rounded-[14px] px-2.5 py-2 text-[11px] transition-all duration-150",
+                          isActive
+                            ? "bg-[var(--bg-active)] text-[var(--text-primary)] border-l-2 border-[var(--accent-color)]"
+                            : "text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)] border-l-2 border-transparent",
+                        )}
+                      >
+                        <Icon className="h-[13px] w-[13px] shrink-0" />
+                        <span className="truncate">{module.title}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {investorOsVisible ? (
+            <div className="mt-2 px-1.5">
+              <button
+                type="button"
+                onClick={() => setInvestorOsExpanded((current) => !current)}
+                className={cn(
+                  "group flex w-full items-center justify-between rounded-[16px] px-2.5 py-[9px] text-[12px] font-medium transition-all duration-150",
+                  investorOsActive
+                    ? "bg-[var(--bg-active)] text-[var(--text-primary)]"
+                    : "text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]",
+                )}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Rocket className="h-[15px] w-[15px] shrink-0" />
+                  <span className="truncate">Investor OS</span>
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 shrink-0 transition-transform duration-150",
+                    investorOsExpanded ? "rotate-180" : "",
+                  )}
+                />
+              </button>
+              {investorOsExpanded ? (
+                <div className="mt-2 ml-4 space-y-1 border-l border-[var(--border-subtle)] pl-3">
+                  <Link
+                    href="/app/investor-os"
+                    className={cn(
+                      "flex items-center gap-2 rounded-[14px] px-2.5 py-2 text-[11px] transition-all duration-150",
+                      pathname === "/app/investor-os"
+                        ? "bg-[var(--bg-active)] text-[var(--text-primary)] border-l-2 border-[var(--accent-color)]"
+                        : "text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)] border-l-2 border-transparent",
+                    )}
+                  >
+                    <Rocket className="h-[13px] w-[13px] shrink-0" />
+                    <span className="truncate">Overview</span>
+                  </Link>
+                  {investorSidebarModules.map((module) => {
+                    const href = `/app/investor-os/${module.slug}`;
+                    const isActive = pathname === href;
+                    const Icon = module.icon;
+
+                    return (
+                      <Link
+                        key={module.slug}
+                        href={href}
+                        className={cn(
+                          "flex items-center gap-2 rounded-[14px] px-2.5 py-2 text-[11px] transition-all duration-150",
+                          isActive
+                            ? "bg-[var(--bg-active)] text-[var(--text-primary)] border-l-2 border-[var(--accent-color)]"
+                            : "text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)] border-l-2 border-transparent",
+                        )}
+                      >
+                        <Icon className="h-[13px] w-[13px] shrink-0" />
+                        <span className="truncate">{module.title}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+        <div>
+          <p
+            className="mb-1 px-3 text-[10px] font-medium uppercase tracking-[0.14em]"
+            style={{ color: "var(--text-muted)" }}
+          >
+            System
+          </p>
+          <NavSection items={systemItems} pathname={pathname} role={user.role} enabledWorkspaces={enabledWorkspaces} />
         </div>
       </nav>
 
@@ -346,3 +510,4 @@ export function AppMobileNav({ user, enabledWorkspaces = [] }: { user: SidebarUs
     </div>
   );
 }
+

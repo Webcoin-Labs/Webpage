@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { createProjectAdvisorInvite } from "@/app/actions/advisor";
 
 export const metadata = { title: "Admin Advisors - Webcoin Labs" };
 
 export default async function AdminAdvisorsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") redirect("/app");
 
   const [projects, invites] = await Promise.all([
@@ -85,3 +84,4 @@ export default async function AdminAdvisorsPage() {
     </div>
   );
 }
+

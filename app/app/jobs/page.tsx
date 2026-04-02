@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { JobApplyForm } from "@/components/jobs/JobApplyForm";
 import { JobPostForm } from "@/components/jobs/JobPostForm";
@@ -11,7 +10,7 @@ import { getFounderAffiliation } from "@/lib/affiliation";
 export const metadata = { title: "Jobs - Webcoin Labs" };
 
 export default async function JobsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   const user = session!.user;
   const isFounderOrAdmin = user.role === "FOUNDER" || user.role === "ADMIN";
   const isBuilderOrAdmin = user.role === "BUILDER" || user.role === "ADMIN";
@@ -179,3 +178,4 @@ export default async function JobsPage() {
     </div>
   );
 }
+

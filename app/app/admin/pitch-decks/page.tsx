@@ -1,14 +1,13 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 
 export const metadata = { title: "Pitch Decks — Admin | Webcoin Labs" };
 
 export default async function AdminPitchDecksPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") redirect("/app");
 
   const decks = await db.pitchDeck.findMany({
@@ -70,3 +69,4 @@ export default async function AdminPitchDecksPage() {
     </div>
   );
 }
+

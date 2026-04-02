@@ -1,19 +1,19 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { scoringService } from "@/server/services/scoring.service";
 import { osRouteMeta } from "@/lib/os/modules";
-import { OsLauncherGrid, OsWorkspaceShell } from "@/components/os/OsWorkspaceShell";
+import { OsWorkspaceShell } from "@/components/os/OsWorkspaceShell";
 import { ActivityTimeline, MetricCard, StatusPill } from "@/components/os/WorkspaceWidgets";
+import { BuilderOsLauncherGrid } from "@/components/os/BuilderOsLauncherGrid";
 
 export const metadata = { title: "Builder OS - Webcoin Labs" };
 
 export default async function BuilderOsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
-  if (!["BUILDER", "FOUNDER", "ADMIN"].includes(session.user.role)) redirect("/app");
+  if (!["BUILDER", "ADMIN"].includes(session.user.role)) redirect("/app");
 
   const [profile, projects, githubConnection, integrationConnections, walletCount, proofExplanation, latestProofSnapshot, applications] = await Promise.all([
     db.builderProfile.findUnique({ where: { userId: session.user.id }, select: { id: true } }),
@@ -89,9 +89,9 @@ export default async function BuilderOsPage() {
 
       <section className="rounded-xl border border-border/60 bg-card p-4">
         <p className="text-sm font-semibold">App Launcher</p>
-        <p className="mt-1 text-xs text-muted-foreground">Open dedicated workspaces instead of stacked forms.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Jump into builder-specific workspaces with a portfolio-first execution flow.</p>
         <div className="mt-3">
-          <OsLauncherGrid rootHref={builderMeta.root} modules={builderMeta.modules} />
+          <BuilderOsLauncherGrid rootHref={builderMeta.root} />
         </div>
       </section>
 
@@ -131,3 +131,4 @@ export default async function BuilderOsPage() {
     </OsWorkspaceShell>
   );
 }
+

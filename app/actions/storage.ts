@@ -1,7 +1,6 @@
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { getFileStorage } from "@/lib/storage";
 import { env } from "@/lib/env";
@@ -28,7 +27,7 @@ function getProviderName() {
 }
 
 export async function runStorageHealthCheck(): Promise<StorageHealthCheckResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") {
     return {
       success: false,
@@ -101,3 +100,4 @@ export async function runStorageHealthCheck(): Promise<StorageHealthCheckResult>
     };
   }
 }
+

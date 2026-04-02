@@ -1,6 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 
 export const metadata = { title: "Project Workspace - Builder OS" };
@@ -11,7 +10,7 @@ export default async function BuilderProjectWorkspace({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
   if (!["BUILDER", "FOUNDER", "ADMIN"].includes(session.user.role)) redirect("/app");
 

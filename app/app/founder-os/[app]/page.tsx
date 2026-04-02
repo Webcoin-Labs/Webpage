@@ -1,8 +1,7 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { Prisma, type Role } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { founderModules, osRouteMeta } from "@/lib/os/modules";
 import { OsWorkspaceShell } from "@/components/os/OsWorkspaceShell";
@@ -31,17 +30,24 @@ import { recomputeMyScoresAction } from "@/app/actions/canonical-graph";
 import { PitchDeckWorkspace, type DeckRecord as WorkspaceDeckRecord } from "@/components/pitchdeck/PitchDeckWorkspace";
 import { EcosystemFeedPanel } from "@/components/ecosystem/EcosystemFeedPanel";
 import { TokenomicsStudioClient } from "@/components/tokenomics/TokenomicsStudioClient";
+import { FounderOsAccessWarning } from "@/components/os/FounderOsAccessWarning";
+import { IntegrationStatusCard, type IntegrationCardModel } from "@/components/integrations/IntegrationStatusCard";
 
 export const metadata = {
   title: "Founder Workspace - Webcoin Labs",
 };
 
 function canUseFounderOs(role: Role) {
-  return ["FOUNDER", "BUILDER", "ADMIN"].includes(role);
+  return ["FOUNDER", "ADMIN"].includes(role);
 }
 
 function isMissingTableError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021";
+}
+
+function toCardStatus(value: string | null | undefined): IntegrationCardModel["status"] {
+  if (value === "CONNECTED" || value === "SYNCING" || value === "ERROR") return value;
+  return "DISCONNECTED";
 }
 
 type AdvisorDirectoryRow = {
@@ -67,17 +73,43 @@ export default async function FounderOsAppPage({
 }) {
   const { app } = await params;
   const resolvedSearch = (await searchParams) ?? {};
+  const deprecatedRouteMap: Record<string, string> = {
+    "command-center": "/app/founder-os",
+    "launch-readiness": "/app/founder-os/ventures",
+    "advisor-connect": "/app/founder-os/investor-connect",
+    "data-room": "/app/founder-os/ventures",
+    "raise-round": "/app/founder-os/investor-connect",
+    meetings: "/app/founder-os/investor-connect",
+    "market-intelligence": "/app/founder-os/ecosystem-feed",
+    communications: "/app/founder-os/integrations",
+  };
+  const redirectedRoute = deprecatedRouteMap[app];
+  if (redirectedRoute) {
+    redirect(redirectedRoute);
+  }
   const moduleMeta = founderModules.find((module) => module.slug === app);
   if (!moduleMeta) notFound();
 
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
-  if (!canUseFounderOs(session.user.role)) redirect("/app");
+  if (!canUseFounderOs(session.user.role)) {
+    return <FounderOsAccessWarning reason="Founder OS modules stay locked until you have a founder/company setup." />;
+  }
+
+  const [founderProfileGate, ventureCountGate, startupCountGate] = await Promise.all([
+    db.founderProfile.findUnique({ where: { userId: session.user.id }, select: { id: true, companyName: true, roleTitle: true } }),
+    db.venture.count({ where: { ownerUserId: session.user.id } }),
+    db.startup.count({ where: { founderId: session.user.id } }),
+  ]);
+  const hasFounderClaim = Boolean(founderProfileGate?.companyName?.trim() || founderProfileGate?.roleTitle?.trim() || ventureCountGate > 0 || startupCountGate > 0);
+  if (!hasFounderClaim) {
+    return <FounderOsAccessWarning reason="Founder modules require either a created company page or a declared founder role tied to your profile." />;
+  }
 
   const [integrationConnections, githubConnection, meetingLink, openClawConnection] = await Promise.all([
     db.integrationConnection.findMany({ where: { userId: session.user.id, status: "CONNECTED" } }),
-    db.githubConnection.findUnique({ where: { userId: session.user.id }, select: { id: true, username: true } }),
-    db.meetingLink.findUnique({ where: { userId: session.user.id }, select: { id: true, calendlyUrl: true } }),
+    db.githubConnection.findUnique({ where: { userId: session.user.id }, select: { id: true, username: true, updatedAt: true } }),
+    db.meetingLink.findUnique({ where: { userId: session.user.id }, select: { id: true, calendlyUrl: true, updatedAt: true } }),
     db.openClawConnection.findUnique({ where: { userId: session.user.id }, select: { id: true, createdAt: true } }),
   ]);
 
@@ -104,34 +136,94 @@ export default async function FounderOsAppPage({
       db.walletConnection.count({ where: { userId: session.user.id } }),
       db.integrationConnection.findMany({ where: { userId: session.user.id }, orderBy: { updatedAt: "desc" }, take: 20 }),
     ]);
+    const integrationByProvider = new Map(connections.map((connection) => [connection.provider, connection]));
 
-    const cards = [
-      { title: "GitHub", connected: Boolean(githubConnection), detail: githubConnection?.username ?? "Not connected", href: "/app/founder-os/builder-discovery" },
-      { title: "Google Calendar / Cal.com", connected: Boolean(meetingLink), detail: meetingLink?.calendlyUrl ?? "Not connected", href: "/app/founder-os/meetings" },
-      { title: "Telegram Ops", connected: Boolean(openClawConnection), detail: openClawConnection ? "Connected" : "Not connected", href: "/app/founder-os/communications" },
-      { title: "Wallet Identity", connected: wallets > 0, detail: wallets > 0 ? `${wallets} wallet(s)` : "Not connected", href: "/app/settings" },
+    const cards: IntegrationCardModel[] = [
+      {
+        id: "github",
+        name: "GitHub",
+        detail: githubConnection ? `Connected as ${githubConnection.username}` : "Repository-backed proof and activity sync.",
+        status: githubConnection ? "CONNECTED" : toCardStatus(integrationByProvider.get("GITHUB")?.status),
+        href: "/app/founder-os/builder-discovery",
+        providerKey: "GITHUB",
+        lastSyncedAt: githubConnection?.updatedAt ?? integrationByProvider.get("GITHUB")?.updatedAt ?? null,
+      },
+      {
+        id: "calendar",
+        name: "Google Calendar / Cal.com",
+        detail:
+          meetingLink?.calendlyUrl ??
+          integrationByProvider.get("GOOGLE_CALENDAR")?.externalEmail ??
+          integrationByProvider.get("CAL_DOT_COM")?.externalEmail ??
+          "Calendar connector not configured.",
+        status:
+          meetingLink?.calendlyUrl
+            ? "CONNECTED"
+            : toCardStatus(integrationByProvider.get("GOOGLE_CALENDAR")?.status ?? integrationByProvider.get("CAL_DOT_COM")?.status),
+        href: "/app/founder-os/investor-connect",
+        providerKey: "GOOGLE_CALENDAR",
+        lastSyncedAt:
+          meetingLink?.updatedAt ?? integrationByProvider.get("GOOGLE_CALENDAR")?.updatedAt ?? integrationByProvider.get("CAL_DOT_COM")?.updatedAt ?? null,
+      },
+      {
+        id: "openclaw",
+        name: "Telegram Ops",
+        detail: openClawConnection ? "OpenClaw connected and ready." : "OpenClaw not connected yet.",
+        status: openClawConnection ? "CONNECTED" : "DISCONNECTED",
+        href: "/app/founder-os/integrations",
+        providerKey: "OPENCLAW",
+        lastSyncedAt: openClawConnection?.createdAt ?? null,
+      },
+      {
+        id: "notion",
+        name: "Notion",
+        detail: integrationByProvider.get("NOTION")?.externalEmail ?? "Docs and operating context sync.",
+        status: toCardStatus(integrationByProvider.get("NOTION")?.status),
+        href: "/app/founder-os/integrations",
+        providerKey: "NOTION",
+        lastSyncedAt: integrationByProvider.get("NOTION")?.updatedAt ?? null,
+      },
+      {
+        id: "gmail",
+        name: "Gmail",
+        detail: integrationByProvider.get("GMAIL")?.externalEmail ?? "Inbox sync for investor and team workflows.",
+        status: toCardStatus(integrationByProvider.get("GMAIL")?.status),
+        href: "/app/founder-os/integrations",
+        providerKey: "GMAIL",
+        lastSyncedAt: integrationByProvider.get("GMAIL")?.updatedAt ?? null,
+      },
+      {
+        id: "jira",
+        name: "Jira",
+        detail: integrationByProvider.get("JIRA")?.externalEmail ?? "Issue and delivery context sync.",
+        status: toCardStatus(integrationByProvider.get("JIRA")?.status),
+        href: "/app/founder-os/integrations",
+        providerKey: "JIRA",
+        lastSyncedAt: integrationByProvider.get("JIRA")?.updatedAt ?? null,
+      },
+      {
+        id: "wallet",
+        name: "Wallet Identity",
+        detail: wallets > 0 ? `${wallets} wallet(s) linked` : "No wallet linked yet.",
+        status: wallets > 0 ? "CONNECTED" : "DISCONNECTED",
+        href: "/app/settings",
+        providerKey: "WALLET",
+      },
     ];
+    const connectedCardCount = cards.filter((card) => card.status === "CONNECTED").length;
 
     return sharedShell(
       <section className="space-y-4">
         <article className="rounded-xl border border-border/60 bg-card p-4">
           <p className="text-sm font-semibold">Integration Center</p>
           <p className="mt-1 text-xs text-muted-foreground">Connector-first automation setup. Manual fallback fields are hidden from OS dashboards.</p>
+          <p className="mt-2 text-xs text-cyan-300">
+            {connectedCardCount}/{cards.length} core connectors active
+          </p>
         </article>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {cards.map((card) => (
-            <article key={card.title} className="rounded-xl border border-border/60 bg-card p-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">{card.title}</p>
-                <span className={card.connected ? "text-xs text-emerald-300" : "text-xs text-amber-300"}>
-                  {card.connected ? "Connected" : "Disconnected"}
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">{card.detail}</p>
-              <Link href={card.href} className="mt-3 inline-flex text-xs text-cyan-300">
-                Configure
-              </Link>
-            </article>
+            <IntegrationStatusCard key={card.id} card={card} />
           ))}
         </div>
         <article className="rounded-xl border border-border/60 bg-card p-4">
@@ -142,7 +234,7 @@ export default async function FounderOsAppPage({
             <div className="mt-2 space-y-2">
               {connections.map((connection) => (
                 <p key={connection.id} className="rounded-md border border-border/50 px-3 py-2 text-sm text-muted-foreground">
-                  {connection.provider} · {connection.status} · Last updated {new Date(connection.updatedAt).toLocaleString()}
+                  {connection.provider} - {connection.status} - Last updated {new Date(connection.updatedAt).toLocaleString()}
                 </p>
               ))}
             </div>
@@ -241,7 +333,7 @@ export default async function FounderOsAppPage({
             <div className="mt-2 space-y-2">
               {meetings.map((meeting) => (
                 <p key={meeting.id} className="rounded-md border border-border/50 px-3 py-2 text-sm text-muted-foreground">
-                  {meeting.title} · {new Date(meeting.scheduledAt).toLocaleString()} · {meeting.attendee.name ?? "Attendee"} {meeting.startup ? `· ${meeting.startup.name}` : ""}
+                  {meeting.title} - {new Date(meeting.scheduledAt).toLocaleString()} - {meeting.attendee.name ?? "Attendee"} {meeting.startup ? `-- ${meeting.startup.name}` : ""}
                 </p>
               ))}
             </div>
@@ -384,8 +476,8 @@ export default async function FounderOsAppPage({
         ) : (
           rounds.map((round) => (
             <article key={round.id} className="rounded-xl border border-border/60 bg-card p-4">
-              <p className="text-sm font-semibold">{round.venture.name} · {round.roundName}</p>
-              <p className="text-xs text-muted-foreground">{round.currency} {Number(round.raisedAmount)} / {Number(round.targetAmount)} · {round.status}</p>
+              <p className="text-sm font-semibold">{round.venture.name} - {round.roundName}</p>
+              <p className="text-xs text-muted-foreground">{round.currency} {Number(round.raisedAmount)} / {Number(round.targetAmount)} - {round.status}</p>
               <form action={updateRoundProgressAction} className="mt-2 flex gap-2">
                 <input type="hidden" name="roundId" value={round.id} />
                 <input name="raisedAmount" type="number" step="0.01" placeholder="Raised amount" className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-xs" />
@@ -469,7 +561,7 @@ export default async function FounderOsAppPage({
             <div className="mt-2 space-y-2">
               {signals.slice(0, 8).map((signal) => (
                 <p key={signal.id} className="rounded-md border border-border/50 px-3 py-2 text-sm text-muted-foreground">
-                  {signal.source} · {signal.title}
+                  {signal.source} - {signal.title}
                 </p>
               ))}
             </div>
@@ -483,7 +575,7 @@ export default async function FounderOsAppPage({
             <div className="mt-2 space-y-2">
               {insights.map((insight) => (
                 <p key={insight.id} className="rounded-md border border-border/50 px-3 py-2 text-sm text-muted-foreground">
-                  {(insight.startup?.name ?? "General")} · {insight.founderPainPoints}
+                  {(insight.startup?.name ?? "General")} - {insight.founderPainPoints}
                 </p>
               ))}
             </div>
@@ -580,7 +672,7 @@ export default async function FounderOsAppPage({
       db.cofounderPreferences.findUnique({ where: { userId: session.user.id } }),
       db.builderProfile.findMany({
         where: { publicVisible: true },
-        include: { user: { select: { name: true } } },
+        include: { user: { select: { name: true, username: true } } },
         orderBy: { updatedAt: "desc" },
         take: 20,
       }),
@@ -609,23 +701,103 @@ export default async function FounderOsAppPage({
     return sharedShell(
       <section className="space-y-4">
         <article className="rounded-xl border border-border/60 bg-card p-4">
-          <p className="text-sm font-semibold">Match preferences</p>
-          <form action={saveCofounderPreferencesAction} className="mt-2 space-y-2">
-            <input name="roleWanted" defaultValue={cofounderPreferences?.roleWanted ?? ""} placeholder="Role wanted" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" required />
-            <input name="skillsNeeded" defaultValue={(cofounderPreferences?.skillsNeeded ?? []).join(", ")} placeholder="Skills needed (comma separated)" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            <button type="submit" className="rounded-md border border-border px-3 py-2 text-xs">Save preferences</button>
+          <p className="text-sm font-semibold">Builder discovery preferences</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Define the builder profile you need once, then review ranked matches by execution signal.
+          </p>
+          <form action={saveCofounderPreferencesAction} className="mt-3 space-y-2">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input
+                name="roleWanted"
+                defaultValue={cofounderPreferences?.roleWanted ?? ""}
+                placeholder="Role wanted"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                required
+              />
+              <input
+                name="skillsNeeded"
+                defaultValue={(cofounderPreferences?.skillsNeeded ?? []).join(", ")}
+                placeholder="Skills needed (comma separated)"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <input
+                name="equityExpectation"
+                defaultValue={cofounderPreferences?.equityExpectation ?? ""}
+                placeholder="Equity expectation"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+              <input
+                name="timeCommitment"
+                defaultValue={cofounderPreferences?.timeCommitment ?? ""}
+                placeholder="Time commitment"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+              <input
+                name="remotePreference"
+                defaultValue={cofounderPreferences?.remotePreference ?? ""}
+                placeholder="Remote preference"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <textarea
+              name="workingStyle"
+              rows={2}
+              defaultValue={cofounderPreferences?.workingStyle ?? ""}
+              placeholder="Working style preferences"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            />
+            <button type="submit" className="rounded-md border border-border px-3 py-2 text-xs">
+              Save preferences
+            </button>
           </form>
         </article>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <article className="rounded-xl border border-border/60 bg-card p-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Public builders</p>
+            <p className="mt-1 text-xl font-semibold">{builders.length}</p>
+          </article>
+          <article className="rounded-xl border border-border/60 bg-card p-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Strong matches</p>
+            <p className="mt-1 text-xl font-semibold">{matches.length}</p>
+          </article>
+          <article className="rounded-xl border border-border/60 bg-card p-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Role target</p>
+            <p className="mt-1 text-xl font-semibold">{cofounderPreferences?.roleWanted ?? "Not set"}</p>
+          </article>
+        </div>
+
         <article className="rounded-xl border border-border/60 bg-card p-4">
           <p className="text-sm font-semibold">Top matches</p>
           {matches.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">No strong matches yet.</p>
+            <p className="mt-2 text-sm text-muted-foreground">No strong matches yet. Refine skills and role criteria.</p>
           ) : (
-            <div className="mt-2 space-y-2">
+            <div className="mt-2 grid gap-2 md:grid-cols-2">
               {matches.slice(0, 8).map((item) => (
-                <p key={item.builder.id} className="rounded-md border border-border/50 px-3 py-2 text-sm text-muted-foreground">
-                  {item.builder.user.name ?? "Builder"} · {item.match.score}% · {item.builder.title ?? item.builder.headline ?? "Builder profile"}
-                </p>
+                <div key={item.builder.id} className="rounded-md border border-border/50 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium text-foreground">{item.builder.user.name ?? "Builder"}</p>
+                    <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-200">
+                      {item.match.score}%
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {item.builder.title ?? item.builder.headline ?? "Builder profile"}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {(item.builder.skills ?? []).slice(0, 4).join(", ") || "No skill tags"}
+                  </p>
+                  {item.builder.user.username ? (
+                    <Link
+                      href={`/builder/${item.builder.user.username}`}
+                      className="mt-2 inline-flex text-xs text-cyan-300"
+                    >
+                      Open public profile
+                    </Link>
+                  ) : null}
+                </div>
               ))}
             </div>
           )}
@@ -657,15 +829,33 @@ export default async function FounderOsAppPage({
       "use server";
       await requestInvestorIntro(formData);
     };
+    const introStatusCounts = intros.reduce<Record<string, number>>((acc, intro) => {
+      acc[intro.status] = (acc[intro.status] ?? 0) + 1;
+      return acc;
+    }, {});
 
     return sharedShell(
       <section className="space-y-4">
         <article className="rounded-xl border border-border/60 bg-card p-4">
           <p className="text-sm font-semibold">Request intro</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Send structured investor intro requests tied to a specific startup page.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <div className="rounded-md border border-border/50 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
+              Startups ready: <span className="font-semibold text-foreground">{startups.length}</span>
+            </div>
+            <div className="rounded-md border border-border/50 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
+              Investors available: <span className="font-semibold text-foreground">{investors.length}</span>
+            </div>
+            <div className="rounded-md border border-border/50 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
+              Intro requests: <span className="font-semibold text-foreground">{intros.length}</span>
+            </div>
+          </div>
           {startups.length === 0 ? (
             <p className="mt-2 text-sm text-muted-foreground">Create a startup first to request intros.</p>
           ) : (
-            <form action={requestInvestorIntroAction} className="mt-2 space-y-2">
+            <form action={requestInvestorIntroAction} className="mt-3 space-y-2">
               <div className="grid gap-2 sm:grid-cols-2">
                 <select name="startupId" className="rounded-md border border-border bg-background px-3 py-2 text-sm" required>
                   {startups.map((startup) => <option key={startup.id} value={startup.id}>{startup.name}</option>)}
@@ -683,6 +873,16 @@ export default async function FounderOsAppPage({
             </form>
           )}
         </article>
+        {Object.keys(introStatusCounts).length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {Object.entries(introStatusCounts).map(([status, count]) => (
+              <article key={status} className="rounded-xl border border-border/60 bg-card p-3">
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{status}</p>
+                <p className="mt-1 text-xl font-semibold">{count}</p>
+              </article>
+            ))}
+          </div>
+        ) : null}
         <article className="rounded-xl border border-border/60 bg-card p-4">
           <p className="text-sm font-semibold">Intro pipeline</p>
           {intros.length === 0 ? (
@@ -690,9 +890,14 @@ export default async function FounderOsAppPage({
           ) : (
             <div className="mt-2 space-y-2">
               {intros.map((intro) => (
-                <p key={intro.id} className="rounded-md border border-border/50 px-3 py-2 text-sm text-muted-foreground">
-                  {intro.startup.name} → {intro.investor.user.name ?? intro.investor.fundName} · {intro.status}
-                </p>
+                <div key={intro.id} className="rounded-md border border-border/50 px-3 py-2">
+                  <p className="text-sm text-foreground">
+                    {intro.startup.name} {"->"} {intro.investor.user.name ?? intro.investor.fundName}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {intro.status} {" - "} {new Date(intro.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
               ))}
             </div>
           )}
@@ -797,7 +1002,7 @@ export default async function FounderOsAppPage({
                   <p className="text-xs text-muted-foreground">{advisor.headline ?? "Advisor profile"}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {(advisor.expertise ?? []).slice(0, 3).join(", ") || "No expertise tags"}
-                    {advisor.hourlyRateUsd ? ` · $${advisor.hourlyRateUsd}/hr` : ""}
+                    {advisor.hourlyRateUsd ? ` - $${advisor.hourlyRateUsd}/hr` : ""}
                   </p>
                 </div>
               ))}
@@ -813,7 +1018,7 @@ export default async function FounderOsAppPage({
             <div className="mt-2 space-y-2">
               {connections.map((connection) => (
                 <p key={connection.id} className="rounded-md border border-border/50 px-3 py-2 text-sm text-muted-foreground">
-                  {connection.project.name} · {connection.advisorProfile.user.name ?? connection.advisorProfile.user.username ?? "Advisor"}
+                  {connection.project.name} - {connection.advisorProfile.user.name ?? connection.advisorProfile.user.username ?? "Advisor"}
                 </p>
               ))}
             </div>
@@ -824,12 +1029,31 @@ export default async function FounderOsAppPage({
   }
 
   if (app === "ventures") {
-    const ventures = await db.venture.findMany({
-      where: { ownerUserId: session.user.id },
-      select: { id: true, name: true, updatedAt: true },
-      orderBy: { updatedAt: "desc" },
-      take: 20,
-    });
+    const [ventures, startups] = await Promise.all([
+      db.venture.findMany({
+        where: { ownerUserId: session.user.id },
+        select: { id: true, name: true, stage: true, chainEcosystem: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 20,
+      }),
+      db.startup.findMany({
+        where: { founderId: session.user.id },
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          tagline: true,
+          stage: true,
+          chainFocus: true,
+          isHiring: true,
+          website: true,
+          githubRepo: true,
+          updatedAt: true,
+        },
+        orderBy: { updatedAt: "desc" },
+        take: 20,
+      }),
+    ]);
     const saveStartupAction = async (formData: FormData) => {
       "use server";
       await upsertStartup(formData);
@@ -837,21 +1061,140 @@ export default async function FounderOsAppPage({
     return sharedShell(
       <section className="space-y-4">
         <article className="rounded-xl border border-border/60 bg-card p-4">
-          <p className="text-sm font-semibold">Create venture record</p>
-          <form action={saveStartupAction} className="mt-2 space-y-2">
-            <input name="name" placeholder="Startup name" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" required />
-            <button type="submit" className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200">Save startup</button>
+          <p className="text-sm font-semibold">Startup Layer</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Create and maintain your startup profile with clear stage, chain, links, and fundraising context.
+          </p>
+          <form action={saveStartupAction} className="mt-3 space-y-2">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input
+                name="name"
+                placeholder="Startup name"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                required
+              />
+              <input
+                name="tagline"
+                placeholder="One-line tagline"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <select name="stage" defaultValue="IDEA" className="rounded-md border border-border bg-background px-3 py-2 text-sm">
+                <option value="IDEA">IDEA</option>
+                <option value="MVP">MVP</option>
+                <option value="EARLY">EARLY</option>
+                <option value="GROWTH">GROWTH</option>
+              </select>
+              <select name="chainFocus" defaultValue="ARC" className="rounded-md border border-border bg-background px-3 py-2 text-sm">
+                <option value="ARC">ARC</option>
+                <option value="SOLANA">SOLANA</option>
+                <option value="BASE">BASE</option>
+                <option value="ETHEREUM">ETHEREUM</option>
+              </select>
+              <input
+                name="revenue"
+                placeholder="Revenue/status (optional)"
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <textarea
+              name="description"
+              rows={2}
+              placeholder="What are you building?"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input
+                name="website"
+                placeholder="Website URL"
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+              <input
+                name="githubRepo"
+                placeholder="GitHub repository URL"
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <button type="submit" className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200">
+              Save startup
+            </button>
           </form>
         </article>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <article className="rounded-xl border border-border/60 bg-card p-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Startups</p>
+            <p className="mt-1 text-xl font-semibold">{startups.length}</p>
+          </article>
+          <article className="rounded-xl border border-border/60 bg-card p-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Venture records</p>
+            <p className="mt-1 text-xl font-semibold">{ventures.length}</p>
+          </article>
+          <article className="rounded-xl border border-border/60 bg-card p-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Hiring startups</p>
+            <p className="mt-1 text-xl font-semibold">{startups.filter((startup) => startup.isHiring).length}</p>
+          </article>
+        </div>
+
         <article className="rounded-xl border border-border/60 bg-card p-4">
-          <p className="text-sm font-semibold">Venture list</p>
+          <p className="text-sm font-semibold">Startup pages</p>
+          {startups.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">No startup pages yet.</p>
+          ) : (
+            <div className="mt-2 space-y-2">
+              {startups.map((startup) => (
+                <div key={startup.id} className="rounded-md border border-border/50 px-3 py-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-foreground">{startup.name}</p>
+                    <div className="flex flex-wrap gap-1">
+                      <span className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {startup.stage}
+                      </span>
+                      <span className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {startup.chainFocus}
+                      </span>
+                    </div>
+                  </div>
+                  {startup.tagline ? <p className="mt-1 text-xs text-muted-foreground">{startup.tagline}</p> : null}
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                    <Link
+                      href={`/startups/${startup.slug ?? startup.id}`}
+                      className="text-cyan-300 hover:text-cyan-200"
+                    >
+                      Open public page
+                    </Link>
+                    {startup.website ? (
+                      <a href={startup.website} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+                        Website
+                      </a>
+                    ) : null}
+                    {startup.githubRepo ? (
+                      <a href={startup.githubRepo} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+                        Repo
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+
+        <article className="rounded-xl border border-border/60 bg-card p-4">
+          <p className="text-sm font-semibold">Linked venture records</p>
           {ventures.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">No ventures yet.</p>
+            <p className="mt-2 text-sm text-muted-foreground">No venture records yet.</p>
           ) : (
             <div className="mt-2 space-y-2">
               {ventures.map((venture) => (
-                <Link key={venture.id} href={`/app/founder-os/ventures/${venture.id}`} className="block rounded-md border border-border/50 px-3 py-2 text-sm text-muted-foreground hover:text-foreground">
-                  {venture.name} · Updated {new Date(venture.updatedAt).toLocaleDateString()}
+                <Link
+                  key={venture.id}
+                  href={`/app/founder-os/ventures/${venture.id}`}
+                  className="block rounded-md border border-border/50 px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+                >
+                  {venture.name} - {venture.stage ?? "Stage"} - {venture.chainEcosystem ?? "Chain"} - Updated{" "}
+                  {new Date(venture.updatedAt).toLocaleDateString()}
                 </Link>
               ))}
             </div>
@@ -893,8 +1236,24 @@ export default async function FounderOsAppPage({
       <p className="text-sm font-semibold">{moduleMeta.title}</p>
       <p className="mt-1 text-sm text-muted-foreground">{moduleMeta.description}</p>
       <p className="mt-2 text-xs text-muted-foreground">
-        This workspace is now separated from the OS launchpad to prevent stacked-form dashboards.
+        This module was simplified into focused founder workflows. Use one of the primary surfaces below.
       </p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <Link href="/app/founder-os/ventures" className="rounded-md border border-border/50 px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
+          Open Startup Layer
+        </Link>
+        <Link href="/app/founder-os/pitch-deck" className="rounded-md border border-border/50 px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
+          Open Pitch Deck Analysis
+        </Link>
+        <Link href="/app/founder-os/tokenomics" className="rounded-md border border-border/50 px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
+          Open Tokenomics Studio
+        </Link>
+        <Link href="/app/founder-os/investor-connect" className="rounded-md border border-border/50 px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
+          Open Investor Discovery
+        </Link>
+      </div>
     </section>,
   );
 }
+
+

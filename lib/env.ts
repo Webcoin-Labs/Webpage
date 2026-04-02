@@ -5,12 +5,20 @@ import { z } from "zod";
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required."),
-  NEXTAUTH_SECRET: z.string().min(1, "NEXTAUTH_SECRET is required."),
+  NEXTAUTH_SECRET: z.string().optional(),
   NEXTAUTH_URL: z.string().url().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
+  NOTION_CLIENT_ID: z.string().optional(),
+  NOTION_CLIENT_SECRET: z.string().optional(),
+  ATLASSIAN_CLIENT_ID: z.string().optional(),
+  ATLASSIAN_CLIENT_SECRET: z.string().optional(),
+  CALENDLY_CLIENT_ID: z.string().optional(),
+  CALENDLY_CLIENT_SECRET: z.string().optional(),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   SIGNUP_FROM_EMAIL: z.string().optional(),
   PASSWORD_RESET_FROM_EMAIL: z.string().optional(),
@@ -25,6 +33,7 @@ const envSchema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().optional(),
   R2_BUCKET_NAME: z.string().optional(),
   R2_ENDPOINT: z.string().optional(),
+  R2_PUBLIC_BASE_URL: z.string().url().optional(),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().optional(),
   OPENCLAW_BASE_URL: z.string().url().optional(),
@@ -34,6 +43,7 @@ const envSchema = z.object({
   INTERNAL_JOBS_SECRET: z.string().optional(),
   UPSTASH_REDIS_REST_URL: z.string().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+  PRISMA_LOG_QUERIES: z.enum(["0", "1"]).optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -53,8 +63,12 @@ const normalizedR2Endpoint = data.R2_ENDPOINT?.trim()
   : undefined;
 
 if (!isProdBuild) {
+  const hasSupabase = Boolean(data.NEXT_PUBLIC_SUPABASE_URL && data.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   if (data.NODE_ENV === "production" && !data.NEXTAUTH_URL) {
     throw new Error("NEXTAUTH_URL must be set in production.");
+  }
+  if (!hasSupabase && !data.NEXTAUTH_SECRET) {
+    throw new Error("NEXTAUTH_SECRET must be set when Supabase Auth is not configured.");
   }
 
   const hasAnyR2Config =
@@ -96,6 +110,26 @@ if (hasGoogle && (!data.GOOGLE_CLIENT_ID || !data.GOOGLE_CLIENT_SECRET)) {
 const hasGitHub = Boolean(data.GITHUB_CLIENT_ID || data.GITHUB_CLIENT_SECRET);
 if (hasGitHub && (!data.GITHUB_CLIENT_ID || !data.GITHUB_CLIENT_SECRET)) {
   throw new Error("GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET must both be set.");
+}
+
+const hasNotion = Boolean(data.NOTION_CLIENT_ID || data.NOTION_CLIENT_SECRET);
+if (hasNotion && (!data.NOTION_CLIENT_ID || !data.NOTION_CLIENT_SECRET)) {
+  throw new Error("NOTION_CLIENT_ID and NOTION_CLIENT_SECRET must both be set.");
+}
+
+const hasAtlassian = Boolean(data.ATLASSIAN_CLIENT_ID || data.ATLASSIAN_CLIENT_SECRET);
+if (hasAtlassian && (!data.ATLASSIAN_CLIENT_ID || !data.ATLASSIAN_CLIENT_SECRET)) {
+  throw new Error("ATLASSIAN_CLIENT_ID and ATLASSIAN_CLIENT_SECRET must both be set.");
+}
+
+const hasCalendly = Boolean(data.CALENDLY_CLIENT_ID || data.CALENDLY_CLIENT_SECRET);
+if (hasCalendly && (!data.CALENDLY_CLIENT_ID || !data.CALENDLY_CLIENT_SECRET)) {
+  throw new Error("CALENDLY_CLIENT_ID and CALENDLY_CLIENT_SECRET must both be set.");
+}
+
+const hasAnySupabaseConfig = Boolean(data.NEXT_PUBLIC_SUPABASE_URL || data.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+if (hasAnySupabaseConfig && (!data.NEXT_PUBLIC_SUPABASE_URL || !data.NEXT_PUBLIC_SUPABASE_ANON_KEY)) {
+  throw new Error("NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must both be set.");
 }
 
 if (!isProdBuild && data.NODE_ENV === "production" && !data.GEMINI_API_KEY) {

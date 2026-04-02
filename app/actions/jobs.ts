@@ -1,9 +1,8 @@
 "use server";
 
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { JobPostStatus } from "@prisma/client";
@@ -30,7 +29,7 @@ const jobApplicationSchema = z.object({
 type JobResult = { success: true } | { success: false; error: string };
 
 export async function createJobPost(formData: FormData): Promise<JobResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return { success: false, error: "Not authenticated" };
   if (!["FOUNDER", "ADMIN"].includes(session.user.role)) {
     return { success: false, error: "Only founders and admins can create jobs." };
@@ -88,7 +87,7 @@ export async function createJobPost(formData: FormData): Promise<JobResult> {
 }
 
 export async function applyToJob(formData: FormData): Promise<JobResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return { success: false, error: "Not authenticated" };
   if (!["BUILDER", "ADMIN"].includes(session.user.role)) {
     return { success: false, error: "Only builders can apply to jobs." };
@@ -129,7 +128,7 @@ export async function applyToJob(formData: FormData): Promise<JobResult> {
 }
 
 export async function updateJobApplicationStatus(id: string, status: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
   const parsed = z.enum(["APPLIED", "REVIEWING", "SHORTLISTED", "REJECTED", "HIRED"]).safeParse(status);
   if (!parsed.success) throw new Error("Invalid status");
@@ -139,7 +138,7 @@ export async function updateJobApplicationStatus(id: string, status: string) {
 }
 
 export async function updateJobPostStatus(id: string, status: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const parsed = z.enum(["OPEN", "CLOSED", "DRAFT"]).safeParse(status);
@@ -156,3 +155,4 @@ export async function updateJobPostStatus(id: string, status: string) {
   revalidatePath("/app");
   revalidatePath("/app/admin/jobs");
 }
+

@@ -14,15 +14,12 @@ const prismaMock = {
   investorApplication: { create: vi.fn() },
 };
 
-vi.mock("next-auth", () => ({
-  getServerSession,
-}));
-
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
+  getServerSession,
   authOptions: {},
 }));
 

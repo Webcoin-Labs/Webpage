@@ -1,10 +1,11 @@
 "use server";
 
 import { z } from "zod";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
+import { dispatchConnectionRequestEmail } from "@/lib/notifications/connectionRequest";
+import { logger } from "@/lib/logger";
 
 const sendRequestSchema = z.object({
   toUserId: z.string().cuid().optional(),
@@ -18,7 +19,7 @@ function getConnectionRequestModel() {
 }
 
 export async function sendConnectionRequest(formData: FormData): Promise<void> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return;
 
   const connectionRequestModel = getConnectionRequestModel();
@@ -40,6 +41,9 @@ export async function sendConnectionRequest(formData: FormData): Promise<void> {
     where: lookupById ? { id: lookupById } : { username: lookupByUsername },
     select: {
       id: true,
+      email: true,
+      name: true,
+      username: true,
       publicProfileSettings: { select: { openToConnections: true } },
     },
   });
@@ -86,12 +90,34 @@ export async function sendConnectionRequest(formData: FormData): Promise<void> {
     });
   }
 
+  try {
+    const sender = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, username: true },
+    });
+    if (target.email) {
+      await dispatchConnectionRequestEmail({
+        toEmail: target.email,
+        toName: target.name,
+        fromName: sender?.name,
+        fromUsername: sender?.username,
+      });
+    }
+  } catch (error) {
+    logger.error({
+      scope: "connections.send.requestEmail",
+      message: "Connection request email dispatch failed.",
+      error,
+      data: { fromUserId: session.user.id, toUserId: target.id },
+    });
+  }
+
   revalidatePath("/app/messages");
   revalidatePath("/app/notifications");
 }
 
 export async function respondConnectionRequest(formData: FormData): Promise<void> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return;
 
   const connectionRequestModel = getConnectionRequestModel();
@@ -135,7 +161,7 @@ export async function respondConnectionRequest(formData: FormData): Promise<void
 }
 
 export async function cancelConnectionRequest(formData: FormData): Promise<void> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return;
 
   const connectionRequestModel = getConnectionRequestModel();
@@ -152,3 +178,4 @@ export async function cancelConnectionRequest(formData: FormData): Promise<void>
   revalidatePath("/app/messages");
   revalidatePath("/app/notifications");
 }
+

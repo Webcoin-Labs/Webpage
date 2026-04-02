@@ -9,11 +9,8 @@ const prismaMock = {
   },
 };
 
-vi.mock("next-auth", () => ({
-  getServerSession,
-}));
-
 vi.mock("@/lib/auth", () => ({
+  getServerSession,
   authOptions: {},
 }));
 

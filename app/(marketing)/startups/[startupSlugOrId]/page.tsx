@@ -2,10 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Github, Globe, Linkedin, Star, Twitter } from "lucide-react";
-import { db } from "@/server/db/client";
+import { getStartupHubDetailBySlugOrId } from "@/lib/startup-hub";
 import { CompanyLogo } from "@/components/common/CompanyLogo";
-import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag";
-import { getFounderAffiliation } from "@/lib/affiliation";
 
 type Params = { params: Promise<{ startupSlugOrId: string }> };
 
@@ -19,83 +17,27 @@ function normalizeExternalLink(value: string | null | undefined, kind: "x" | "ur
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { startupSlugOrId } = await params;
-  const startup = await db.startup.findFirst({
-    where: {
-      AND: [
-        { OR: [{ id: startupSlugOrId }, { slug: startupSlugOrId }] },
-        { founder: { founderProfile: { is: { publicVisible: true } } } },
-      ],
-    },
-    select: { name: true, tagline: true },
-  });
+  const startup = await getStartupHubDetailBySlugOrId(startupSlugOrId);
   if (!startup) return { title: "Startup - Webcoin Labs" };
   return {
-    title: `${startup.name} - Webcoin Labs`,
-    description: startup.tagline ?? startup.name,
+    title: `${startup.card.name} - Webcoin Labs`,
+    description: startup.card.tagline ?? startup.card.name,
   };
 }
 
 export default async function StartupPublicPage({ params }: Params) {
   const { startupSlugOrId } = await params;
-  const startup = await db.startup.findFirst({
-    where: {
-      AND: [
-        { OR: [{ id: startupSlugOrId }, { slug: startupSlugOrId }] },
-        { founder: { founderProfile: { is: { publicVisible: true } } } },
-      ],
-    },
-    include: {
-      founder: {
-        select: {
-          id: true,
-          name: true,
-          founderProfile: {
-            select: {
-              companyName: true,
-              companyLogoUrl: true,
-              roleTitle: true,
-              twitter: true,
-              linkedin: true,
-              website: true,
-              isHiring: true,
-              currentNeeds: true,
-            },
-          },
-          founderProfileExtended: {
-            select: {
-              targetUser: true,
-              businessModel: true,
-              whyThisStartup: true,
-            },
-          },
-        },
-      },
-      githubActivity: true,
-      ratings: {
-        select: {
-          score: true,
-          note: true,
-          reviewer: { select: { name: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 8,
-      },
-    },
-  });
+  const startup = await getStartupHubDetailBySlugOrId(startupSlugOrId);
 
   if (!startup) notFound();
 
-  const founderAffiliation = getFounderAffiliation(startup.founder.founderProfile);
-  const avgRating = startup.ratings.length
-    ? startup.ratings.reduce((acc, entry) => acc + entry.score, 0) / startup.ratings.length
-    : null;
-  const lookingForInvestors = (startup.founder.founderProfile?.currentNeeds ?? []).some((item) => /fund|investor|raise/i.test(item));
-  const startupWebsite = normalizeExternalLink(startup.website);
-  const startupGithub = normalizeExternalLink(startup.githubRepo);
-  const startupTwitter = normalizeExternalLink(startup.twitter, "x");
-  const startupLinkedin = normalizeExternalLink(startup.linkedin);
-  const founderTwitter = normalizeExternalLink(startup.founder.founderProfile?.twitter, "x");
-  const founderLinkedin = normalizeExternalLink(startup.founder.founderProfile?.linkedin);
+  const avgRating = startup.card.ratingAverage;
+  const startupWebsite = normalizeExternalLink(startup.startupLinks.website ?? startup.canonicalVenture?.website);
+  const startupGithub = normalizeExternalLink(startup.startupLinks.githubRepo ?? startup.canonicalVenture?.githubUrl);
+  const startupTwitter = normalizeExternalLink(startup.startupLinks.twitter, "x");
+  const startupLinkedin = normalizeExternalLink(startup.startupLinks.linkedin);
+  const founderTwitter = normalizeExternalLink(startup.founderLinks.twitter, "x");
+  const founderLinkedin = normalizeExternalLink(startup.founderLinks.linkedin);
 
   return (
     <div className="min-h-screen pt-24">
@@ -105,33 +47,32 @@ export default async function StartupPublicPage({ params }: Params) {
         </Link>
         <div className="mt-4 rounded-xl border border-border/60 bg-card p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h1 className="text-2xl font-semibold">{startup.name}</h1>
+            <h1 className="text-2xl font-semibold">{startup.card.name}</h1>
             <span className="rounded-full border border-border px-2 py-1 text-xs text-muted-foreground">
-              {startup.stage} | {startup.chainFocus}
+              {startup.card.stage ?? "Stage not set"} | {startup.card.chain ?? "Chain not set"}
             </span>
           </div>
-          {startup.tagline ? <p className="mt-1 text-sm text-muted-foreground">{startup.tagline}</p> : null}
+          {startup.card.tagline ? <p className="mt-1 text-sm text-muted-foreground">{startup.card.tagline}</p> : null}
 
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <CompanyLogo
-              src={startup.founder.founderProfile?.companyLogoUrl}
-              alt={startup.founder.founderProfile?.companyName ?? "Company"}
-              fallback={startup.founder.founderProfile?.companyName ?? "Company"}
+              src={startup.founderCompanyLogoUrl}
+              alt={startup.card.founderCompanyName ?? "Company"}
+              fallback={startup.card.founderCompanyName ?? "Company"}
               className="h-7 w-7 rounded-md border border-border/60 bg-background p-0.5"
               fallbackClassName="rounded-md border border-border/60 bg-background text-[9px] text-muted-foreground"
               imgClassName="p-0.5"
             />
-            <span className="font-medium text-foreground">{startup.founder.name ?? "Founder"}</span>
-            {founderAffiliation ? <ProfileAffiliationTag label={founderAffiliation.label} variant="founder" /> : null}
-            <span>{startup.founder.founderProfile?.roleTitle ?? "Founder"}</span>
-            {startup.founder.founderProfile?.isHiring ? (
+            <span className="font-medium text-foreground">{startup.card.founderName}</span>
+            <span>{startup.card.founderRoleTitle ?? "Founder"}</span>
+            {startup.card.isHiring ? (
               <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-200">
                 Hiring
               </span>
             ) : null}
-            {lookingForInvestors ? (
+            {startup.startupLinks.pitchDeckUrl ? (
               <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] text-cyan-200">
-                Looking for investors
+                Deck attached
               </span>
             ) : null}
           </div>
@@ -160,13 +101,13 @@ export default async function StartupPublicPage({ params }: Params) {
           <div className="mt-4 rounded-md border border-border/50 p-3">
             <p className="text-xs font-medium">Founder Profile Signals</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Why this startup: {startup.founder.founderProfileExtended?.whyThisStartup ?? "N/A"}
+              Why this startup: {startup.founderSignals.whyThisStartup ?? "N/A"}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Target user: {startup.founder.founderProfileExtended?.targetUser ?? "N/A"}
+              Target user: {startup.founderSignals.targetUser ?? "N/A"}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Business model: {startup.founder.founderProfileExtended?.businessModel ?? "N/A"}
+              Business model: {startup.founderSignals.businessModel ?? "N/A"}
             </p>
           </div>
 
@@ -184,8 +125,8 @@ export default async function StartupPublicPage({ params }: Params) {
             {startup.ratings.length > 0 ? (
               <div className="mt-2 space-y-1 text-[11px] text-muted-foreground">
                 {startup.ratings.map((rating, index) => (
-                  <p key={`${rating.reviewer.name ?? "reviewer"}-${index}`}>
-                    {rating.reviewer.name ?? "Founder"}: {rating.score}/5 {rating.note ? `- ${rating.note}` : ""}
+                  <p key={`${rating.reviewerName}-${index}`}>
+                    {rating.reviewerName}: {rating.score}/5 {rating.note ? `- ${rating.note}` : ""}
                   </p>
                 ))}
               </div>

@@ -4,8 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { CalendlyProvider } from "@/components/providers/CalendlyProvider";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({
@@ -81,7 +80,7 @@ export default async function RootLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
 
     return (
         <html lang="en" suppressHydrationWarning>
@@ -101,3 +100,5 @@ export default async function RootLayout({
         </html>
     );
 }
+
+

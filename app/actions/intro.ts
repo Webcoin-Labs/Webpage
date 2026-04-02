@@ -1,8 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { revalidatePath } from "next/cache";
@@ -41,7 +40,7 @@ const contextSchema = z.object({
 export type IntroResult = { success: true; id: string } | { success: false; error: string };
 
 export async function createIntroRequest(formData: FormData): Promise<IntroResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return { success: false, error: "Not authenticated" };
   if (session.user.role !== "FOUNDER" && session.user.role !== "ADMIN") {
     return { success: false, error: "Only founders can request intros" };
@@ -123,3 +122,4 @@ export async function createIntroRequest(formData: FormData): Promise<IntroResul
   revalidatePath("/app/intros");
   return { success: true, id: intro.id };
 }
+

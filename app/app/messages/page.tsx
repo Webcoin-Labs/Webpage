@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { MessageSquare, ArrowRight, Briefcase, UserRound, UserPlus, CheckCircle2, XCircle, Clock3 } from "lucide-react";
-import { getServerSession, authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { cancelConnectionRequest, respondConnectionRequest, sendConnectionRequest } from "@/app/actions/connections";
 
@@ -19,7 +19,7 @@ export default async function MessagesPage({
 }: {
   searchParams?: Promise<{ username?: string; source?: string; targetRole?: string; viewerRole?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
   const connectionRequestModel = (db as unknown as { connectionRequest?: { findMany: (...args: unknown[]) => Promise<unknown[]> } }).connectionRequest;
 

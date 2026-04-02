@@ -9,6 +9,10 @@ const configuredImageRemotePatterns = [
         protocol: "https",
         hostname: "**.r2.cloudflarestorage.com",
     },
+    {
+        protocol: "https",
+        hostname: "**.r2.dev",
+    },
 ];
 
 if (process.env.R2_ENDPOINT) {

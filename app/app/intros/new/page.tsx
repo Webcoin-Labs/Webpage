@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { NewIntroRequestForm } from "@/components/app/NewIntroRequestForm";
 
@@ -15,7 +14,7 @@ export default async function NewIntroPage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const resolvedSearchParams = await Promise.resolve(searchParams);
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
   if (session.user.role !== "FOUNDER" && session.user.role !== "ADMIN") redirect("/app/intros");
 
@@ -69,3 +68,4 @@ export default async function NewIntroPage({
     />
   );
 }
+

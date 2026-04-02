@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { ArrowLeft } from "lucide-react";
 import { AdminIntroRequestsTable } from "@/components/app/AdminIntroRequestsTable";
@@ -9,7 +8,7 @@ import { AdminIntroRequestsTable } from "@/components/app/AdminIntroRequestsTabl
 export const metadata = { title: "Intro Requests — Admin | Webcoin Labs" };
 
 export default async function AdminIntrosPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") redirect("/app");
 
   const requests = await db.introRequest.findMany({
@@ -41,3 +40,4 @@ export default async function AdminIntrosPage() {
     </div>
   );
 }
+

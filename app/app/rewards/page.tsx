@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { RewardsList } from "./RewardsList";
 
 export const metadata = { title: "Rewards — Webcoin Labs" };
 
 export default async function RewardsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   const rewards = await db.reward.findMany({
     where: { userId: session!.user.id },
     orderBy: { createdAt: "desc" },
@@ -22,3 +21,4 @@ export default async function RewardsPage() {
     </div>
   );
 }
+

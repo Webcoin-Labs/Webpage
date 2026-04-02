@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { HiringInterestsTable } from "@/components/hiring/HiringInterestsTable";
 import { HiringInterestForm } from "@/components/hiring/HiringInterestForm";
@@ -9,7 +8,7 @@ import { CompanyLogo } from "@/components/common/CompanyLogo";
 export const metadata = { title: "Hiring - Webcoin Labs" };
 
 export default async function HiringPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   const user = session!.user;
   const isFounder = user.role === "FOUNDER";
   const isBuilder = user.role === "BUILDER";
@@ -124,3 +123,4 @@ export default async function HiringPage() {
     </div>
   );
 }
+

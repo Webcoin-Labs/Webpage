@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 
 function wrapText(text: string, maxLen = 95) {
@@ -42,7 +41,7 @@ export async function GET(
   { params }: { params: Promise<{ pitchDeckId: string }> },
 ) {
   const { pitchDeckId } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const versionId = request.nextUrl.searchParams.get("versionId");

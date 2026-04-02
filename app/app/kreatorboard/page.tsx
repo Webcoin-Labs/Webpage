@@ -1,15 +1,14 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { BarChart3, Building2, CalendarDays, Inbox } from "lucide-react";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { scoringService } from "@/server/services/scoring.service";
 
 export const metadata = { title: "Kreatorboard - Webcoin Labs" };
 
 export default async function KreatorboardDashboardPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
   if (!["INVESTOR", "ADMIN"].includes(session.user.role)) redirect("/app");
 
@@ -138,4 +137,5 @@ async function venturesFitScore(investorUserId: string) {
   });
   return explanation.score;
 }
+
 

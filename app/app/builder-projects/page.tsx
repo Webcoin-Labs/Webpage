@@ -1,14 +1,14 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { ArrowRight, Github, Trash2 } from "lucide-react";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { deleteBuilderProject, upsertBuilderProject } from "@/app/actions/builder-projects";
+import { BuilderProjectManager } from "@/components/app/BuilderProjectManager";
 
 export const metadata = { title: "Builder Projects - Webcoin Labs" };
 
 export default async function BuilderProjectsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
   if (!["BUILDER", "ADMIN"].includes(session.user.role)) redirect("/app");
 
@@ -17,10 +17,14 @@ export default async function BuilderProjectsPage() {
     orderBy: { updatedAt: "desc" },
     take: 100,
   });
+  const githubConnection = await db.githubConnection.findUnique({
+    where: { userId: session.user.id },
+    select: { username: true, profileUrl: true },
+  });
 
   const saveProjectAction = async (formData: FormData) => {
     "use server";
-    await upsertBuilderProject(formData);
+    return await upsertBuilderProject(formData);
   };
   const deleteProjectAction = async (formData: FormData) => {
     "use server";
@@ -36,44 +40,7 @@ export default async function BuilderProjectsPage() {
         </p>
       </section>
 
-      <section className="rounded-2xl border border-border/60 bg-card p-6">
-        <h2 className="text-sm font-semibold">Add Project</h2>
-        <form action={saveProjectAction} className="mt-4 space-y-3">
-          <div className="grid gap-3 md:grid-cols-2">
-            <input name="title" placeholder="Project title" required className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-            <input name="tagline" placeholder="One-line summary" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-          </div>
-          <textarea
-            name="description"
-            rows={3}
-            placeholder="Problem, solution, users, and your specific contribution."
-            className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm"
-          />
-          <div className="grid gap-3 md:grid-cols-2">
-            <input name="imageUrl" placeholder="Project image URL" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-            <input name="techStack" placeholder="Tech stack (comma separated)" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <input name="githubUrl" placeholder="GitHub URL" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-            <input name="liveUrl" placeholder="Live/demo URL" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-          </div>
-          <textarea
-            name="achievements"
-            rows={2}
-            placeholder="Achievements: traction, hackathon wins, audits, users, stars."
-            className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm"
-          />
-          <textarea
-            name="openSourceContributions"
-            rows={2}
-            placeholder="Open source contribution details and merged PRs."
-            className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm"
-          />
-          <button type="submit" className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-200">
-            Save project
-          </button>
-        </form>
-      </section>
+      <BuilderProjectManager githubConnection={githubConnection} saveAction={saveProjectAction} />
 
       <section className="space-y-3">
         {projects.length === 0 ? (
@@ -133,3 +100,4 @@ export default async function BuilderProjectsPage() {
     </div>
   );
 }
+

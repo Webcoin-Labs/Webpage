@@ -1,8 +1,7 @@
 import "server-only";
 
 import { Role, WorkspaceType } from "@prisma/client";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 
 export type AuthzSessionUser = {
@@ -21,7 +20,7 @@ export class AuthzError extends Error {
 }
 
 export async function requireSessionUser(): Promise<AuthzSessionUser> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) {
     throw new AuthzError("Not authenticated.", 401);
   }
@@ -63,3 +62,4 @@ export async function getEnabledWorkspaces(userId: string): Promise<WorkspaceTyp
   });
   return memberships.map((item) => item.workspace);
 }
+

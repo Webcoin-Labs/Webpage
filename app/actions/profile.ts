@@ -1,10 +1,9 @@
 "use server";
 
 import { z } from "zod";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { optimizeAndStoreImage } from "@/lib/images/upload";
 import { getFileStorage } from "@/lib/storage";
@@ -66,6 +65,9 @@ const founderProfileSchema = z.object({
   projectStage: z.enum(["IDEA", "MVP", "LIVE"]),
   chainFocus: z.string().min(2, "Chain focus is required"),
   currentNeeds: z.string().min(2, "Current needs are required"),
+  educationBackground: z.string().optional(),
+  founderDescription: z.string().optional(),
+  lookingFor: z.string().optional(),
   website: urlField,
   pitchDeckUrl: urlField,
   linkedin: urlField,
@@ -191,7 +193,7 @@ async function resolveAvatarUpdateForUser(
 }
 
 export async function upsertBuilderProfile(formData: FormData): Promise<ProfileResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user) return { success: false, error: "Not authenticated" };
   if (!hasRole(session.user.role, ["BUILDER", "ADMIN"])) {
     return { success: false, error: "Only builders can update this profile." };
@@ -368,7 +370,7 @@ export async function upsertBuilderProfile(formData: FormData): Promise<ProfileR
 }
 
 export async function upsertFounderProfile(formData: FormData): Promise<ProfileResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user) return { success: false, error: "Not authenticated" };
   if (!hasRole(session.user.role, ["FOUNDER", "ADMIN"])) {
     return { success: false, error: "Only founders can update this profile." };
@@ -389,6 +391,9 @@ export async function upsertFounderProfile(formData: FormData): Promise<ProfileR
     projectStage: (getOptionalString(formData, "projectStage") as "IDEA" | "MVP" | "LIVE") ?? "IDEA",
     chainFocus: getOptionalString(formData, "chainFocus") ?? "",
     currentNeeds: getOptionalString(formData, "currentNeeds") ?? "",
+    educationBackground: getOptionalString(formData, "educationBackground"),
+    founderDescription: getOptionalString(formData, "founderDescription"),
+    lookingFor: getOptionalString(formData, "lookingFor"),
     website: getOptionalString(formData, "website") ?? "",
     pitchDeckUrl: getOptionalString(formData, "pitchDeckUrl") ?? "",
     linkedin: getOptionalString(formData, "linkedin") ?? "",
@@ -500,6 +505,9 @@ export async function upsertFounderProfile(formData: FormData): Promise<ProfileR
     projectStage: parsed.data.projectStage,
     chainFocus: parsed.data.chainFocus.trim(),
     currentNeeds: splitCommaValues(parsed.data.currentNeeds),
+    educationBackground: parsed.data.educationBackground || null,
+    founderDescription: parsed.data.founderDescription || null,
+    lookingFor: parsed.data.lookingFor ? splitCommaValues(parsed.data.lookingFor) : [],
     website: toNullableUrl(parsed.data.website),
     pitchDeckUrl: toNullableUrl(parsed.data.pitchDeckUrl),
     linkedin: toNullableUrl(parsed.data.linkedin),
@@ -526,6 +534,9 @@ export async function upsertFounderProfile(formData: FormData): Promise<ProfileR
     projectStage: founderCreateData.projectStage,
     chainFocus: founderCreateData.chainFocus,
     currentNeeds: founderCreateData.currentNeeds,
+    educationBackground: founderCreateData.educationBackground,
+    founderDescription: founderCreateData.founderDescription,
+    lookingFor: founderCreateData.lookingFor,
     website: founderCreateData.website,
     pitchDeckUrl: founderCreateData.pitchDeckUrl,
     linkedin: founderCreateData.linkedin,
@@ -620,7 +631,7 @@ export async function upsertFounderProfile(formData: FormData): Promise<ProfileR
 }
 
 export async function upsertInvestorProfile(formData: FormData): Promise<ProfileResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user) return { success: false, error: "Not authenticated" };
   if (!hasRole(session.user.role, ["INVESTOR", "ADMIN"])) {
     return { success: false, error: "Only investors can update this profile." };
@@ -749,4 +760,5 @@ export async function upsertInvestorProfile(formData: FormData): Promise<Profile
   revalidatePath("/app/profile");
   return { success: true };
 }
+
 

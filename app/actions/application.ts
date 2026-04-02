@@ -1,9 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { env } from "@/lib/env";
@@ -36,7 +35,7 @@ const applicationAssistSchema = z.object({
 });
 
 export async function generateApplicationAssist(formData: FormData): Promise<AssistResult> {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user?.id) return { success: false, error: "Not authenticated" };
 
     const parsed = applicationAssistSchema.safeParse({
@@ -115,7 +114,7 @@ stage: ${parsed.data.stage ?? "N/A"}
 }
 
 export async function submitApplication(formData: FormData): Promise<ApplicationResult> {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user) return { success: false, error: "Not authenticated" };
 
     const rl = await rateLimitAsync(rateLimitKey(session.user.id, "application"), 5, 60_000);
@@ -155,3 +154,4 @@ export async function submitApplication(formData: FormData): Promise<Application
 
     return { success: true, id: app.id };
 }
+

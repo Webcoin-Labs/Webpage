@@ -1,172 +1,314 @@
-import { getServerSession, NextAuthOptions } from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import GoogleProvider from "next-auth/providers/google";
-import GitHubProvider from "next-auth/providers/github";
-import CredentialsProvider from "next-auth/providers/credentials";
-import { compare } from "bcryptjs";
+import "server-only";
+
+import { cookies } from "next/headers";
+import { cache } from "react";
+import { Role, type User } from "@prisma/client";
+import { createServerClient } from "@supabase/ssr";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
+import { authConfig, isSupabaseAuthEnabled } from "@/lib/auth-config";
 import { db } from "@/server/db/client";
-import { Role } from "@prisma/client";
-import { env } from "@/lib/env";
+import { getLegacyServerSession, legacyAuthOptions } from "@/lib/auth-legacy";
 
-export { getServerSession };
-
-const SESSION_MAX_AGE_SECONDS = 24 * 60 * 60;
-
-const providers: NextAuthOptions["providers"] = [
-    CredentialsProvider({
-        id: "credentials",
-        name: "Email or username",
-        credentials: {
-            login: { label: "Email or username", type: "text" },
-            password: { label: "Password", type: "password" },
-        },
-        async authorize(credentials) {
-            if (!credentials?.login || !credentials?.password) return null;
-            const loginRaw = credentials.login.trim().replace(/^@+/, "");
-            const loginLower = loginRaw.toLowerCase();
-            const user = await db.user.findFirst({
-                where: {
-                    OR: [
-                        { email: loginLower },
-                        { username: loginRaw },
-                        { username: loginLower },
-                        { username: { equals: loginRaw, mode: "insensitive" } },
-                    ],
-                },
-            });
-            if (!user?.password) return null;
-            const ok = await compare(credentials.password, user.password);
-            if (!ok) return null;
-            return {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                image: user.image,
-                username: user.username,
-                role: user.role,
-                onboardingComplete: user.onboardingComplete,
-            } as { id: string; name: string | null; email: string; image: string | null; username: string | null; role: Role; onboardingComplete: boolean };
-        },
-    }),
-];
-
-if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
-    providers.unshift(
-        GoogleProvider({
-            clientId: env.GOOGLE_CLIENT_ID,
-            clientSecret: env.GOOGLE_CLIENT_SECRET,
-        })
-    );
-}
-if (env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) {
-    providers.unshift(
-        GitHubProvider({
-            clientId: env.GITHUB_CLIENT_ID,
-            clientSecret: env.GITHUB_CLIENT_SECRET,
-        })
-    );
-}
-
-export const authOptions: NextAuthOptions = {
-    adapter: PrismaAdapter(db) as NextAuthOptions["adapter"],
-    providers,
-    session: {
-        strategy: "jwt",
-        // Force re-login every 24 hours
-        maxAge: SESSION_MAX_AGE_SECONDS,
-    },
-    jwt: {
-        maxAge: SESSION_MAX_AGE_SECONDS,
-    },
-    callbacks: {
-        async redirect({ url, baseUrl }) {
-            if (url.startsWith("/")) return `${baseUrl}${url}`;
-            try {
-                const target = new URL(url);
-                if (target.origin === baseUrl) return url;
-            } catch {
-                return `${baseUrl}/app`;
-            }
-            return `${baseUrl}/app`;
-        },
-        async jwt({ token, user }) {
-            const nowSeconds = Math.floor(Date.now() / 1000);
-            // Enforce a hard 24h lifetime (not sliding) from the initial login time.
-            const issuedAtSeconds =
-                typeof token.loginAt === "number"
-                    ? Math.floor(token.loginAt / 1000)
-                    : typeof token.iat === "number"
-                      ? token.iat
-                      : undefined;
-
-            if (issuedAtSeconds && nowSeconds - issuedAtSeconds > SESSION_MAX_AGE_SECONDS) {
-                return null as any;
-            }
-
-            if (user) {
-                const u = user as { role?: Role; onboardingComplete?: boolean; username?: string | null };
-                token.role = u.role ?? "BUILDER";
-                token.id = user.id;
-                token.onboardingComplete = u.onboardingComplete ?? false;
-                token.username = u.username ?? null;
-                token.picture = user.image ?? token.picture;
-                token.loginAt = Date.now();
-            }
-            // Refresh role and onboarding from DB when needed (works for OAuth and credentials)
-            if (token.id) {
-                const dbUser = await db.user.findUnique({
-                    where: { id: token.id as string },
-                    select: { role: true, id: true, onboardingComplete: true, email: true, image: true, username: true },
-                });
-                if (dbUser) {
-                    token.role = dbUser.role;
-                    token.id = dbUser.id;
-                    token.onboardingComplete = dbUser.onboardingComplete;
-                    token.username = dbUser.username;
-                    if (dbUser.email) token.email = dbUser.email;
-                    token.picture = dbUser.image ?? token.picture;
-                }
-            }
-            return token;
-        },
-        async session({ session, token }) {
-            if (session.user) {
-                session.user.role = token.role as Role;
-                session.user.id = token.id as string;
-                session.user.onboardingComplete = token.onboardingComplete as boolean;
-                session.user.username = (token.username as string | null | undefined) ?? null;
-                session.user.image = (token.picture as string | null | undefined) ?? session.user.image;
-            }
-            return session;
-        },
-    },
-    pages: {
-        signIn: "/login",
-        error: "/login",
-    },
+export type AppSessionUser = {
+  id: string;
+  role: Role;
+  email?: string | null;
+  name?: string | null;
+  image?: string | null;
+  username?: string | null;
+  onboardingComplete?: boolean;
+  supabaseAuthId?: string | null;
+  authProvider?: string | null;
 };
 
-declare module "next-auth" {
-    interface Session {
-        user: {
-            id: string;
-            name?: string | null;
-            email?: string | null;
-            image?: string | null;
-            username?: string | null;
-            role: Role;
-            onboardingComplete?: boolean;
-        };
-    }
+export type AppSession = {
+  user: AppSessionUser;
+};
+
+export const authOptions = legacyAuthOptions;
+
+function deriveDisplayName(supabaseUser: SupabaseUser) {
+  const metadata = supabaseUser.user_metadata ?? {};
+  const candidate =
+    metadata.full_name ??
+    metadata.name ??
+    metadata.user_name ??
+    metadata.preferred_username ??
+    supabaseUser.email?.split("@")[0];
+
+  return typeof candidate === "string" && candidate.trim().length > 0 ? candidate.trim() : null;
 }
 
-declare module "next-auth/jwt" {
-    interface JWT {
-        role?: Role;
-        id?: string;
-        username?: string | null;
-        onboardingComplete?: boolean;
-        loginAt?: number;
-    }
+function deriveAvatarUrl(supabaseUser: SupabaseUser) {
+  const metadata = supabaseUser.user_metadata ?? {};
+  const candidate = metadata.avatar_url ?? metadata.picture;
+  return typeof candidate === "string" && candidate.trim().length > 0 ? candidate.trim() : null;
 }
 
+function deriveAuthProvider(supabaseUser: SupabaseUser) {
+  if (typeof supabaseUser.app_metadata?.provider === "string") {
+    return supabaseUser.app_metadata.provider;
+  }
+
+  const identities = Array.isArray(supabaseUser.identities) ? supabaseUser.identities : [];
+  const provider = identities.find((identity: { provider?: string | null }) => typeof identity.provider === "string")?.provider;
+  return provider ?? "email";
+}
+
+function buildSessionUser(user: Pick<User, "id" | "role" | "email" | "name" | "image" | "username" | "onboardingComplete" | "supabaseAuthId" | "authProvider">): AppSessionUser {
+  return {
+    id: user.id,
+    role: user.role,
+    email: user.email,
+    name: user.name,
+    image: user.image,
+    username: user.username,
+    onboardingComplete: user.onboardingComplete,
+    supabaseAuthId: user.supabaseAuthId,
+    authProvider: user.authProvider,
+  };
+}
+
+export async function syncSupabaseUserToAppUser(supabaseUser: SupabaseUser) {
+  const email = supabaseUser.email?.trim().toLowerCase();
+  if (!email) {
+    throw new Error("Authenticated Supabase user does not have an email address.");
+  }
+
+  const provider = deriveAuthProvider(supabaseUser);
+  const derivedName = deriveDisplayName(supabaseUser);
+  const derivedAvatar = deriveAvatarUrl(supabaseUser);
+  const emailVerified = supabaseUser.email_confirmed_at ? new Date(supabaseUser.email_confirmed_at) : null;
+
+  const existingUser =
+    await db.user.findUnique({
+      where: { supabaseAuthId: supabaseUser.id },
+      select: {
+        id: true,
+        role: true,
+        email: true,
+        emailVerified: true,
+        name: true,
+        image: true,
+        username: true,
+        onboardingComplete: true,
+        supabaseAuthId: true,
+        authProvider: true,
+      },
+    }) ??
+    await db.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        role: true,
+        email: true,
+        emailVerified: true,
+        name: true,
+        image: true,
+        username: true,
+        onboardingComplete: true,
+        supabaseAuthId: true,
+        authProvider: true,
+      },
+    });
+
+  if (existingUser) {
+    const updateData: {
+      email?: string;
+      emailVerified?: Date | null;
+      supabaseAuthId?: string;
+      authProvider?: string;
+      name?: string | null;
+      image?: string | null;
+    } = {};
+
+    if (existingUser.email !== email) {
+      updateData.email = email;
+    }
+
+    const existingVerifiedAt = existingUser.emailVerified?.toISOString() ?? null;
+    const incomingVerifiedAt = emailVerified?.toISOString() ?? null;
+    if (existingVerifiedAt !== incomingVerifiedAt) {
+      updateData.emailVerified = emailVerified;
+    }
+
+    if (!existingUser.supabaseAuthId) {
+      updateData.supabaseAuthId = supabaseUser.id;
+    }
+
+    if (existingUser.authProvider !== provider) {
+      updateData.authProvider = provider;
+    }
+
+    if (!existingUser.name?.trim() && derivedName) {
+      updateData.name = derivedName;
+    }
+
+    if (!existingUser.image?.trim() && derivedAvatar) {
+      updateData.image = derivedAvatar;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return {
+        id: existingUser.id,
+        role: existingUser.role,
+        email: existingUser.email,
+        name: existingUser.name,
+        image: existingUser.image,
+        username: existingUser.username,
+        onboardingComplete: existingUser.onboardingComplete,
+        supabaseAuthId: existingUser.supabaseAuthId,
+        authProvider: existingUser.authProvider,
+      };
+    }
+
+    return db.user.update({
+      where: { id: existingUser.id },
+      data: updateData,
+      select: {
+        id: true,
+        role: true,
+        email: true,
+        name: true,
+        image: true,
+        username: true,
+        onboardingComplete: true,
+        supabaseAuthId: true,
+        authProvider: true,
+      },
+    });
+  }
+
+  const createdUser = await db.user.create({
+    data: {
+      supabaseAuthId: supabaseUser.id,
+      authProvider: provider,
+      email,
+      emailVerified: emailVerified ?? undefined,
+      name: derivedName,
+      image: derivedAvatar,
+      role: "BUILDER",
+      onboardingComplete: false,
+    },
+    select: {
+      id: true,
+      role: true,
+      email: true,
+      name: true,
+      image: true,
+      username: true,
+      onboardingComplete: true,
+      supabaseAuthId: true,
+      authProvider: true,
+    },
+  });
+
+  return createdUser;
+}
+
+async function createSupabaseServerClient() {
+  const cookieStore = await cookies();
+
+  return createServerClient(authConfig.supabaseUrl, authConfig.supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          try {
+            cookieStore.set(name, value, options);
+          } catch {
+            // In Server Components, cookie writes are not allowed.
+            // Route Handlers / Server Actions still persist auth cookies.
+          }
+        });
+      },
+    },
+  });
+}
+
+const getSupabaseAuthUserCached = cache(async () => {
+  if (!isSupabaseAuthEnabled) return null;
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
+  return data.user;
+});
+
+export async function getSupabaseAuthUser() {
+  return getSupabaseAuthUserCached();
+}
+
+const getCurrentAppUserCached = cache(async () => {
+  if (!isSupabaseAuthEnabled) {
+    const legacySession = await getLegacyServerSession(legacyAuthOptions);
+    if (!legacySession?.user?.id) return null;
+    return db.user.findUnique({
+      where: { id: legacySession.user.id },
+      select: {
+        id: true,
+        role: true,
+        email: true,
+        name: true,
+        image: true,
+        username: true,
+        onboardingComplete: true,
+        supabaseAuthId: true,
+        authProvider: true,
+      },
+    });
+  }
+
+  const supabaseUser = await getSupabaseAuthUser();
+  if (!supabaseUser) return null;
+  return syncSupabaseUserToAppUser(supabaseUser);
+});
+
+export async function getCurrentAppUser() {
+  return getCurrentAppUserCached();
+}
+
+const getServerSessionCached = cache(async (): Promise<AppSession | null> => {
+  if (!isSupabaseAuthEnabled) {
+    const legacySession = await getLegacyServerSession(legacyAuthOptions);
+    return legacySession as AppSession | null;
+  }
+
+  const appUser = await getCurrentAppUser();
+  if (!appUser) return null;
+  return { user: buildSessionUser(appUser) };
+});
+
+export async function getServerSession(_options?: unknown): Promise<AppSession | null> {
+  return getServerSessionCached();
+}
+
+export async function requireServerSession() {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error("Not authenticated.");
+  }
+  return session;
+}
+
+export function getPostAuthRedirect(user: Pick<User, "role" | "username" | "onboardingComplete">, requestedPath?: string | null) {
+  const safeRequestedPath =
+    requestedPath && requestedPath.startsWith("/") && !requestedPath.startsWith("//")
+      ? requestedPath
+      : null;
+
+  if (!user.username?.trim()) {
+    return "/app/onboarding";
+  }
+
+  if (!user.onboardingComplete) {
+    return "/app";
+  }
+
+  if (safeRequestedPath && safeRequestedPath !== "/") {
+    return safeRequestedPath;
+  }
+
+  return "/app";
+}

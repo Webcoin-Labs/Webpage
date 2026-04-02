@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { AdminApplicationsTable } from "@/components/app/AdminApplicationsTable";
 import { Mail, MessageSquare, Building2, Gift, Shield, CalendarDays, BriefcaseBusiness, FileText, UsersRound, DatabaseZap, Upload } from "lucide-react";
@@ -10,7 +9,7 @@ import { createAdminAssignmentAction, overrideScoreSnapshotAction, updateAdminAs
 export const metadata = { title: "Admin — Webcoin Labs" };
 
 export default async function AdminPage() {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (session?.user.role !== "ADMIN") redirect("/app");
 
     const [applications, users, projects, buildersCount, partnersCount, leadsCount, introsCount, jobsCount, jobApplicationsCount, pitchDecksCount, reportsCount, hiringInterestCount, foundersWithLogoCount, usersWithAvatarCount, uploadAssetsCount, openAssignmentsCount, scoreReviewCount, recentAssignments, recentScoreSnapshots] = await Promise.all([
@@ -282,3 +281,4 @@ export default async function AdminPage() {
         </div>
     );
 }
+

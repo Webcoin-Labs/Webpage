@@ -1,16 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getServerSession } from "next-auth";
-import { Role, SubscriptionTier, WorkspaceType } from "@prisma/client";
+import { getServerSession } from "@/lib/auth";
+import { Prisma, Role, SubscriptionTier, WorkspaceType } from "@prisma/client";
 import { z } from "zod";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { writeAuditLog } from "@/lib/audit";
 import { identityService } from "@/server/services/identity.service";
 import { integrationService } from "@/server/services/integration.service";
+import { getFileStorage } from "@/lib/storage";
+import { optimizeAndStoreImage } from "@/lib/images/upload";
+import { upsertAvatarUploadAsset } from "@/lib/uploads/assets";
 
 type ActionResult = { success: true; message?: string } | { success: false; error: string };
+type OnboardingStepKey = "terms" | "workspace" | "identity" | "role_setup" | "integrations" | "preview";
 
 const workspaceSchema = z.enum(["FOUNDER_OS", "BUILDER_OS", "INVESTOR_OS"]);
 
@@ -133,8 +136,167 @@ function slugify(value: string) {
     .replace(/-+/g, "-");
 }
 
+function asObject(value: Prisma.JsonValue | null | undefined): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function getStringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function getStringList(value: unknown) {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0) : [];
+}
+
+async function extractResumeText(file: File) {
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  if (file.type === "application/pdf" || extension === "pdf") {
+    const pdfParseModule = await import("pdf-parse");
+    // pdf-parse v2 exports a PDFParse class; v1 exported the function directly or as .default
+    const PDFParseClass = (pdfParseModule as unknown as { PDFParse?: new () => { pdf: (input: Buffer) => Promise<{ text?: string }> } }).PDFParse;
+    if (PDFParseClass) {
+      const parser = new PDFParseClass();
+      const parsed = await parser.pdf(buffer);
+      return parsed.text ?? "";
+    }
+    // Fallback for pdf-parse v1 (function-style export)
+    const pdfParseFn =
+      (pdfParseModule as unknown as { default?: (input: Buffer) => Promise<{ text?: string }> }).default ??
+      (pdfParseModule as unknown as (input: Buffer) => Promise<{ text?: string }>);
+    if (typeof pdfParseFn === "function") {
+      const parsed = await pdfParseFn(buffer);
+      return parsed.text ?? "";
+    }
+    throw new Error("pdf-parse module is not callable. Please check the installed version.");
+  }
+
+  if (
+    file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    extension === "docx"
+  ) {
+    const mammothModule = await import("mammoth");
+    const mammoth = mammothModule as unknown as { extractRawText: (input: { buffer: Buffer }) => Promise<{ value?: string }> };
+    const parsed = await mammoth.extractRawText({ buffer });
+    return parsed.value ?? "";
+  }
+
+  throw new Error("Only PDF and DOCX resumes are supported for autofill.");
+}
+
+function extractUrls(text: string) {
+  return Array.from(new Set(text.match(/https?:\/\/[^\s)]+/gi) ?? []));
+}
+
+function findResumeSection(text: string, headings: string[]) {
+  const lines = text.split(/\r?\n/);
+  const upperHeadings = new Set(headings.map((heading) => heading.toUpperCase()));
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]?.trim();
+    if (!line) continue;
+    if (!upperHeadings.has(line.toUpperCase())) continue;
+    const collected: string[] = [];
+    for (let offset = index + 1; offset < lines.length; offset += 1) {
+      const candidate = lines[offset]?.trim() ?? "";
+      if (!candidate) continue;
+      if (/^[A-Z][A-Z\s/&-]{2,}$/.test(candidate) && candidate.length < 40) break;
+      collected.push(candidate);
+      if (collected.join(" ").length > 800) break;
+    }
+    if (collected.length > 0) return collected.join(" ");
+  }
+  return "";
+}
+
+function pickDetectedKeywords(text: string, candidates: readonly string[]) {
+  const lower = text.toLowerCase();
+  return candidates.filter((candidate) => lower.includes(candidate.toLowerCase()));
+}
+
+export async function parseBuilderResumeForOnboarding(formData: FormData) {
+  try {
+    await requireUser();
+    const file = formData.get("resumeFile");
+    if (!(file instanceof File) || file.size <= 0) {
+      return { success: false as const, error: "Upload a PDF or DOCX resume." };
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      return { success: false as const, error: "Resume exceeds 8MB. Upload a smaller file." };
+    }
+
+    const rawText = (await extractResumeText(file)).replace(/\u0000/g, " ");
+    const text = rawText.replace(/\s+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+    if (text.length < 80) {
+      return { success: false as const, error: "Resume text could not be extracted clearly. Try a different PDF or DOCX." };
+    }
+
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const urls = extractUrls(text);
+    const github = urls.find((url) => /github\.com/i.test(url)) ?? "";
+    const linkedin = urls.find((url) => /linkedin\.com/i.test(url)) ?? "";
+    const twitter = urls.find((url) => /(x\.com|twitter\.com)/i.test(url)) ?? "";
+    const portfolioUrl =
+      urls.find((url) => !/github\.com|linkedin\.com|x\.com|twitter\.com/i.test(url)) ?? "";
+
+    const summarySection =
+      findResumeSection(text, ["SUMMARY", "PROFILE", "ABOUT", "OBJECTIVE"]) ||
+      lines.slice(2, 7).join(" ");
+    const educationSection = findResumeSection(text, ["EDUCATION", "ACADEMICS", "CERTIFICATIONS"]);
+
+    const title =
+      lines.find((line, index) => index > 0 && line.length <= 80 && !/@|http|github|linkedin|twitter|x\.com/i.test(line)) ?? "";
+
+    const skillCandidates = [
+      "TypeScript", "JavaScript", "React", "Next.js", "Node.js", "Solidity", "Rust", "Python", "Go",
+      "PostgreSQL", "MongoDB", "Tailwind", "Prisma", "GraphQL", "Docker", "Kubernetes", "AWS",
+      "Figma", "Redis", "Supabase", "Firebase", "React Native",
+    ] as const;
+    const stackCandidates = [
+      "Next.js", "React", "Node.js", "TypeScript", "PostgreSQL", "Prisma", "Tailwind", "Docker", "AWS", "Redis", "GraphQL",
+    ] as const;
+    const chainCandidates = [
+      "Solana", "Ethereum", "Base", "Polygon", "Arbitrum", "Optimism", "Bitcoin", "Farcaster",
+    ] as const;
+    const opportunityCandidates = ["internship", "full-time", "part-time", "contract", "freelance", "remote"] as const;
+    const availabilityCandidates = ["Immediate", "2 weeks", "1 month", "Part-time", "Full-time"] as const;
+
+    const skills = pickDetectedKeywords(text, skillCandidates);
+    const stack = pickDetectedKeywords(text, stackCandidates);
+    const chainExpertise = pickDetectedKeywords(text, chainCandidates);
+    const lookingFor = pickDetectedKeywords(text, opportunityCandidates);
+    const availability =
+      availabilityCandidates.find((candidate) => text.toLowerCase().includes(candidate.toLowerCase())) ??
+      (lookingFor.includes("full-time") ? "Full-time" : lookingFor.includes("part-time") ? "Part-time" : "");
+
+    return {
+      success: true as const,
+      fields: {
+        title,
+        headline: summarySection.slice(0, 160),
+        builderDescription: summarySection.slice(0, 900),
+        skillsCsv: skills.join(", "),
+        stackCsv: stack.join(", "),
+        chainExpertiseCsv: chainExpertise.join(", "),
+        lookingForCsv: lookingFor.join(", "),
+        availability,
+        github,
+        portfolioUrl,
+        linkedin,
+        twitter,
+        educationBackground: educationSection.slice(0, 1200),
+      },
+    };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Unable to parse resume." };
+  }
+}
+
 async function requireUser() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) throw new Error("Not authenticated.");
   return session.user;
 }
@@ -183,6 +345,224 @@ export async function switchWorkspace(workspaceInput: string): Promise<ActionRes
   }
 }
 
+export async function saveOnboardingTermsAcceptance(accepted: boolean): Promise<ActionResult> {
+  try {
+    const user = await requireUser();
+    if (!accepted) {
+      return { success: false, error: "Accept the terms to continue." };
+    }
+    await identityService.saveOnboardingProgress(user.id, "terms", { accepted: true });
+    revalidatePath("/app/onboarding");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Unable to save onboarding terms." };
+  }
+}
+
+export async function saveOnboardingWorkspaceSelection(workspaceInput: string): Promise<ActionResult> {
+  try {
+    const user = await requireUser();
+    const workspace = workspaceSchema.parse(workspaceInput) as WorkspaceType;
+    await ensureWorkspaceAccess(user.id, workspace);
+    await identityService.setDefaultWorkspace(user.id, workspace);
+    await identityService.saveOnboardingProgress(user.id, "workspace", { workspace });
+    revalidatePath("/app");
+    revalidatePath("/app/onboarding");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Unable to save workspace selection." };
+  }
+}
+
+export async function getOnboardingResumeState() {
+  const user = await requireUser();
+
+  const [
+    currentUser,
+    defaultWorkspace,
+    latestProgress,
+    builderProfile,
+    founderProfile,
+    investorProfile,
+    integrationsList,
+    primaryWallet,
+  ] = await Promise.all([
+    db.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        role: true,
+        name: true,
+        username: true,
+        image: true,
+        bio: true,
+        educationBackground: true,
+        socialLinks: true,
+        onboardingComplete: true,
+      },
+    }),
+    db.userWorkspace.findFirst({
+      where: { userId: user.id, status: "ENABLED", isDefault: true },
+      select: { workspace: true },
+    }),
+    db.mutationAuditLog.findFirst({
+      where: { userId: user.id, action: "onboarding_progress", entityType: "OnboardingProgress" },
+      orderBy: { createdAt: "desc" },
+      select: { metadata: true },
+    }),
+    db.builderProfile.findUnique({
+      where: { userId: user.id },
+      select: {
+        title: true,
+        headline: true,
+        bio: true,
+        educationBackground: true,
+        skills: true,
+        stack: true,
+        chainExpertise: true,
+        openTo: true,
+        availability: true,
+        github: true,
+        portfolioUrl: true,
+      },
+    }),
+    db.founderProfile.findUnique({
+      where: { userId: user.id },
+      select: {
+        companyName: true,
+        companyDescription: true,
+        website: true,
+        linkedin: true,
+        twitter: true,
+        chainFocus: true,
+        projectStage: true,
+        lookingFor: true,
+        founderDescription: true,
+        educationBackground: true,
+      },
+    }),
+    db.investorProfile.findUnique({
+      where: { userId: user.id },
+      select: {
+        investorType: true,
+        roleTitle: true,
+        investmentThesis: true,
+        sectorFocus: true,
+        chainFocus: true,
+        stageFocus: true,
+        geography: true,
+        checkSizeMin: true,
+        checkSizeMax: true,
+        firmName: true,
+      },
+    }),
+    db.integrationConnection.findMany({
+      where: { userId: user.id, status: { not: "DISCONNECTED" } },
+      select: { provider: true },
+    }),
+    db.walletConnection.findFirst({
+      where: { userId: user.id, isPrimary: true },
+      orderBy: { updatedAt: "desc" },
+      select: { network: true, address: true },
+    }),
+  ]);
+
+  if (!currentUser) {
+    throw new Error("Unable to load onboarding state.");
+  }
+
+  const socialLinks = asObject(currentUser.socialLinks as Prisma.JsonValue | null | undefined);
+  const progressMetadata = asObject(latestProgress?.metadata as Prisma.JsonValue | null | undefined);
+  const progressPayload = asObject(progressMetadata.payload as Prisma.JsonValue | null | undefined);
+  const progressWorkspace = getStringValue(progressPayload.workspace) as "" | "FOUNDER_OS" | "BUILDER_OS" | "INVESTOR_OS";
+
+  const workspace = (
+    progressWorkspace ||
+    defaultWorkspace?.workspace ||
+    (currentUser.role === "FOUNDER" ? "FOUNDER_OS" : currentUser.role === "INVESTOR" ? "INVESTOR_OS" : "BUILDER_OS")
+  ) as "FOUNDER_OS" | "BUILDER_OS" | "INVESTOR_OS";
+
+  const termsAccepted =
+    progressMetadata.step === "terms" ||
+    progressMetadata.step === "workspace" ||
+    progressMetadata.step === "identity" ||
+    progressMetadata.step === "role_setup" ||
+    progressMetadata.step === "integrations" ||
+    currentUser.onboardingComplete ||
+    Boolean(defaultWorkspace);
+
+  const hasIdentity = Boolean(currentUser.name?.trim() && currentUser.username?.trim());
+  const hasRoleSetup =
+    workspace === "FOUNDER_OS" ? Boolean(founderProfile) : workspace === "INVESTOR_OS" ? Boolean(investorProfile) : Boolean(builderProfile);
+  const hasIntegrations = integrationsList.length > 0 || Boolean(primaryWallet);
+
+  const step = !termsAccepted ? 0 : !defaultWorkspace && !progressWorkspace ? 1 : !hasIdentity ? 2 : !hasRoleSetup ? 3 : !hasIntegrations ? 4 : 5;
+
+  const roleInputs: Record<string, string> =
+    workspace === "FOUNDER_OS"
+      ? {
+          companyName: founderProfile?.companyName ?? "",
+          companyDescription: founderProfile?.companyDescription ?? "",
+          website: founderProfile?.website ?? "",
+          linkedin: founderProfile?.linkedin ?? "",
+          twitter: founderProfile?.twitter ?? "",
+          chainFocus: founderProfile?.chainFocus ?? "",
+          stage: founderProfile?.projectStage ?? "",
+          lookingForCsv: founderProfile?.lookingFor?.join(", ") ?? "",
+          founderDescription: founderProfile?.founderDescription ?? "",
+          educationBackground: founderProfile?.educationBackground ?? "",
+        }
+      : workspace === "INVESTOR_OS"
+        ? {
+            investorType: investorProfile?.investorType ?? "",
+            roleTitle: investorProfile?.roleTitle ?? "",
+            thesis: investorProfile?.investmentThesis ?? "",
+            sectorFocusCsv: investorProfile?.sectorFocus?.join(", ") ?? "",
+            chainFocusCsv: investorProfile?.chainFocus?.join(", ") ?? "",
+            stageFocusCsv: investorProfile?.stageFocus?.join(", ") ?? "",
+            geography: investorProfile?.geography ?? "",
+            checkSizeMin: investorProfile?.checkSizeMin?.toString() ?? "",
+            checkSizeMax: investorProfile?.checkSizeMax?.toString() ?? "",
+            companyName: investorProfile?.firmName ?? "",
+          }
+        : {
+            title: builderProfile?.title ?? "",
+            headline: builderProfile?.headline ?? "",
+            builderDescription: builderProfile?.bio ?? "",
+            educationBackground: builderProfile?.educationBackground ?? "",
+            skillsCsv: builderProfile?.skills?.join(", ") ?? "",
+            stackCsv: builderProfile?.stack?.join(", ") ?? "",
+            chainExpertiseCsv: builderProfile?.chainExpertise?.join(", ") ?? "",
+            lookingForCsv: builderProfile?.openTo?.join(", ") ?? "",
+            availability: builderProfile?.availability ?? "",
+            github: builderProfile?.github ?? "",
+            portfolioUrl: builderProfile?.portfolioUrl ?? "",
+          };
+
+  return {
+    success: true as const,
+    step,
+    termsAccepted,
+    workspace,
+    identity: {
+      name: currentUser.name ?? "",
+      username: currentUser.username ?? "",
+      bio: currentUser.bio ?? "",
+      educationBackground: currentUser.educationBackground ?? "",
+      twitter: getStringValue(socialLinks.twitter),
+      linkedin: getStringValue(socialLinks.linkedin),
+      website: getStringValue(socialLinks.website),
+      avatarPreview: currentUser.image ?? "",
+    },
+    roleInputs,
+    integrations: integrationsList.map((entry) => entry.provider),
+    wallet: {
+      network: primaryWallet?.network ?? "EVM",
+      address: primaryWallet?.address ?? "",
+    },
+  };
+}
+
 export async function saveProfileIdentity(formData: FormData): Promise<ActionResult> {
   try {
     const user = await requireUser();
@@ -198,11 +578,35 @@ export async function saveProfileIdentity(formData: FormData): Promise<ActionRes
 
     const existingUser = await db.user.findUnique({
       where: { id: user.id },
-      select: { username: true },
+      select: { username: true, image: true, imageStorageKey: true },
     });
     const normalizedUsername = parsed.username.trim();
     if (existingUser?.username && existingUser.username !== normalizedUsername) {
       return { success: false, error: "Username is locked and cannot be changed." };
+    }
+
+    const avatarFile = formData.get("avatarFile");
+    let nextImage = existingUser?.image ?? null;
+    let nextImageStorageKey = existingUser?.imageStorageKey ?? null;
+    let nextImageMimeType: string | null | undefined;
+    let nextImageSize: number | null | undefined;
+    let nextImageWidth: number | null | undefined;
+    let nextImageHeight: number | null | undefined;
+    let nextImageOriginalName: string | null | undefined;
+
+    if (avatarFile instanceof File && avatarFile.size > 0) {
+      const storage = getFileStorage();
+      if (existingUser?.imageStorageKey) {
+        await storage.delete(existingUser.imageStorageKey).catch(() => undefined);
+      }
+      const storedImage = await optimizeAndStoreImage(avatarFile, "avatar", user.id);
+      nextImage = storedImage.fileUrl;
+      nextImageStorageKey = storedImage.storageKey;
+      nextImageMimeType = storedImage.mimeType;
+      nextImageSize = storedImage.fileSize;
+      nextImageWidth = storedImage.width;
+      nextImageHeight = storedImage.height;
+      nextImageOriginalName = storedImage.originalName;
     }
 
     await db.user.update({
@@ -210,6 +614,13 @@ export async function saveProfileIdentity(formData: FormData): Promise<ActionRes
       data: {
         name: parsed.name.trim(),
         username: normalizedUsername,
+        image: nextImage,
+        imageStorageKey: nextImageStorageKey,
+        imageMimeType: nextImageMimeType ?? undefined,
+        imageSize: nextImageSize ?? undefined,
+        imageWidth: nextImageWidth ?? undefined,
+        imageHeight: nextImageHeight ?? undefined,
+        imageOriginalName: nextImageOriginalName ?? undefined,
         bio: nullIfEmpty(parsed.bio),
         educationBackground: nullIfEmpty(parsed.educationBackground),
         socialLinks: {
@@ -219,6 +630,19 @@ export async function saveProfileIdentity(formData: FormData): Promise<ActionRes
         },
       },
     });
+
+    if (nextImage) {
+      await upsertAvatarUploadAsset(user.id, {
+        ownerUserId: user.id,
+        fileUrl: nextImage,
+        storageKey: nextImageStorageKey ?? null,
+        mimeType: nextImageMimeType ?? null,
+        fileSize: nextImageSize ?? null,
+        width: nextImageWidth ?? null,
+        height: nextImageHeight ?? null,
+        originalName: nextImageOriginalName ?? null,
+      });
+    }
 
     await db.publicProfileSettings.upsert({
       where: { userId: user.id },
@@ -815,3 +1239,4 @@ export async function createCoverLetterDraft(formData: FormData): Promise<Action
     return { success: false, error: error instanceof Error ? error.message : "Unable to save cover letter draft." };
   }
 }
+

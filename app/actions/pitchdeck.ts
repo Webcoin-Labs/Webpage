@@ -1,11 +1,10 @@
 "use server";
 
 import path from "path";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Prisma, SubscriptionTier } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { getFileStorage } from "@/lib/storage";
@@ -94,7 +93,7 @@ function validateUploadedFile(file: File | null): { kind: DeckFileKind } | { err
 }
 
 async function assertFounderOrAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) throw new Error("You must be signed in.");
   if (!["FOUNDER", "ADMIN"].includes(session.user.role)) {
     throw new Error("Only founders can use pitch analysis.");
@@ -821,7 +820,7 @@ export async function submitPitchDeck(formData: FormData): Promise<PitchDeckActi
 }
 
 export async function drainQueuedPitchDeckAnalyses(limit = 6) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") {
     return { success: false, error: "Unauthorized" as const };
   }
@@ -852,3 +851,4 @@ export async function drainQueuedPitchDeckAnalysesBySystem(limit = 6) {
 
   return { success: true as const, scanned: decks.length, processed, failed };
 }
+

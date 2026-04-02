@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { ArrowLeft } from "lucide-react";
 import { AdminEventForm } from "@/components/events/AdminEventForm";
@@ -14,7 +13,7 @@ export default async function AdminEventEditPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") redirect("/app");
   const { id } = await params;
 

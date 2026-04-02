@@ -1,7 +1,6 @@
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { revalidatePath } from "next/cache";
 
@@ -20,7 +19,7 @@ function isValidUsername(username: string) {
 }
 
 export async function updateRole(role: string): Promise<SettingsResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return { success: false, error: "Not authenticated" };
   if (!allowedRoles.includes(role as (typeof allowedRoles)[number])) {
     return { success: false, error: "Invalid role" };
@@ -82,7 +81,7 @@ export async function updateRole(role: string): Promise<SettingsResult> {
 }
 
 export async function updateUsername(usernameRaw: string): Promise<SettingsResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return { success: false, error: "Not authenticated" };
   const username = normalizeUsername(usernameRaw);
   if (!isValidUsername(username)) {
@@ -90,3 +89,4 @@ export async function updateUsername(usernameRaw: string): Promise<SettingsResul
   }
   return { success: false, error: "Username is locked and cannot be changed." };
 }
+

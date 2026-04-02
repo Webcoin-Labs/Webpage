@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { signOut } from "next-auth/react";
+import { signOut } from "@/lib/auth-client";
 import { ChevronDown, Eye, LogOut, Settings, User } from "lucide-react";
 import { ProfileAvatar } from "@/components/common/ProfileAvatar";
 
@@ -94,3 +94,4 @@ export function AppTopNavUserMenu({
     </div>
   );
 }
+

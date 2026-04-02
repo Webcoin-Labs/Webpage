@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { upsertInvestorProfile } from "@/app/actions/profile";
 import { Loader2, CheckCircle2, ImagePlus } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface Props {
@@ -44,9 +44,9 @@ export function InvestorProfileForm({ initial }: Props) {
       const result = await upsertInvestorProfile(formData);
       if (result.success) {
         setSuccess(true);
+        router.refresh();
         if (shouldRedirect) {
           router.push("/app");
-          router.refresh();
         }
       } else {
         setError(result.error);
@@ -260,3 +260,4 @@ export function InvestorProfileForm({ initial }: Props) {
     </div>
   );
 }
+

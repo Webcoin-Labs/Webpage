@@ -1,52 +1,59 @@
-import { withAuth } from "next-auth/middleware";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { isSupabaseAuthEnabled } from "@/lib/auth-config";
+import { updateSupabaseSession } from "@/lib/supabase/middleware";
 
-export default withAuth(
-    function middleware(req) {
-        const { pathname } = req.nextUrl;
-        const token = req.nextauth.token;
-        const host = (req.headers.get("host") ?? "").toLowerCase();
+function normalizeHostRedirect(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const host = (request.headers.get("host") ?? "").toLowerCase();
 
-        // Normalize accidental www prefix on the app subdomain.
-        if (host === "www.app.webcoinlabs.com") {
-            const target = new URL(`https://app.webcoinlabs.com${pathname}${req.nextUrl.search}`);
-            return NextResponse.redirect(target);
-        }
+  if (host === "www.app.webcoinlabs.com") {
+    return NextResponse.redirect(new URL(`https://app.webcoinlabs.com${pathname}${request.nextUrl.search}`));
+  }
 
-        // App subdomain root should open auth entrypoint.
-        if (host === "app.webcoinlabs.com" && pathname === "/") {
-            return NextResponse.redirect(new URL("/login", req.url));
-        }
+  if (host === "app.webcoinlabs.com" && pathname === "/") {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 
-        // Keep marketing site on apex domain, but auth UI on app subdomain.
-        if ((host === "webcoinlabs.com" || host === "www.webcoinlabs.com") && pathname.startsWith("/login")) {
-            const target = new URL(`https://app.webcoinlabs.com${pathname}${req.nextUrl.search}`);
-            return NextResponse.redirect(target);
-        }
+  if ((host === "webcoinlabs.com" || host === "www.webcoinlabs.com") && pathname.startsWith("/login")) {
+    return NextResponse.redirect(new URL(`https://app.webcoinlabs.com${pathname}${request.nextUrl.search}`));
+  }
 
-        // Admin-only routes
-        if (pathname.startsWith("/app/admin") && token?.role !== "ADMIN") {
-            return NextResponse.redirect(new URL("/app", req.url));
-        }
+  return null;
+}
 
-        return NextResponse.next();
-    },
-    {
-        callbacks: {
-            authorized: ({ token, req }) => {
-                // Require auth for all /app/* routes
-                if (req.nextUrl.pathname.startsWith("/app")) {
-                    return !!token;
-                }
-                if (req.nextUrl.pathname.startsWith("/api/profiles/contact")) {
-                    return !!token && (token.role === "INVESTOR" || token.role === "ADMIN");
-                }
-                return true;
-            },
-        },
+function requiresProtectedSession(pathname: string) {
+  return pathname.startsWith("/app") || pathname.startsWith("/api/profiles/contact");
+}
+
+export default async function middleware(request: NextRequest) {
+  const hostRedirect = normalizeHostRedirect(request);
+  if (hostRedirect) return hostRedirect;
+
+  const pathname = request.nextUrl.pathname;
+
+  if (isSupabaseAuthEnabled) {
+    const { response, user } = await updateSupabaseSession(request);
+
+    if (requiresProtectedSession(pathname) && !user) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("callbackUrl", `${pathname}${request.nextUrl.search}`);
+      return NextResponse.redirect(loginUrl);
     }
-);
+
+    return response;
+  }
+
+  const token = await getToken({ req: request });
+  if (requiresProtectedSession(pathname) && !token) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", `${pathname}${request.nextUrl.search}`);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
-    matcher: ["/app/:path*", "/api/profiles/contact/:path*", "/login/:path*"],
+  matcher: ["/app/:path*", "/api/profiles/contact/:path*", "/login/:path*", "/auth/callback"],
 };

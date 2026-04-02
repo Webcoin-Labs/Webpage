@@ -1,9 +1,8 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { UploadAssetType, UploadModerationStatus } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { AdminUploadModerationTable } from "@/components/app/AdminUploadModerationTable";
 import {
@@ -123,7 +122,7 @@ function parseFilterValue<T extends string>(value: string | undefined, options: 
 
 export default async function AdminUploadsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const resolvedSearchParams = await Promise.resolve(searchParams);
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") redirect("/app");
 
   await backfillUploadAssets();
@@ -244,3 +243,4 @@ export default async function AdminUploadsPage({ searchParams }: { searchParams:
     </div>
   );
 }
+

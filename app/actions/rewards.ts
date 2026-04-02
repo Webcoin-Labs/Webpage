@@ -1,7 +1,6 @@
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -17,7 +16,7 @@ export type ClaimResult = { success: true } | { success: false; error: string };
 export type CreateRewardResult = { success: true; id: string } | { success: false; error: string };
 
 export async function claimReward(rewardId: string): Promise<ClaimResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return { success: false, error: "Not authenticated" };
 
   const reward = await db.reward.findUnique({
@@ -34,7 +33,7 @@ export async function claimReward(rewardId: string): Promise<ClaimResult> {
 }
 
 export async function createReward(formData: FormData): Promise<CreateRewardResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") return { success: false, error: "Unauthorized" };
 
   const raw = {
@@ -58,3 +57,4 @@ export async function createReward(formData: FormData): Promise<CreateRewardResu
   revalidatePath("/app/admin/rewards");
   return { success: true, id: reward.id };
 }
+

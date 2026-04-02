@@ -21,6 +21,27 @@ function sanitizeStorageKey(storageKey: string): string {
     .join("/");
 }
 
+function derivePublicBaseUrl(
+  configuredPublicBaseUrl: string | null,
+  accountId: string | undefined,
+  endpoint: string,
+  bucket: string
+): string | null {
+  if (configuredPublicBaseUrl) return configuredPublicBaseUrl;
+  if (accountId) return `https://${bucket}.${accountId}.r2.dev`;
+
+  // Derive account id when endpoint is like https://<account>.r2.cloudflarestorage.com
+  try {
+    const hostname = new URL(endpoint).hostname;
+    const match = hostname.match(/^([a-z0-9-]+)\.r2\.cloudflarestorage\.com$/i);
+    if (match?.[1]) return `https://${bucket}.${match[1]}.r2.dev`;
+  } catch {
+    // Ignore malformed endpoint; constructor validation handles required endpoint presence.
+  }
+
+  return null;
+}
+
 function streamToBuffer(body: unknown): Promise<Buffer> {
   if (!body || typeof (body as { [key: string]: unknown }).on !== "function") {
     throw new Error("Unexpected R2 object response body.");
@@ -38,6 +59,7 @@ export class R2FileStorage implements FileStorage {
   private readonly client: S3Client;
   private readonly bucket: string;
   private readonly endpoint: string;
+  private readonly publicBaseUrl: string | null;
 
   constructor() {
     const accountId = env.R2_ACCOUNT_ID;
@@ -49,6 +71,13 @@ export class R2FileStorage implements FileStorage {
     }
     this.endpoint = configuredEndpoint.replace(/\/+$/, "");
     this.bucket = requireEnv("R2_BUCKET_NAME");
+    const configuredPublicBase = env.R2_PUBLIC_BASE_URL?.replace(/\/+$/, "") ?? null;
+    this.publicBaseUrl = derivePublicBaseUrl(
+      configuredPublicBase,
+      accountId,
+      this.endpoint,
+      this.bucket
+    );
     this.client = new S3Client({
       region: "auto",
       endpoint: this.endpoint,
@@ -78,7 +107,12 @@ export class R2FileStorage implements FileStorage {
 
     return {
       storageKey,
-      fileUrl: `${this.endpoint}/${this.bucket}/${storageKey}`,
+      fileUrl:
+        (input.visibility ?? "private") === "public"
+          ? this.publicBaseUrl
+            ? `${this.publicBaseUrl}/${storageKey}`
+            : `${this.endpoint}/${this.bucket}/${storageKey}`
+          : `${this.endpoint}/${this.bucket}/${storageKey}`,
     };
   }
 

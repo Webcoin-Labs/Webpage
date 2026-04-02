@@ -28,7 +28,13 @@ function trimAddress(address: string) {
   return `${address.slice(0, 8)}...${address.slice(-6)}`;
 }
 
-export function WalletConnectionCard({ wallets }: { wallets: WalletSummary[] }) {
+export function WalletConnectionCard({
+  wallets,
+  anchorId = "wallet-connection",
+}: {
+  wallets: WalletSummary[];
+  anchorId?: string;
+}) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -110,7 +116,7 @@ export function WalletConnectionCard({ wallets }: { wallets: WalletSummary[] }) 
   };
 
   return (
-    <div className="rounded-3xl border border-border/50 bg-card p-6">
+    <div id={anchorId} className="rounded-3xl border border-border/50 bg-card p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-base font-semibold">Wallet connection</h2>

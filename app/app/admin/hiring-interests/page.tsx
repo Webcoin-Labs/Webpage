@@ -1,15 +1,14 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { HiringInterestsTable } from "@/components/hiring/HiringInterestsTable";
 
 export const metadata = { title: "Hiring Interests • Admin | Webcoin Labs" };
 
 export default async function AdminHiringInterestsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") redirect("/app");
 
   const entries = await db.hiringInterest.findMany({
@@ -33,3 +32,4 @@ export default async function AdminHiringInterestsPage() {
     </div>
   );
 }
+
