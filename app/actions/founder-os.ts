@@ -1,10 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { z } from "zod";
 import { BadgeType, Role, StartupChainFocus, StartupStage } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import {
   buildStartupSlug,
@@ -136,7 +135,7 @@ function toNull(value?: string | null) {
 }
 
 async function requireRole(roles: Role[]) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) throw new Error("You must be signed in.");
   if (!roles.includes(session.user.role)) throw new Error("You are not authorized for this action.");
   return session.user;
@@ -635,18 +634,43 @@ export async function upsertCalendlyLink(formData: FormData): Promise<ActionResu
     });
     if (!parsed.success) return { success: false, error: parsed.error.errors[0].message };
 
+    const calendlyUrl = toNull(parsed.data.calendlyUrl);
+
     await db.meetingLink.upsert({
       where: { userId: user.id },
       create: {
         userId: user.id,
-        calendlyUrl: toNull(parsed.data.calendlyUrl),
+        calendlyUrl,
       },
       update: {
-        calendlyUrl: toNull(parsed.data.calendlyUrl),
+        calendlyUrl,
+      },
+    });
+
+    await db.integrationConnection.upsert({
+      where: { userId_provider: { userId: user.id, provider: "CALENDLY" } },
+      create: {
+        userId: user.id,
+        provider: "CALENDLY",
+        status: calendlyUrl ? "CONNECTED" : "DISCONNECTED",
+        externalEmail: user.email ?? null,
+        externalUserId: user.username ?? null,
+        lastSyncedAt: calendlyUrl ? new Date() : null,
+      },
+      update: {
+        status: calendlyUrl ? "CONNECTED" : "DISCONNECTED",
+        externalEmail: calendlyUrl ? user.email ?? null : null,
+        externalUserId: calendlyUrl ? user.username ?? null : null,
+        encryptedToken: calendlyUrl ? undefined : null,
+        refreshToken: calendlyUrl ? undefined : null,
+        lastSyncedAt: calendlyUrl ? new Date() : null,
       },
     });
 
     revalidatePath("/app/founder-os");
+    revalidatePath("/app/founder-os/integrations");
+    revalidatePath("/app/builder-os/integrations");
+    revalidatePath("/app/investor-os/integrations");
     revalidatePath("/app/settings");
     return { success: true };
   } catch (error) {
@@ -758,3 +782,4 @@ export async function generateFounderMarketInsight(formData: FormData): Promise<
     return { success: false, error: error instanceof Error ? error.message : "Could not generate market insight." };
   }
 }
+

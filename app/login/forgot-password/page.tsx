@@ -5,6 +5,7 @@ import Link from "next/link";
 import { HeroBackground } from "@/components/common/HeroBackground";
 import { requestPasswordReset } from "@/app/actions/auth";
 import { Loader2, Mail, ArrowLeft } from "lucide-react";
+import { isSupabaseAuthEnabled } from "@/lib/auth-config";
 
 const inputClass =
   "w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500/40 transition";
@@ -16,6 +17,29 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState("");
   const [devResetLink, setDevResetLink] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  if (isSupabaseAuthEnabled) {
+    return (
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+        <HeroBackground />
+        <div className="relative z-10 w-full max-w-md mx-auto px-6">
+          <div className="p-8 rounded-2xl border border-border/50 bg-card/90 backdrop-blur-xl text-center">
+            <h1 className="text-xl font-bold mb-2">Password reset is not needed</h1>
+            <p className="text-sm text-muted-foreground mb-6">
+              Webcoin Labs now uses Supabase magic-link login. Return to sign in and request a fresh email link instead of resetting a password.
+            </p>
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 text-sm font-medium"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to sign in
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

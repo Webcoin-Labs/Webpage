@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { buildTokenomicsWorkbook } from "@/lib/tokenomics/sheet";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ scenarioId: string }> }) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   const { scenarioId } = await params;
 

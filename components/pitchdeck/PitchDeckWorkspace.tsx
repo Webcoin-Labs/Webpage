@@ -113,6 +113,12 @@ function normalized(value: string) {
   return value.toLowerCase().trim();
 }
 
+function safeDisplayValue(value: string) {
+  if (!value) return "-";
+  if (value.includes("Ã") || value.includes("â")) return "-";
+  return value;
+}
+
 function extractImprovedTextForSection(version: DeckVersion | undefined, section: DeckSection | undefined): string {
   if (!version || !section || !version.contentJson || typeof version.contentJson !== "object") return "";
   const content = version.contentJson as Record<string, unknown>;
@@ -370,31 +376,43 @@ export function PitchDeckWorkspace({
   ];
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-[28px] border border-border/60 bg-card/90 p-5 shadow-[0_24px_70px_rgba(0,0,0,0.24)]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-2xl">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-300">Pitch Deck Workspace</p>
-            <h1 className="mt-2 text-2xl font-semibold text-foreground md:text-3xl">Investor-grade pitch deck builder</h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Analyze a real deck, surface weak sections, and improve the narrative with score-led guidance instead of a cluttered tool panel.
+    <div className="w-full space-y-6 xl:mx-auto xl:w-[min(1800px,calc(100vw-23rem))] xl:max-w-none">
+
+      {/* â”€â”€â”€ PAGE HEADER â”€â”€â”€ */}
+      <section
+        className="rounded-[20px] p-6"
+        style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-5">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "#a78bfa" }}>
+              Pitch Deck Workspace
+            </p>
+            <h1 className="mt-2 text-2xl font-semibold" style={{ color: "#e4e4e7", letterSpacing: "-0.3px" }}>
+              Investor-grade pitch deck builder
+            </h1>
+            <p className="mt-1.5 text-[13px] leading-6" style={{ color: "#71717a" }}>
+              Analyze a real deck, surface weak sections, and improve the narrative with score-led guidance.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div
-              className={cn(
-                "inline-flex items-center rounded-full border px-3 py-1.5 text-xs",
-                isPremium ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-200" : "border-amber-500/30 bg-amber-500/10 text-amber-200",
-              )}
+              className="inline-flex items-center rounded-full border px-3 py-1.5 text-[12px]"
+              style={{
+                borderColor: isPremium ? "rgba(52,211,153,0.3)" : "rgba(251,191,36,0.3)",
+                backgroundColor: isPremium ? "rgba(52,211,153,0.08)" : "rgba(251,191,36,0.08)",
+                color: isPremium ? "#34d399" : "#fbbf24",
+              }}
             >
-              {isPremium ? <Sparkles className="mr-1 h-3.5 w-3.5" /> : <Crown className="mr-1 h-3.5 w-3.5" />}
+              {isPremium ? <Sparkles className="mr-1.5 h-3 w-3" /> : <Crown className="mr-1.5 h-3 w-3" />}
               {isPremium ? "Pro unlocked" : "Pro locked"}
             </div>
             <button
               type="button"
               onClick={onReanalyzeDeck}
               disabled={pending || !activeDeck}
-              className="inline-flex items-center gap-1 rounded-xl border border-border/60 bg-background px-3 py-2 text-xs text-muted-foreground"
+              className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px] transition-colors disabled:opacity-40"
+              style={{ border: "0.5px solid #27272a", backgroundColor: "#0d0d0f", color: "#71717a" }}
             >
               <RefreshCw className={cn("h-3.5 w-3.5", pending ? "animate-spin" : "")} />
               Re-analyze
@@ -403,7 +421,8 @@ export function PitchDeckWorkspace({
               type="button"
               onClick={() => onExport("pdf")}
               disabled={!activeDeck || exporting === "pdf"}
-              className="inline-flex items-center gap-1 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200"
+              className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px] transition-colors disabled:opacity-40"
+              style={{ border: "0.5px solid #4c1d95", backgroundColor: "#1a1040", color: "#a78bfa" }}
             >
               {exporting === "pdf" ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
               Export PDF
@@ -411,60 +430,75 @@ export function PitchDeckWorkspace({
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-          <div className="rounded-2xl border border-border/60 bg-background/80 p-4">
+        {/* Upload row + score cards */}
+        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
+          {/* Upload card */}
+          <div
+            className="rounded-[14px] p-4 space-y-4"
+            style={{ backgroundColor: "#0d0d0f", border: "0.5px solid #1e1e24" }}
+          >
             <div className="flex flex-wrap items-center gap-2">
               <select
                 value={activeDeck?.id ?? ""}
                 onChange={(e) => onSelectDeck(e.target.value)}
-                className="min-w-[220px] rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                className="min-w-[200px] rounded-xl px-3 py-2 text-[13px] outline-none"
+                style={{ border: "0.5px solid #27272a", backgroundColor: "#111114", color: "#d4d4d8" }}
               >
                 {decks.length ? (
                   decks.map((deck) => (
-                    <option key={deck.id} value={deck.id}>
-                      {deck.originalFileName}
-                    </option>
+                    <option key={deck.id} value={deck.id}>{deck.originalFileName}</option>
                   ))
                 ) : (
                   <option value="">No pitch decks yet</option>
                 )}
               </select>
-              <span className="rounded-full border border-border/60 px-3 py-1 text-[11px] text-muted-foreground">
-                Upload {activeDeck?.uploadStatus ?? "N/A"}
-              </span>
-              <span className="rounded-full border border-border/60 px-3 py-1 text-[11px] text-muted-foreground">
-                Processing {activeDeck?.processingStatus ?? "N/A"}
-              </span>
-              <span className="rounded-full border border-border/60 px-3 py-1 text-[11px] text-muted-foreground">
-                Versions {activeDeck?.versions.length ?? 0}
-              </span>
+              {[
+                `Upload ${activeDeck?.uploadStatus ?? "N/A"}`,
+                `Processing ${activeDeck?.processingStatus ?? "N/A"}`,
+                `Versions ${activeDeck?.versions.length ?? 0}`,
+              ].map((label) => (
+                <span
+                  key={label}
+                  className="rounded-full px-2.5 py-1 text-[10px]"
+                  style={{ border: "0.5px solid #27272a", color: "#52525b" }}
+                >
+                  {label}
+                </span>
+              ))}
             </div>
             <form
-              className="mt-4 space-y-3"
               onSubmit={(e) => {
                 e.preventDefault();
                 onUploadSubmit(e.currentTarget);
               }}
+              className="space-y-3"
             >
               {projects.length > 0 ? (
-                <select name="projectId" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" defaultValue="">
+                <select
+                  name="projectId"
+                  defaultValue=""
+                  className="w-full rounded-xl px-3 py-2 text-[13px] outline-none"
+                  style={{ border: "0.5px solid #27272a", backgroundColor: "#111114", color: "#d4d4d8" }}
+                >
                   <option value="">Attach to project (optional)</option>
                   {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
+                    <option key={project.id} value={project.id}>{project.name}</option>
                   ))}
                 </select>
               ) : null}
-              <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-border/70 bg-background px-4 py-4 text-sm text-muted-foreground">
-                <UploadCloud className="h-4 w-4 text-cyan-300" />
+              <label
+                className="flex cursor-pointer items-center gap-3 rounded-xl px-4 py-3.5 text-[13px] transition-colors"
+                style={{ border: "0.5px dashed #27272a", backgroundColor: "#111114", color: "#71717a" }}
+              >
+                <UploadCloud className="h-4 w-4 shrink-0" style={{ color: "#a78bfa" }} />
                 Upload PDF to generate a deck review, slide-by-slide feedback, and rewrite suggestions.
                 <input type="file" name="file" accept=".pdf,.docx" required className="hidden" />
               </label>
               <button
                 type="submit"
                 disabled={pending}
-                className="inline-flex items-center gap-1 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200"
+                className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[12px] font-medium transition-colors disabled:opacity-50"
+                style={{ border: "0.5px solid #4c1d95", backgroundColor: "#1a1040", color: "#a78bfa" }}
               >
                 {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : null}
                 Upload and analyze
@@ -472,294 +506,441 @@ export function PitchDeckWorkspace({
             </form>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+          {/* Score cards â€” stacked vertically */}
+          <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
             {scoreCards.map((card) => (
-              <div key={card.label} className={cn("rounded-2xl border p-4", scoreTone(card.value))}>
-                <p className="text-[11px] uppercase tracking-[0.16em] opacity-80">{card.label}</p>
-                <p className="mt-3 text-3xl font-semibold">{card.value ?? "--"}</p>
-                <p className="mt-2 text-xs opacity-80">{card.note}</p>
+              <div
+                key={card.label}
+                className={cn("rounded-[14px] border p-4", scoreTone(card.value))}
+              >
+                <p className="text-[10px] uppercase tracking-[0.18em] opacity-60">{card.label}</p>
+                <div className="mt-2 flex items-end justify-between gap-2">
+                  <p className="text-4xl font-bold tabular-nums">{card.value ?? "--"}</p>
+                  <span
+                    className="mb-0.5 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                    style={{
+                      backgroundColor: card.value == null ? "transparent"
+                        : card.value >= 70 ? "rgba(16,185,129,0.15)"
+                        : card.value >= 45 ? "rgba(251,191,36,0.15)"
+                        : "rgba(239,68,68,0.15)",
+                      color: card.value == null ? "inherit"
+                        : card.value >= 70 ? "#34d399"
+                        : card.value >= 45 ? "#fbbf24"
+                        : "#f87171",
+                    }}
+                  >
+                    {card.value == null ? "N/A" : card.value >= 70 ? "Strong" : card.value >= 45 ? "Moderate" : "Needs work"}
+                  </span>
+                </div>
+                <p className="mt-1 text-[10px] opacity-50 leading-4">{card.note}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="rounded-[24px] border border-border/60 bg-card p-4">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Slide navigator</p>
-            <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] text-muted-foreground">
-              {filteredSections.length}/{activeDeck?.sections.length ?? 0}
-            </span>
-          </div>
-          <div className="mt-2 grid grid-cols-3 gap-1">
-            {[
-              { key: "ALL", label: "All" },
-              { key: "WEAK_OR_UNDER", label: "Weak+" },
-              { key: "MISSING_ONLY", label: "Missing" },
-            ].map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setSectionFilter(item.key as SectionFilter)}
-                className={cn(
-                  "rounded-md border px-2 py-1 text-[11px]",
-                  sectionFilter === item.key
-                    ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-200"
-                    : "border-border/60 bg-background text-muted-foreground",
-                )}
+      {/* â”€â”€â”€ WORKSPACE TABS â”€â”€â”€ */}
+      <div className="flex items-center gap-1 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+        {tabs.map((item) => (
+          <button
+            key={item}
+            type="button"
+            onClick={() => setTab(item)}
+            className="shrink-0 rounded-lg px-4 py-2 text-[12px] font-medium capitalize transition-colors"
+            style={{
+              backgroundColor: tab === item ? "#1a1030" : "transparent",
+              color: tab === item ? "#a78bfa" : "#52525b",
+              border: `0.5px solid ${tab === item ? "#4c1d95" : "transparent"}`,
+            }}
+          >
+            {item.replace("-", " ")}
+          </button>
+        ))}
+      </div>
+
+      {/* â”€â”€â”€ 3-COLUMN WORKSPACE â”€â”€â”€ */}
+      <div className="grid gap-6 2xl:gap-8 xl:grid-cols-[300px_minmax(900px,1fr)_360px]">
+
+        {/* â”€â”€ LEFT: Slide Navigator â”€â”€ */}
+        <aside
+          className="self-start rounded-[16px] p-4 xl:sticky xl:top-24 xl:h-fit space-y-4"
+          style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}
+        >
+          <div>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>
+                Slide Navigator
+              </p>
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px]"
+                style={{ border: "0.5px solid #27272a", color: "#52525b" }}
               >
-                {item.label}
-              </button>
-            ))}
+                {filteredSections.length}/{activeDeck?.sections.length ?? 0}
+              </span>
+            </div>
+
+            {/* Filter pills */}
+            <div className="mt-3 grid grid-cols-3 gap-1.5">
+              {[
+                { key: "ALL", label: "All" },
+                { key: "WEAK_OR_UNDER", label: "Weak+" },
+                { key: "MISSING_ONLY", label: "Missing" },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setSectionFilter(item.key as SectionFilter)}
+                  className="rounded-lg py-1.5 text-[11px] font-medium transition-colors"
+                  style={{
+                    backgroundColor: sectionFilter === item.key ? "#1a1030" : "#0d0d0f",
+                    border: `0.5px solid ${sectionFilter === item.key ? "#4c1d95" : "#27272a"}`,
+                    color: sectionFilter === item.key ? "#a78bfa" : "#52525b",
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Status badges */}
+            <div className="mt-2.5 flex gap-2">
+              <span
+                className="rounded-full px-2.5 py-1 text-[10px]"
+                style={{ backgroundColor: "rgba(251,191,36,0.08)", border: "0.5px solid rgba(251,191,36,0.25)", color: "#fbbf24" }}
+              >
+                Weak {weakCount}
+              </span>
+              <span
+                className="rounded-full px-2.5 py-1 text-[10px]"
+                style={{ backgroundColor: "rgba(239,68,68,0.08)", border: "0.5px solid rgba(239,68,68,0.25)", color: "#f87171" }}
+              >
+                Missing {missingCount}
+              </span>
+            </div>
           </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-200">
-              Weak {weakCount}
-            </span>
-            <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] text-rose-200">
-              Missing {missingCount}
-            </span>
-          </div>
-          <div className="mt-3 space-y-2">
+
+          {/* Section list */}
+          <div className="space-y-1.5">
             {filteredSections.length ? (
               filteredSections.map((section) => (
                 <button
                   key={section.id}
                   type="button"
                   onClick={() => setSelectedSectionId(section.id)}
-                  className={cn(
-                    "w-full rounded-xl border px-3 py-3 text-left text-xs",
-                    selectedSection?.id === section.id
-                      ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-200"
-                      : "border-border/60 bg-background text-muted-foreground",
-                  )}
+                  className="w-full rounded-xl px-3 py-2.5 text-left transition-colors"
+                  style={{
+                    border: `0.5px solid ${selectedSection?.id === section.id ? "#4c1d95" : "#1e1e24"}`,
+                    backgroundColor: selectedSection?.id === section.id ? "#1a1030" : "transparent",
+                  }}
                 >
-                  <p className="font-medium">{section.sectionTitle}</p>
+                  <p
+                    className="text-[12px] font-medium"
+                    style={{ color: selectedSection?.id === section.id ? "#a78bfa" : "#d4d4d8" }}
+                  >
+                    {section.sectionTitle}
+                  </p>
                   <span className={cn("mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px]", qualityTone(section.qualityLabel))}>
                     {section.qualityLabel}
                   </span>
                 </button>
               ))
             ) : (
-              <p className="rounded-md border border-border/60 bg-background p-2 text-xs text-muted-foreground">
+              <p
+                className="rounded-xl px-3 py-3 text-[12px]"
+                style={{ border: "0.5px solid #1e1e24", color: "#52525b" }}
+              >
                 No sections in this filter. Try switching to All.
               </p>
             )}
           </div>
         </aside>
 
-        <main className="space-y-4">
-          {!activeDeck ? (
-            <section className="rounded-[24px] border border-border/60 bg-card p-6">
-              <p className="text-sm font-semibold">No pitch decks yet</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Upload your first PDF deck to begin analysis. The workspace will then unlock slide-level diagnosis, compare, and exports.
-              </p>
-            </section>
-          ) : null}
-
-          {deckIsAnalyzing ? (
-            <section className="rounded-[24px] border border-cyan-500/20 bg-cyan-500/5 p-4">
-              <div className="flex items-center gap-2 text-cyan-200">
-                <RefreshCw className={cn("h-4 w-4", pending ? "animate-spin" : "")} />
-                <p className="text-sm font-medium">Analysis in progress</p>
-              </div>
-              <p className="mt-1 text-xs text-cyan-100/80">
-                Current status: {activeDeck.processingStatus}. This workspace only displays extracted deck text and generated guidance from your stored data.
-              </p>
-            </section>
-          ) : null}
-
-          <section className="rounded-[24px] border border-border/60 bg-card p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+        {/* â”€â”€ CENTER: Deck Canvas â”€â”€ */}
+        <main className="min-w-0 space-y-4">
+          {/* Canvas header */}
+          <div
+            className="rounded-[16px] p-5"
+            style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}
+          >
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.16em] text-cyan-300">Deck canvas</p>
-                <h2 className="mt-1 text-xl font-semibold text-foreground">
+                <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>Deck canvas</p>
+                <h2 className="mt-1 text-[18px] font-semibold" style={{ color: "#e4e4e7", letterSpacing: "-0.2px" }}>
                   {selectedSection?.sectionTitle ?? "Deck overview"}
                 </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-0.5 text-[12px]" style={{ color: "#52525b" }}>
                   {selectedSection
-                    ? `Slide ${selectedSectionIndex + 1} of ${activeDeck?.sections.length ?? 0} with edit-ready feedback and investor signal checks.`
+                    ? `Slide ${selectedSectionIndex + 1} of ${activeDeck?.sections.length ?? 0} Â· edit-ready feedback and investor signal checks`
                     : "Use the navigator to open a section, inspect gaps, and rewrite copy where it matters."}
                 </p>
               </div>
               {selectedSection ? (
-                <div className={cn("rounded-full border px-3 py-1 text-xs", qualityTone(selectedSection.qualityLabel))}>
-                  {selectedSection.qualityLabel}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => selectNeighborSection("prev")}
+                    disabled={selectedSectionIndex <= 0}
+                    className="rounded-lg p-1.5 transition-colors disabled:opacity-30"
+                    style={{ border: "0.5px solid #27272a", backgroundColor: "#0d0d0f", color: "#71717a" }}
+                    aria-label="Previous slide"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selectNeighborSection("next")}
+                    disabled={!activeDeck || selectedSectionIndex >= activeDeck.sections.length - 1}
+                    className="rounded-lg p-1.5 transition-colors disabled:opacity-30"
+                    style={{ border: "0.5px solid #27272a", backgroundColor: "#0d0d0f", color: "#71717a" }}
+                    aria-label="Next slide"
+                  >
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                  <span className={cn("rounded-full border px-2.5 py-1 text-[11px]", qualityTone(selectedSection.qualityLabel))}>
+                    {selectedSection.qualityLabel}
+                  </span>
                 </div>
               ) : null}
             </div>
+          </div>
 
-          {tab === "overview" ? (
-            <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-              <section className="rounded-xl border border-border/60 bg-background p-4">
-                <p className="text-sm font-semibold">Executive summary</p>
-                {activeReport ? (
-                  <div className="mt-3 space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      {scoreCards.map((card) => (
-                        <div key={card.label} className={cn("rounded-xl border px-3 py-3", scoreTone(card.value))}>
-                          <p className="text-[11px] uppercase tracking-[0.14em] opacity-80">{card.label}</p>
-                          <p className="mt-2 text-2xl font-semibold">{card.value ?? "--"}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <div>
-                        <p className="text-xs font-medium text-emerald-300">Strengths</p>
-                        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                          {asStringArray(activeReport.strengths).slice(0, 4).map((point, idx) => (
-                            <li key={`${point}-${idx}`}>- {point}</li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium text-amber-300">Risks</p>
-                        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                          {asStringArray(activeReport.risks).slice(0, 4).map((point, idx) => (
-                            <li key={`${point}-${idx}`}>- {point}</li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium text-cyan-300">Next steps</p>
-                        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                          {asStringArray(activeReport.nextSteps).slice(0, 4).map((point, idx) => (
-                            <li key={`${point}-${idx}`}>- {point}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    No analysis report yet. Upload and analyze a deck to unlock scorecards, weaknesses, and next-step guidance.
-                  </p>
-                )}
-              </section>
-              <section className="rounded-xl border border-border/60 bg-background p-4">
-                <p className="text-sm font-semibold">Deck readiness snapshot</p>
-                <div className="mt-3 space-y-3 text-sm text-muted-foreground">
-                  <div className="rounded-xl border border-border/60 px-3 py-3">
-                    <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Selected deck</p>
-                    <p className="mt-2 font-medium text-foreground">{activeDeck?.originalFileName ?? "No deck selected"}</p>
-                  </div>
-                  <div className="rounded-xl border border-border/60 px-3 py-3">
-                    <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Weak sections</p>
-                    <p className="mt-2">{weakCount} sections need stronger investor framing or sharper evidence.</p>
-                  </div>
-                  <div className="rounded-xl border border-border/60 px-3 py-3">
-                    <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Missing sections</p>
-                    <p className="mt-2">{missingCount} critical sections are still absent or incomplete.</p>
-                  </div>
-                </div>
-              </section>
+          {/* Status banners */}
+          {!activeDeck ? (
+            <div
+              className="rounded-[16px] p-5"
+              style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}
+            >
+              <p className="text-[14px] font-semibold" style={{ color: "#e4e4e7" }}>No pitch decks yet</p>
+              <p className="mt-1 text-[13px]" style={{ color: "#71717a" }}>
+                Upload your first PDF deck to begin analysis.
+              </p>
             </div>
           ) : null}
 
-          {tab === "analysis" ? (
+          {deckIsAnalyzing ? (
+            <div
+              className="rounded-[16px] p-4"
+              style={{ backgroundColor: "rgba(96,165,250,0.06)", border: "0.5px solid rgba(96,165,250,0.2)" }}
+            >
+              <div className="flex items-center gap-2" style={{ color: "#60a5fa" }}>
+                <RefreshCw className={cn("h-4 w-4", pending ? "animate-spin" : "")} />
+                <p className="text-[13px] font-medium">Analysis in progress</p>
+              </div>
+              <p className="mt-1 text-[12px]" style={{ color: "rgba(96,165,250,0.6)" }}>
+                Current status: {activeDeck?.processingStatus}. Results load automatically when complete.
+              </p>
+            </div>
+          ) : null}
+
+          {/* â”€â”€ TAB CONTENT â”€â”€ */}
+
+          {/* OVERVIEW TAB */}
+          {tab === "overview" ? (
             <div className="space-y-4">
-              <section className="rounded-xl border border-border/60 bg-background p-4">
-                <p className="text-sm font-semibold">Section health</p>
+              {activeReport ? (
+                <>
+                  {/* Score cards row */}
+                  <div className="grid gap-4 xl:grid-cols-3">
+                    {scoreCards.map((card) => (
+                      <div
+                        key={card.label}
+                        className={cn("rounded-[14px] border p-5", scoreTone(card.value))}
+                      >
+                        <p className="text-[10px] uppercase tracking-[0.16em] opacity-60">{card.label}</p>
+                        <p className="mt-2 text-3xl font-bold tabular-nums">{card.value ?? "--"}</p>
+                        <p className="mt-2 max-w-[30ch] text-[11px] leading-5 opacity-60">{card.note}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Strengths / Risks / Next Steps */}
+                  <div className="grid gap-4 xl:grid-cols-3">
+                    <div
+                      className="rounded-[14px] p-5 space-y-2.5"
+                      style={{ backgroundColor: "rgba(16,185,129,0.05)", border: "0.5px solid rgba(16,185,129,0.2)" }}
+                    >
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: "#34d399" }}>
+                        Strengths
+                      </p>
+                      <ul className="space-y-2">
+                        {asStringArray(activeReport.strengths).slice(0, 5).map((point, idx) => (
+                          <li key={`s-${idx}`} className="flex items-start gap-2 text-[12px] leading-6" style={{ color: "#a1a1aa" }}>
+                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: "#34d399" }} />
+                            {point}
+                          </li>
+                        ))}
+                        {asStringArray(activeReport.strengths).length === 0 && (
+                          <li className="text-[12px]" style={{ color: "#3f3f46" }}>No strengths reported.</li>
+                        )}
+                      </ul>
+                    </div>
+                    <div
+                      className="rounded-[14px] p-5 space-y-2.5"
+                      style={{ backgroundColor: "rgba(251,191,36,0.05)", border: "0.5px solid rgba(251,191,36,0.2)" }}
+                    >
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: "#fbbf24" }}>
+                        Risks
+                      </p>
+                      <ul className="space-y-2">
+                        {asStringArray(activeReport.risks).slice(0, 5).map((point, idx) => (
+                          <li key={`r-${idx}`} className="flex items-start gap-2 text-[12px] leading-6" style={{ color: "#a1a1aa" }}>
+                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: "#fbbf24" }} />
+                            {point}
+                          </li>
+                        ))}
+                        {asStringArray(activeReport.risks).length === 0 && (
+                          <li className="text-[12px]" style={{ color: "#3f3f46" }}>No risks identified.</li>
+                        )}
+                      </ul>
+                    </div>
+                    <div
+                      className="rounded-[14px] p-5 space-y-2.5"
+                      style={{ backgroundColor: "rgba(167,139,250,0.05)", border: "0.5px solid rgba(167,139,250,0.2)" }}
+                    >
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: "#a78bfa" }}>
+                        Next steps
+                      </p>
+                      <ul className="space-y-2">
+                        {asStringArray(activeReport.nextSteps).slice(0, 5).map((point, idx) => (
+                          <li key={`n-${idx}`} className="flex items-start gap-2 text-[12px] leading-6" style={{ color: "#a1a1aa" }}>
+                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: "#a78bfa" }} />
+                            {point}
+                          </li>
+                        ))}
+                        {asStringArray(activeReport.nextSteps).length === 0 && (
+                          <li className="text-[12px]" style={{ color: "#3f3f46" }}>No next steps generated.</li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div
+                  className="rounded-[16px] p-8 text-center"
+                  style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}
+                >
+                  <p className="text-[14px] font-semibold" style={{ color: "#d4d4d8" }}>No analysis report yet</p>
+                  <p className="mt-1 text-[13px]" style={{ color: "#71717a" }}>
+                    Upload and analyze a deck to unlock scorecards, weaknesses, and next-step guidance.
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {/* ANALYSIS TAB */}
+          {tab === "analysis" ? (
+            <div className="space-y-3">
+              <div
+                className="rounded-[16px] p-5"
+                style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}
+              >
+                <p className="text-[13px] font-semibold" style={{ color: "#e4e4e7" }}>Section health</p>
                 {activeDeck?.sections.length ? (
-                  <div className="mt-2 space-y-2">
+                  <div className="mt-3 space-y-2">
                     {activeDeck.sections.map((section) => (
-                      <div key={section.id} className="rounded-md border border-border/60 px-3 py-2 text-sm text-muted-foreground">
+                      <div
+                        key={section.id}
+                        className="rounded-xl px-4 py-3"
+                        style={{ border: "0.5px solid #1e1e24", backgroundColor: "#0d0d0f" }}
+                      >
                         <div className="flex items-center justify-between gap-2">
-                          <span>{section.sectionTitle}</span>
+                          <span className="text-[13px] font-medium" style={{ color: "#d4d4d8" }}>
+                            {section.sectionTitle}
+                          </span>
                           <span className={cn("rounded-full border px-2 py-0.5 text-[10px]", qualityTone(section.qualityLabel))}>
                             {section.qualityLabel}
                           </span>
                         </div>
-                        <p className="mt-1 text-xs">{section.fixSummary ?? "No summary generated."}</p>
+                        <p className="mt-1.5 text-[12px]" style={{ color: "#71717a" }}>
+                          {section.fixSummary ?? "No summary generated."}
+                        </p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-2 text-sm text-muted-foreground">Analyze a deck to see section health.</p>
+                  <p className="mt-2 text-[13px]" style={{ color: "#71717a" }}>Analyze a deck to see section health.</p>
                 )}
-              </section>
-              <section className="rounded-xl border border-border/60 bg-background p-4">
-                <p className="text-sm font-semibold">Missing sections</p>
+              </div>
+              <div
+                className="rounded-[16px] p-5"
+                style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}
+              >
+                <p className="text-[13px] font-semibold" style={{ color: "#e4e4e7" }}>Missing sections</p>
                 {missingSections.length ? (
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     {missingSections.map((key) => (
-                      <span key={key} className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[11px] text-rose-300">
+                      <span
+                        key={key}
+                        className="rounded-full px-2.5 py-1 text-[11px]"
+                        style={{ backgroundColor: "rgba(239,68,68,0.08)", border: "0.5px solid rgba(239,68,68,0.25)", color: "#f87171" }}
+                      >
                         {key}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-2 text-sm text-muted-foreground">No hard-missing sections detected.</p>
+                  <p className="mt-2 text-[13px]" style={{ color: "#71717a" }}>No hard-missing sections detected.</p>
                 )}
-              </section>
+              </div>
             </div>
           ) : null}
 
+          {/* SLIDES TAB */}
           {tab === "slides" ? (
-            <section className="rounded-xl border border-border/60 bg-background p-4">
+            <div
+              className="rounded-[16px] p-5"
+              style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}
+            >
               {selectedSection ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold">{selectedSection.sectionTitle}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Slide {selectedSectionIndex + 1} of {activeDeck?.sections.length ?? 0}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => selectNeighborSection("prev")}
-                        disabled={selectedSectionIndex <= 0}
-                        className="rounded-md border border-border/60 bg-background p-1.5 text-muted-foreground disabled:opacity-40"
-                        aria-label="Previous slide"
-                      >
-                        <ArrowLeft className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => selectNeighborSection("next")}
-                        disabled={!activeDeck || selectedSectionIndex >= activeDeck.sections.length - 1}
-                        className="rounded-md border border-border/60 bg-background p-1.5 text-muted-foreground disabled:opacity-40"
-                        aria-label="Next slide"
-                      >
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </button>
-                      <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", qualityTone(selectedSection.qualityLabel))}>
-                        {selectedSection.qualityLabel}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">{selectedSection.extractedText}</p>
+                <div className="space-y-4">
+                  <p className="whitespace-pre-wrap text-[13px] leading-6" style={{ color: "#a1a1aa" }}>
+                    {selectedSection.extractedText}
+                  </p>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <div>
-                      <p className="text-xs font-medium text-emerald-300">What is good</p>
-                      <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+                    <div
+                      className="rounded-xl p-4"
+                      style={{ backgroundColor: "rgba(16,185,129,0.05)", border: "0.5px solid rgba(16,185,129,0.2)" }}
+                    >
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: "#34d399" }}>
+                        What is good
+                      </p>
+                      <ul className="mt-2.5 space-y-1.5">
                         {asStringArray(selectedSection.goodPoints).map((point, idx) => (
-                          <li key={`${point}-${idx}`}>- {point}</li>
+                          <li key={`g-${idx}`} className="flex items-start gap-2 text-[12px] leading-5" style={{ color: "#a1a1aa" }}>
+                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: "#34d399" }} />
+                            {point}
+                          </li>
                         ))}
                       </ul>
                     </div>
-                    <div>
-                      <p className="text-xs font-medium text-amber-300">What is unclear</p>
-                      <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+                    <div
+                      className="rounded-xl p-4"
+                      style={{ backgroundColor: "rgba(251,191,36,0.05)", border: "0.5px solid rgba(251,191,36,0.2)" }}
+                    >
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: "#fbbf24" }}>
+                        What is unclear
+                      </p>
+                      <ul className="mt-2.5 space-y-1.5">
                         {asStringArray(selectedSection.unclearPoints).map((point, idx) => (
-                          <li key={`${point}-${idx}`}>- {point}</li>
+                          <li key={`u-${idx}`} className="flex items-start gap-2 text-[12px] leading-5" style={{ color: "#a1a1aa" }}>
+                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: "#fbbf24" }} />
+                            {point}
+                          </li>
                         ))}
                       </ul>
                     </div>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No section selected.</p>
+                <p className="text-[13px]" style={{ color: "#71717a" }}>No section selected.</p>
               )}
-            </section>
+            </div>
           ) : null}
 
+          {/* AI FIXES TAB */}
           {tab === "ai-fixes" ? (
-            <section className="space-y-4">
+            <div className="space-y-3">
               {!isPremium ? (
                 <PremiumLockCard
                   title="Fix weak slides with Pro"
@@ -767,20 +948,26 @@ export function PitchDeckWorkspace({
                 />
               ) : (
                 <>
-                  <div className="rounded-xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 via-background to-background p-4">
+                  <div
+                    className="rounded-[16px] p-5 space-y-4"
+                    style={{ backgroundColor: "rgba(167,139,250,0.05)", border: "0.5px solid rgba(167,139,250,0.2)" }}
+                  >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <p className="text-sm font-semibold">Rewrite selected section</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
+                        <p className="text-[13px] font-semibold" style={{ color: "#e4e4e7" }}>Rewrite selected section</p>
+                        <p className="mt-0.5 text-[12px]" style={{ color: "#71717a" }}>
                           Assistive rewrite only. The model does not invent metrics or founder facts outside uploaded data.
                         </p>
                       </div>
-                      <span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-200">
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px]"
+                        style={{ backgroundColor: "rgba(167,139,250,0.1)", border: "0.5px solid rgba(167,139,250,0.3)", color: "#a78bfa" }}
+                      >
                         <WandSparkles className="h-3 w-3" />
                         AI rewrite
                       </span>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {[
                         "sharper investor language",
                         "clearer problem-solution flow",
@@ -791,302 +978,335 @@ export function PitchDeckWorkspace({
                           key={preset}
                           type="button"
                           onClick={() => setTone(preset)}
-                          className={cn(
-                            "rounded-full border px-2.5 py-1 text-[11px]",
-                            tone === preset
-                              ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-200"
-                              : "border-border/60 bg-background text-muted-foreground",
-                          )}
+                          className="rounded-full px-3 py-1.5 text-[11px] transition-colors"
+                          style={{
+                            border: `0.5px solid ${tone === preset ? "#4c1d95" : "#27272a"}`,
+                            backgroundColor: tone === preset ? "#1a1040" : "transparent",
+                            color: tone === preset ? "#a78bfa" : "#71717a",
+                          }}
                         >
                           {preset}
                         </button>
                       ))}
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <input
                         value={tone}
                         onChange={(e) => setTone(e.target.value)}
-                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm sm:max-w-sm"
+                        className="flex-1 rounded-xl px-3 py-2 text-[13px] outline-none"
+                        style={{ border: "0.5px solid #27272a", backgroundColor: "#0d0d0f", color: "#d4d4d8" }}
                         placeholder="Tone guidance"
                       />
                       <button
                         type="button"
                         onClick={onRewriteSection}
                         disabled={pending || !selectedSection}
-                        className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200"
+                        className="rounded-xl px-4 py-2 text-[12px] font-medium transition-colors disabled:opacity-40"
+                        style={{ border: "0.5px solid #4c1d95", backgroundColor: "#1a1040", color: "#a78bfa" }}
                       >
                         Rewrite section
                       </button>
                     </div>
                   </div>
-                  <div className="rounded-xl border border-border/60 bg-background p-4">
-                    <p className="text-sm font-semibold">Generate missing sections</p>
+                  <div
+                    className="rounded-[16px] p-5"
+                    style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}
+                  >
+                    <p className="text-[13px] font-semibold" style={{ color: "#e4e4e7" }}>Generate missing sections</p>
                     {missingSections.length ? (
-                      <div className="mt-2 flex flex-wrap gap-2">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         {missingSections.map((key) => (
                           <button
                             key={key}
                             type="button"
                             onClick={() => onGenerateMissing(key)}
-                            className="rounded-full border border-border/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                            className="rounded-xl px-3 py-1.5 text-[12px] transition-colors"
+                            style={{ border: "0.5px solid #27272a", color: "#71717a" }}
                           >
                             Generate {key}
                           </button>
                         ))}
                       </div>
                     ) : (
-                      <p className="mt-2 text-sm text-muted-foreground">No missing sections currently detected.</p>
+                      <p className="mt-2 text-[13px]" style={{ color: "#71717a" }}>No missing sections currently detected.</p>
                     )}
                   </div>
                 </>
               )}
-            </section>
+            </div>
           ) : null}
 
+          {/* COMPARE TAB */}
           {tab === "compare" ? (
-            <section className="rounded-xl border border-border/60 bg-background p-4">
+            <div
+              className="rounded-[16px] p-5 space-y-4"
+              style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}
+            >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold">Compare versions</p>
+                <p className="text-[13px] font-semibold" style={{ color: "#e4e4e7" }}>Compare versions</p>
                 <select
                   value={selectedVersion?.id ?? ""}
                   onChange={(e) => setSelectedVersionId(e.target.value)}
-                  className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                  className="rounded-xl px-3 py-1.5 text-[12px] outline-none"
+                  style={{ border: "0.5px solid #27272a", backgroundColor: "#0d0d0f", color: "#d4d4d8" }}
                 >
                   {activeDeck?.versions.map((version) => (
-                    <option key={version.id} value={version.id}>
-                      {version.name}
-                    </option>
+                    <option key={version.id} value={version.id}>{version.name}</option>
                   ))}
                 </select>
               </div>
               {selectedVersion ? (
-                <div className="mt-3 space-y-3">
-                  <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-                    <span className="rounded-full border border-border/60 px-2 py-0.5">Version type: {selectedVersion.versionType}</span>
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full px-2.5 py-1 text-[10px]" style={{ border: "0.5px solid #27272a", color: "#52525b" }}>
+                      Version: {selectedVersion.versionType}
+                    </span>
                     {compareInsights ? (
                       <>
-                        <span className="rounded-full border border-border/60 px-2 py-0.5">Before {compareInsights.beforeLen} chars</span>
-                        <span className="rounded-full border border-border/60 px-2 py-0.5">After {compareInsights.afterLen} chars</span>
+                        <span className="rounded-full px-2.5 py-1 text-[10px]" style={{ border: "0.5px solid #27272a", color: "#52525b" }}>
+                          Before {compareInsights.beforeLen} chars
+                        </span>
+                        <span className="rounded-full px-2.5 py-1 text-[10px]" style={{ border: "0.5px solid #27272a", color: "#52525b" }}>
+                          After {compareInsights.afterLen} chars
+                        </span>
                         <span
-                          className={cn(
-                            "rounded-full border px-2 py-0.5",
-                            compareInsights.delta >= 0
-                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                              : "border-amber-500/30 bg-amber-500/10 text-amber-300",
-                          )}
+                          className="rounded-full px-2.5 py-1 text-[10px]"
+                          style={{
+                            border: `0.5px solid ${compareInsights.delta >= 0 ? "rgba(16,185,129,0.3)" : "rgba(251,191,36,0.3)"}`,
+                            backgroundColor: compareInsights.delta >= 0 ? "rgba(16,185,129,0.08)" : "rgba(251,191,36,0.08)",
+                            color: compareInsights.delta >= 0 ? "#34d399" : "#fbbf24",
+                          }}
                         >
-                          Delta {compareInsights.delta >= 0 ? "+" : ""}
-                          {compareInsights.delta}
+                          Delta {compareInsights.delta >= 0 ? "+" : ""}{compareInsights.delta}
                         </span>
                       </>
-                    ) : (
-                      <span className="rounded-full border border-border/60 px-2 py-0.5">
-                        No section-specific compare available for this version
-                      </span>
-                    )}
+                    ) : null}
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-md border border-border/60 p-3">
-                      <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Original</p>
-                      <p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">
+                    <div className="rounded-xl p-4" style={{ border: "0.5px solid #1e1e24", backgroundColor: "#0d0d0f" }}>
+                      <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: "#52525b" }}>Original</p>
+                      <p className="mt-2 whitespace-pre-wrap text-[12px] leading-5" style={{ color: "#71717a" }}>
                         {selectedSection?.extractedText ?? "No original section selected."}
                       </p>
                     </div>
-                    <div className="rounded-md border border-cyan-500/20 bg-cyan-500/5 p-3">
-                      <p className="text-xs uppercase tracking-[0.12em] text-cyan-300">Improved (AI-assisted)</p>
-                      <p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">
+                    <div
+                      className="rounded-xl p-4"
+                      style={{ backgroundColor: "rgba(167,139,250,0.05)", border: "0.5px solid rgba(167,139,250,0.2)" }}
+                    >
+                      <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: "#a78bfa" }}>Improved (AI-assisted)</p>
+                      <p className="mt-2 whitespace-pre-wrap text-[12px] leading-5" style={{ color: "#71717a" }}>
                         {selectedImprovedText || "This version does not include a section-scoped rewrite for the current slide."}
                       </p>
                     </div>
                   </div>
-                </div>
+                </>
               ) : (
-                <p className="mt-2 text-sm text-muted-foreground">No saved versions yet.</p>
+                <p className="text-[13px]" style={{ color: "#71717a" }}>No saved versions yet.</p>
               )}
-            </section>
+            </div>
           ) : null}
 
+          {/* EXPORT TAB */}
           {tab === "export" ? (
-            <section className="rounded-xl border border-border/60 bg-background p-4">
-              <p className="text-sm font-semibold">Export workspace artifacts</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Exports include only stored analysis, section reviews, and saved versions. No synthetic KPIs or invented founder data are added.
-              </p>
-              {activeDeck ? (
-                <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                  <button
-                    type="button"
-                    onClick={() => onExport("pdf")}
-                    className="inline-flex items-center justify-center gap-2 rounded-md border border-border/60 px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
-                    disabled={exporting === "pdf"}
-                  >
-                    {exporting === "pdf" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                    PDF
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onExport("summary")}
-                    className="inline-flex items-center justify-center gap-2 rounded-md border border-border/60 px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
-                    disabled={exporting === "summary"}
-                  >
-                    {exporting === "summary" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                    Summary
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onExport("json")}
-                    className="inline-flex items-center justify-center gap-2 rounded-md border border-border/60 px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
-                    disabled={exporting === "json"}
-                  >
-                    {exporting === "json" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <History className="h-4 w-4" />}
-                    JSON
-                  </button>
-                </div>
-              ) : (
-                <p className="mt-2 text-sm text-muted-foreground">Upload and analyze a deck before exporting.</p>
-              )}
-            </section>
-          ) : null}
-          </section>
-
-          <section className="rounded-[24px] border border-border/60 bg-card/80 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div
+              className="rounded-[16px] p-5 space-y-4"
+              style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}
+            >
               <div>
-                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Workspace modes</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Keep tools below the main deck so the analysis and copy stay visible.
+                <p className="text-[13px] font-semibold" style={{ color: "#e4e4e7" }}>Export workspace artifacts</p>
+                <p className="mt-1 text-[12px]" style={{ color: "#71717a" }}>
+                  Exports include only stored analysis, section reviews, and saved versions. No synthetic KPIs or invented founder data are added.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {tabs.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setTab(item)}
-                    className={cn(
-                      "rounded-xl border px-3 py-2 text-xs capitalize",
-                      tab === item
-                        ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-200"
-                        : "border-border/60 bg-background text-muted-foreground",
-                    )}
+              {activeDeck ? (
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {[
+                    { format: "pdf" as ExportFormat, icon: <Download className="h-4 w-4" />, label: "PDF" },
+                    { format: "summary" as ExportFormat, icon: <FileText className="h-4 w-4" />, label: "Summary" },
+                    { format: "json" as ExportFormat, icon: <History className="h-4 w-4" />, label: "JSON" },
+                  ].map(({ format, icon, label }) => (
+                    <button
+                      key={format}
+                      type="button"
+                      onClick={() => onExport(format)}
+                      disabled={exporting === format}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] transition-colors disabled:opacity-40"
+                      style={{ border: "0.5px solid #27272a", backgroundColor: "#0d0d0f", color: "#a1a1aa" }}
+                    >
+                      {exporting === format ? <RefreshCw className="h-4 w-4 animate-spin" /> : icon}
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[13px]" style={{ color: "#71717a" }}>Upload and analyze a deck before exporting.</p>
+              )}
+            </div>
+          ) : null}
+
+          {/* Error / success */}
+          {error ? <p className="rounded-xl px-4 py-2.5 text-[13px]" style={{ backgroundColor: "rgba(239,68,68,0.08)", border: "0.5px solid rgba(239,68,68,0.25)", color: "#f87171" }}>{error}</p> : null}
+          {success ? <p className="rounded-xl px-4 py-2.5 text-[13px]" style={{ backgroundColor: "rgba(16,185,129,0.08)", border: "0.5px solid rgba(16,185,129,0.25)", color: "#34d399" }}>{success}</p> : null}
+        </main>
+
+        {/* â”€â”€ RIGHT: Deck Readiness Snapshot â”€â”€ */}
+        <aside className="flex flex-col gap-4 self-start xl:sticky xl:top-24 xl:h-fit">
+          <div
+            className="rounded-[16px] p-5"
+            style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}
+          >
+            <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>Deck Readiness</p>
+
+            {/* Snapshot cards */}
+            <div className="mt-4 space-y-2">
+              {[
+                { label: "Selected deck", value: activeDeck?.originalFileName ?? "No deck selected", accent: false },
+                {
+                  label: "Weak sections",
+                  value: weakCount === 0 ? "All sections are solid" : `${weakCount} need stronger investor framing`,
+                  accent: weakCount > 0,
+                  accentColor: "#fbbf24",
+                },
+                {
+                  label: "Missing sections",
+                  value: missingCount === 0 ? "No critical gaps detected" : `${missingCount} critical sections absent`,
+                  accent: missingCount > 0,
+                  accentColor: "#f87171",
+                },
+                { label: "Versions saved", value: `${activeDeck?.versions.length ?? 0}` },
+                { label: "Upload status", value: activeDeck?.uploadStatus ?? "â€”" },
+                { label: "Processing", value: activeDeck?.processingStatus ?? "â€”" },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-xl px-4 py-3"
+                  style={{
+                    border: `0.5px solid ${item.accent ? `${item.accentColor}30` : "#1e1e24"}`,
+                    backgroundColor: item.accent ? `${item.accentColor}08` : "#0d0d0f",
+                  }}
+                >
+                  <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: "#3f3f46" }}>{item.label}</p>
+                  <p
+                    className="mt-1 text-[13px] font-medium"
+                    style={{ color: item.accent ? item.accentColor : "#d4d4d8" }}
                   >
-                    {item.replace("-", " ")}
+                    {safeDisplayValue(item.value)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* AI Generation panel */}
+          <div
+            className="rounded-[16px] p-5 space-y-3"
+            style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}
+          >
+            <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>AI Generation</p>
+            <p className="text-[12px]" style={{ color: "#71717a" }}>
+              Use AI after you inspect scores and weak slides, not before.
+            </p>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={onGenerateImprovedVersion}
+                disabled={!isPremium || pending || !activeDeck}
+                className="w-full rounded-xl py-2.5 text-[12px] font-medium transition-colors disabled:opacity-40"
+                style={{ border: "0.5px solid #4c1d95", backgroundColor: "#1a1040", color: "#a78bfa" }}
+              >
+                Generate improved deck
+              </button>
+              <button
+                type="button"
+                onClick={onGenerateStartupDraft}
+                disabled={!isPremium || pending || !activeDeck}
+                className="w-full rounded-xl py-2.5 text-[12px] font-medium transition-colors disabled:opacity-40"
+                style={{ border: "0.5px solid #27272a", backgroundColor: "#0d0d0f", color: "#71717a" }}
+              >
+                Generate startup draft
+              </button>
+            </div>
+            {!isPremium ? (
+              <div
+                className="rounded-xl px-3 py-2.5 text-[11px]"
+                style={{ backgroundColor: "rgba(251,191,36,0.06)", border: "0.5px solid rgba(251,191,36,0.2)", color: "#fbbf24" }}
+              >
+                <span className="inline-flex items-center gap-1">
+                  <Lock className="h-3 w-3" /> Premium required for generation.
+                </span>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Version history panel */}
+          <div
+            className="rounded-[16px] p-5 space-y-3"
+            style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}
+          >
+            <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>Version History</p>
+            {activeDeck?.versions.length ? (
+              <div className="space-y-1.5">
+                {activeDeck.versions.slice(0, 8).map((version) => (
+                  <button
+                    key={version.id}
+                    type="button"
+                    onClick={() => setSelectedVersionId(version.id)}
+                    className="w-full rounded-xl px-3 py-2.5 text-left transition-colors"
+                    style={{
+                      border: `0.5px solid ${selectedVersion?.id === version.id ? "#4c1d95" : "#1e1e24"}`,
+                      backgroundColor: selectedVersion?.id === version.id ? "#1a1030" : "#0d0d0f",
+                    }}
+                  >
+                    <p className="text-[12px] font-medium" style={{ color: selectedVersion?.id === version.id ? "#a78bfa" : "#d4d4d8" }}>
+                      {version.name}
+                    </p>
+                    <p className="mt-0.5 text-[10px]" style={{ color: "#52525b" }}>
+                      {String(version.versionType)}
+                    </p>
                   </button>
                 ))}
               </div>
-            </div>
-          </section>
-
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          {success ? <p className="text-sm text-emerald-300">{success}</p> : null}
-        </main>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-[1.1fr_1fr_1fr]">
-        <section className="rounded-[24px] border border-border/60 bg-card p-4">
-          <p className="text-xs uppercase tracking-[0.14em] text-cyan-300">AI generation</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Use AI after you inspect scores and weak slides, not before. This keeps the workspace closer to a professional builder workflow.
-          </p>
-          <div className="mt-4 space-y-2">
-            <button
-              type="button"
-              onClick={onGenerateImprovedVersion}
-              disabled={!isPremium || pending || !activeDeck}
-              className="w-full rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Generate improved deck
-            </button>
-            <button
-              type="button"
-              onClick={onGenerateStartupDraft}
-              disabled={!isPremium || pending || !activeDeck}
-              className="w-full rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Generate startup-based draft
-            </button>
-          </div>
-          {!isPremium ? (
-            <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-              <p className="inline-flex items-center gap-1">
-                <Lock className="h-3 w-3" /> Premium required for rewrite and generation.
-              </p>
-              <p className="mt-1 text-amber-100/80">Free plan keeps upload, analysis, compare, and export access.</p>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="rounded-[24px] border border-border/60 bg-card p-4">
-          <p className="text-xs uppercase tracking-[0.14em] text-cyan-300">Version history</p>
-          <div className="mt-3 space-y-2">
-            {activeDeck?.versions.length ? (
-              activeDeck.versions.slice(0, 8).map((version) => (
-                <button
-                  key={version.id}
-                  type="button"
-                  onClick={() => setSelectedVersionId(version.id)}
-                  className={cn(
-                    "w-full rounded-xl border px-3 py-3 text-left text-xs",
-                    selectedVersion?.id === version.id
-                      ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-200"
-                      : "border-border/60 bg-background text-muted-foreground",
-                  )}
-                >
-                  <p>{version.name}</p>
-                  <p className="mt-1 text-[10px] opacity-80">{String(version.versionType)}</p>
-                </button>
-              ))
             ) : (
-              <p className="text-sm text-muted-foreground">No versions saved yet.</p>
+              <p className="text-[13px]" style={{ color: "#71717a" }}>No versions saved yet.</p>
             )}
           </div>
-        </section>
 
-        <section className="rounded-[24px] border border-border/60 bg-card p-4">
-          <p className="text-xs uppercase tracking-[0.14em] text-cyan-300">Export and handoff</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Package the current deck review for founders, advisors, or investors without adding synthetic claims.
-          </p>
-          <div className="mt-4 grid gap-2">
-            <button
-              type="button"
-              onClick={() => onExport("pdf")}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
-              disabled={!activeDeck || exporting === "pdf"}
-            >
-              {exporting === "pdf" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Export PDF
-            </button>
-            <button
-              type="button"
-              onClick={() => onExport("summary")}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
-              disabled={!activeDeck || exporting === "summary"}
-            >
-              {exporting === "summary" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-              Export summary
-            </button>
-            <button
-              type="button"
-              onClick={() => onExport("json")}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
-              disabled={!activeDeck || exporting === "json"}
-            >
-              {exporting === "json" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <History className="h-4 w-4" />}
-              Export JSON
-            </button>
-          </div>
-          {!isPremium ? (
-            <div className="mt-4">
-              <PremiumLockCard
-                title="Generate stronger investor copy"
-                description="Unlock section-level rewrite, missing section generation, and startup-data-based deck drafts."
-              />
+          {/* Export shortcuts */}
+          <div
+            className="rounded-[16px] p-5 space-y-3"
+            style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}
+          >
+            <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>Export & Handoff</p>
+            <div className="grid gap-2">
+              {[
+                { format: "pdf" as ExportFormat, icon: <Download className="h-3.5 w-3.5" />, label: "Export PDF" },
+                { format: "summary" as ExportFormat, icon: <FileText className="h-3.5 w-3.5" />, label: "Export summary" },
+                { format: "json" as ExportFormat, icon: <History className="h-3.5 w-3.5" />, label: "Export JSON" },
+              ].map(({ format, icon, label }) => (
+                <button
+                  key={format}
+                  type="button"
+                  onClick={() => onExport(format)}
+                  disabled={!activeDeck || exporting === format}
+                  className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[12px] transition-colors disabled:opacity-40"
+                  style={{ border: "0.5px solid #27272a", backgroundColor: "#0d0d0f", color: "#71717a" }}
+                >
+                  {exporting === format ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : icon}
+                  {label}
+                </button>
+              ))}
             </div>
-          ) : null}
-        </section>
-      </section>
+            {!isPremium ? (
+              <div className="mt-1">
+                <PremiumLockCard
+                  title="Generate stronger investor copy"
+                  description="Unlock section-level rewrite, missing section generation, and startup-data-based deck drafts."
+                />
+              </div>
+            ) : null}
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }
-

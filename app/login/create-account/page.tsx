@@ -1,16 +1,45 @@
 "use client";
 
-import { signIn } from "next-auth/react";
-import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Loader2, Mail, User, Lock, ArrowLeft, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { useState, useTransition } from "react";
+import { ArrowLeft, Github, Loader2, Mail } from "lucide-react";
 import { HeroBackground } from "@/components/common/HeroBackground";
 import { register, type AuthResult } from "@/app/actions/auth";
+import { authConfig, isSupabaseAuthEnabled } from "@/lib/auth-config";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 const inputClass =
   "w-full px-3 py-2.5 rounded-xl border border-border bg-background/90 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition";
 const labelClass = "block text-xs font-medium mb-1.5 text-foreground/90";
+
+function GoogleMark({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
+      <path
+        d="M21.8 12.23c0-.78-.07-1.53-.2-2.23H12v4.23h5.49a4.7 4.7 0 0 1-2.04 3.08v2.56h3.3c1.93-1.78 3.05-4.4 3.05-7.64Z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 22c2.76 0 5.08-.92 6.77-2.48l-3.3-2.56c-.92.62-2.09.99-3.47.99-2.66 0-4.92-1.8-5.72-4.22H2.87v2.64A10 10 0 0 0 12 22Z"
+        fill="#34A853"
+      />
+      <path
+        d="M6.28 13.73a5.98 5.98 0 0 1 0-3.46V7.63H2.87a10 10 0 0 0 0 8.74l3.41-2.64Z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 6.05c1.5 0 2.84.52 3.9 1.53l2.92-2.92C17.07 3.03 14.75 2 12 2a10 10 0 0 0-9.13 5.63l3.41 2.64c.8-2.42 3.06-4.22 5.72-4.22Z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
+
+async function legacySignIn(provider: "credentials" | "github" | "google", params: Record<string, string>) {
+  const nextAuth = await import("next-auth/react");
+  return nextAuth.signIn(provider, params);
+}
 
 export default function CreateAccountPage() {
   const searchParams = useSearchParams();
@@ -20,27 +49,113 @@ export default function CreateAccountPage() {
       ? rawCallbackUrl
       : "/app";
 
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState<"email" | "github" | "google" | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleSignUp = (e: React.FormEvent<HTMLFormElement>) => {
+  const callbackBase = `${typeof window !== "undefined" ? window.location.origin : authConfig.appUrl}/auth/callback?next=${encodeURIComponent(callbackUrl)}`;
+
+  const handleSupabaseEmail = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+
+    if (!email.trim()) {
+      setError("Enter your email to continue.");
+      return;
+    }
+
+    setLoading("email");
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: email.trim().toLowerCase(),
+        options: {
+          emailRedirectTo: callbackBase,
+        },
+      });
+      if (otpError) {
+        setError(otpError.message);
+        return;
+      }
+      setMessage("Check your inbox to verify your email and start onboarding.");
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Unable to send sign-in link.");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleSupabaseGithub = async () => {
+    setError("");
+    setMessage("");
+    setLoading("github");
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: { redirectTo: callbackBase },
+      });
+      if (oauthError) setError(oauthError.message);
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Unable to start GitHub sign-in.");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleSupabaseGoogle = async () => {
+    setError("");
+    setMessage("");
+    setLoading("google");
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: callbackBase },
+      });
+      if (oauthError) setError(oauthError.message);
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Unable to start Google sign-in.");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleLegacyGithub = async () => {
+    setError("");
+    setMessage("");
+    setLoading("github");
+    await legacySignIn("github", { callbackUrl });
+  };
+
+  const handleLegacyGoogle = async () => {
+    setError("");
+    setMessage("");
+    setLoading("google");
+    await legacySignIn("google", { callbackUrl });
+  };
+
+  const handleLegacyCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setMessage("");
     const form = e.currentTarget;
-    const email = (form.querySelector('[name="email"]') as HTMLInputElement)?.value?.trim();
+    const emailValue = (form.querySelector('[name="email"]') as HTMLInputElement)?.value?.trim();
     const username = (form.querySelector('[name="username"]') as HTMLInputElement)?.value?.trim();
     const password = (form.querySelector('[name="password"]') as HTMLInputElement)?.value;
     const confirmPassword = (form.querySelector('[name="confirmPassword"]') as HTMLInputElement)?.value;
     const name = (form.querySelector('[name="name"]') as HTMLInputElement)?.value?.trim();
 
-    if (!email || !username || !password || !confirmPassword) {
+    if (!emailValue || !username || !password || !confirmPassword) {
       setError("Please fill in all required fields.");
       return;
     }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -48,7 +163,7 @@ export default function CreateAccountPage() {
 
     startTransition(async () => {
       const result: AuthResult = await register({
-        email,
+        email: emailValue,
         username: username.toLowerCase(),
         password,
         name: name || undefined,
@@ -58,21 +173,17 @@ export default function CreateAccountPage() {
         return;
       }
       setMessage("Account created! Signing you in...");
-      const signInRes = await signIn("credentials", {
-        login: email,
+      const signInRes = await legacySignIn("credentials", {
+        login: emailValue,
         password,
         callbackUrl,
-        redirect: false,
+        redirect: "false",
       });
-      if (signInRes?.error) {
+      if ((signInRes as { error?: string } | undefined)?.error) {
         setMessage("Account created. Please sign in with your email and password.");
         return;
       }
-      if (signInRes?.ok) {
-        window.location.href = callbackUrl;
-      } else {
-        setMessage("Account created. Please sign in with your email and password.");
-      }
+      window.location.href = callbackUrl;
     });
   };
 
@@ -92,178 +203,161 @@ export default function CreateAccountPage() {
               </span>
               <span className="font-semibold tracking-tight">Webcoin Labs</span>
             </Link>
-            <div className="text-sm text-muted-foreground">
-              Need help?{" "}
-              <Link href="/contact" className="text-blue-400 hover:text-blue-300 transition-colors">
-                Contact support
-              </Link>
-            </div>
           </header>
 
           <div className="pb-12 md:pb-16 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-8 lg:gap-12 items-center">
             <section className="max-w-2xl">
               <p className="inline-flex items-center px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-xs text-blue-300 font-medium">
-                Secure portal access
+                New account
               </p>
               <h1 className="mt-6 text-4xl md:text-5xl font-semibold leading-tight tracking-tight text-foreground">
-                Create your Webcoin Labs account.
+                Create your Webcoin Labs identity.
               </h1>
               <p className="mt-5 text-lg text-muted-foreground leading-relaxed max-w-xl">
-                Claim a unique username, manage your founder profile, and keep everything in one place.
+                {isSupabaseAuthEnabled
+                  ? "Authenticate with email magic link or GitHub, then complete role-specific onboarding inside the app."
+                  : "Legacy account creation remains available until Supabase Auth is fully configured in every environment."}
               </p>
-              <div className="mt-8 space-y-3">
-                {[
-                  "Sign in with email or username anytime",
-                  "Manage applications and intros",
-                  "Get ecosystem updates in one dashboard",
-                ].map((item) => (
-                  <div key={item} className="flex items-center gap-2 text-sm text-foreground/90">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
             </section>
 
             <section className="w-full">
               <div className="p-7 rounded-2xl border border-border/50 bg-card/95 backdrop-blur-xl shadow-2xl shadow-black/20">
-                <div className="flex justify-center mb-5">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-400 to-violet-500 flex items-center justify-center text-white font-bold text-xl">
-                    W
-                  </div>
-                </div>
-
-                <h2 className="text-2xl font-semibold text-center mb-1">Create account</h2>
+                <h2 className="text-2xl font-semibold text-center mb-1">Start your account</h2>
                 <p className="text-sm text-muted-foreground text-center mb-6">
-                  Use email/username and password
+                  {isSupabaseAuthEnabled ? "Use email, GitHub, or Google" : "Legacy sign-up fallback"}
                 </p>
 
-                <form onSubmit={handleSignUp} className="space-y-4 mb-4">
-                  <div>
-                    <label htmlFor="email" className={labelClass}>
-                      Email
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <input
-                        id="email"
-                        name="email"
-                        type="email"
-                        required
-                        autoComplete="email"
-                        placeholder="you@example.com"
-                        className={inputClass + " pl-9"}
-                      />
+                {isSupabaseAuthEnabled ? (
+                  <>
+                    <form onSubmit={handleSupabaseEmail} className="space-y-4">
+                      <div>
+                        <label htmlFor="email" className={labelClass}>Email</label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <input
+                            id="email"
+                            type="email"
+                            value={email}
+                            onChange={(event) => setEmail(event.target.value)}
+                            placeholder="you@example.com"
+                            className={`${inputClass} pl-9`}
+                          />
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Username, role, and profile details are collected safely in onboarding after verification.
+                        </p>
+                      </div>
+                      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                      {message ? <p className="text-sm text-emerald-300">{message}</p> : null}
+                      <button
+                        type="submit"
+                        disabled={loading !== null}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500 transition-colors disabled:opacity-60"
+                      >
+                        {loading === "email" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                        Continue with Email
+                      </button>
+                    </form>
+
+                    <div className="relative my-6">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-border" />
+                      </div>
+                      <div className="relative flex justify-center text-xs text-muted-foreground">
+                        <span className="bg-card px-2">or</span>
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <label htmlFor="username" className={labelClass}>
-                      Username
-                    </label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <input
-                        id="username"
-                        name="username"
-                        type="text"
-                        required
-                        minLength={3}
-                        maxLength={30}
-                        autoComplete="username"
-                        placeholder="johndoe (letters, numbers, _ -)"
-                        className={inputClass + " pl-9"}
-                      />
-                    </div>
-                    <p className="mt-1.5 text-xs text-muted-foreground">
-                      You can sign in later with this username or your email.
-                    </p>
-                  </div>
+                    <button
+                      type="button"
+                      onClick={handleSupabaseGithub}
+                      disabled={loading !== null}
+                      className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-border hover:bg-accent transition-colors text-sm font-medium disabled:opacity-60"
+                    >
+                      {loading === "github" ? <Loader2 className="w-5 h-5 animate-spin" /> : <Github className="w-5 h-5" />}
+                      Continue with GitHub
+                    </button>
 
-                  <div>
-                    <label htmlFor="name" className={labelClass}>
-                      Display name
-                    </label>
-                    <input
-                      id="name"
-                      name="name"
-                      type="text"
-                      placeholder="Optional"
-                      className={inputClass}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="signup-password" className={labelClass}>
-                      Password
-                    </label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <input
-                        id="signup-password"
-                        name="password"
-                        type={showPassword ? "text" : "password"}
-                        required
-                        minLength={8}
-                        autoComplete="new-password"
-                        placeholder="Min 8 chars, upper, lower, number"
-                        className={inputClass + " pl-9 pr-10"}
-                      />
+                    <button
+                      type="button"
+                      onClick={handleSupabaseGoogle}
+                      disabled={loading !== null}
+                      className="mt-3 w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-border hover:bg-accent transition-colors text-sm font-medium disabled:opacity-60"
+                    >
+                      {loading === "google" ? <Loader2 className="w-5 h-5 animate-spin" /> : <GoogleMark />}
+                      Continue with Google
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-3 mb-6">
                       <button
                         type="button"
-                        onClick={() => setShowPassword((v) => !v)}
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                        aria-pressed={showPassword}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/40 rounded-md"
+                        onClick={handleLegacyGithub}
+                        disabled={loading !== null || isPending}
+                        className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-border hover:bg-accent transition-colors text-sm font-medium disabled:opacity-60"
                       >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {loading === "github" ? <Loader2 className="w-5 h-5 animate-spin" /> : <Github className="w-5 h-5" />}
+                        Continue with GitHub
                       </button>
-                    </div>
-                  </div>
 
-                  <div>
-                    <label htmlFor="confirmPassword" className={labelClass}>
-                      Confirm password
-                    </label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <input
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        type={showConfirmPassword ? "text" : "password"}
-                        required
-                        minLength={8}
-                        autoComplete="new-password"
-                        placeholder="********"
-                        className={inputClass + " pl-9 pr-10"}
-                      />
                       <button
                         type="button"
-                        onClick={() => setShowConfirmPassword((v) => !v)}
-                        aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                        aria-pressed={showConfirmPassword}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/40 rounded-md"
+                        onClick={handleLegacyGoogle}
+                        disabled={loading !== null || isPending}
+                        className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-border hover:bg-accent transition-colors text-sm font-medium disabled:opacity-60"
                       >
-                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {loading === "google" ? <Loader2 className="w-5 h-5 animate-spin" /> : <GoogleMark />}
+                        Continue with Google
                       </button>
                     </div>
-                  </div>
 
-                  {error && <p className="text-sm text-destructive">{error}</p>}
-                  {message && <p className="text-sm text-emerald-400">{message}</p>}
+                    <div className="relative my-6">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-border" />
+                      </div>
+                      <div className="relative flex justify-center text-xs text-muted-foreground">
+                        <span className="bg-card px-2">or create with email</span>
+                      </div>
+                    </div>
 
-                  <button
-                    type="submit"
-                    disabled={isPending}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500 transition-colors disabled:opacity-60"
-                  >
-                    {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create account"}
-                  </button>
-                </form>
+                    <form onSubmit={handleLegacyCreate} className="space-y-4">
+                      <div>
+                        <label htmlFor="legacy-email" className={labelClass}>Email</label>
+                        <input id="legacy-email" name="email" type="email" className={inputClass} />
+                      </div>
+                      <div>
+                        <label htmlFor="legacy-username" className={labelClass}>Username</label>
+                        <input id="legacy-username" name="username" type="text" className={inputClass} />
+                      </div>
+                      <div>
+                        <label htmlFor="legacy-name" className={labelClass}>Display name</label>
+                        <input id="legacy-name" name="name" type="text" className={inputClass} />
+                      </div>
+                      <div>
+                        <label htmlFor="legacy-password" className={labelClass}>Password</label>
+                        <input id="legacy-password" name="password" type="password" className={inputClass} />
+                      </div>
+                      <div>
+                        <label htmlFor="legacy-confirm" className={labelClass}>Confirm password</label>
+                        <input id="legacy-confirm" name="confirmPassword" type="password" className={inputClass} />
+                      </div>
+                      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                      {message ? <p className="text-sm text-emerald-300">{message}</p> : null}
+                      <button
+                        type="submit"
+                        disabled={isPending || loading !== null}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500 transition-colors disabled:opacity-60"
+                      >
+                        {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create account"}
+                      </button>
+                    </form>
+                  </>
+                )}
 
                 <Link
                   href={signInHref}
-                  className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="mt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Back to sign in
@@ -271,13 +365,8 @@ export default function CreateAccountPage() {
               </div>
             </section>
           </div>
-
-          <p className="text-center pb-8 text-sm text-muted-foreground">
-            <Link href="/" className="hover:text-foreground transition-colors">Back to webcoinlabs.com</Link>
-          </p>
         </div>
       </div>
     </div>
   );
 }
-

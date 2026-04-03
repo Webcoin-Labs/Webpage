@@ -1,15 +1,44 @@
 "use client";
 
-import { signIn } from "next-auth/react";
-import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, Github, Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, Github, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { HeroBackground } from "@/components/common/HeroBackground";
+import { authConfig, isSupabaseAuthEnabled } from "@/lib/auth-config";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 const inputClass =
   "w-full px-3 py-2.5 rounded-xl border border-border bg-background/90 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition";
 const labelClass = "block text-xs font-medium mb-1.5 text-foreground/90";
+
+function GoogleMark({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
+      <path
+        d="M21.8 12.23c0-.78-.07-1.53-.2-2.23H12v4.23h5.49a4.7 4.7 0 0 1-2.04 3.08v2.56h3.3c1.93-1.78 3.05-4.4 3.05-7.64Z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 22c2.76 0 5.08-.92 6.77-2.48l-3.3-2.56c-.92.62-2.09.99-3.47.99-2.66 0-4.92-1.8-5.72-4.22H2.87v2.64A10 10 0 0 0 12 22Z"
+        fill="#34A853"
+      />
+      <path
+        d="M6.28 13.73a5.98 5.98 0 0 1 0-3.46V7.63H2.87a10 10 0 0 0 0 8.74l3.41-2.64Z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 6.05c1.5 0 2.84.52 3.9 1.53l2.92-2.92C17.07 3.03 14.75 2 12 2a10 10 0 0 0-9.13 5.63l3.41 2.64c.8-2.42 3.06-4.22 5.72-4.22Z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
+
+async function legacySignIn(provider: "credentials" | "github" | "google", params: Record<string, string>) {
+  const nextAuth = await import("next-auth/react");
+  return nextAuth.signIn(provider, params);
+}
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
@@ -19,19 +48,98 @@ export default function LoginPage() {
       ? rawCallbackUrl
       : "/app";
 
-  const [loading, setLoading] = useState<"google" | "github" | "credentials" | null>(null);
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState<"email" | "github" | "google" | "legacy" | null>(null);
   const [error, setError] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const handleOAuth = async (provider: "google" | "github") => {
-    setLoading(provider);
-    setError("");
-    await signIn(provider, { callbackUrl });
-  };
+  const callbackBase = `${typeof window !== "undefined" ? window.location.origin : authConfig.appUrl}/auth/callback?next=${encodeURIComponent(callbackUrl)}`;
 
-  const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSupabaseEmail = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+    setMessage("");
+
+    if (!email.trim()) {
+      setError("Enter your email to continue.");
+      return;
+    }
+
+    setLoading("email");
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: email.trim().toLowerCase(),
+        options: {
+          emailRedirectTo: callbackBase,
+        },
+      });
+
+      if (otpError) {
+        setError(otpError.message);
+        return;
+      }
+
+      setMessage("Check your email for a secure sign-in link.");
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Unable to send sign-in link.");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleSupabaseGithub = async () => {
+    setLoading("github");
+    setError("");
+    setMessage("");
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: {
+          redirectTo: callbackBase,
+        },
+      });
+
+      if (oauthError) {
+        setError(oauthError.message);
+      }
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Unable to start GitHub sign-in.");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleSupabaseGoogle = async () => {
+    setLoading("google");
+    setError("");
+    setMessage("");
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: callbackBase,
+        },
+      });
+
+      if (oauthError) {
+        setError(oauthError.message);
+      }
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Unable to start Google sign-in.");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleLegacyCredentials = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
     const form = e.currentTarget;
     const login = (form.querySelector('[name="login"]') as HTMLInputElement)?.value?.trim();
     const password = (form.querySelector('[name="password"]') as HTMLInputElement)?.value;
@@ -39,19 +147,29 @@ export default function LoginPage() {
       setError("Please enter your email or username and password.");
       return;
     }
-    setLoading("credentials");
-    const res = await signIn("credentials", {
+    setLoading("legacy");
+    const res = await legacySignIn("credentials", {
       login,
       password,
       callbackUrl,
-      redirect: false,
+      redirect: "false",
     });
     setLoading(null);
-    if (res?.error) {
+    if ((res as { error?: string } | undefined)?.error) {
       setError("Invalid email/username or password.");
       return;
     }
-    if (res?.ok) window.location.href = callbackUrl;
+    window.location.href = callbackUrl;
+  };
+
+  const handleLegacyGithub = async () => {
+    setLoading("github");
+    await legacySignIn("github", { callbackUrl });
+  };
+
+  const handleLegacyGoogle = async () => {
+    setLoading("google");
+    await legacySignIn("google", { callbackUrl });
   };
 
   const createAccountHref = `/login/create-account?callbackUrl=${encodeURIComponent(callbackUrl)}`;
@@ -84,16 +202,16 @@ export default function LoginPage() {
                 Secure portal access
               </p>
               <h1 className="mt-6 text-4xl md:text-5xl font-semibold leading-tight tracking-tight text-foreground">
-                Schedule faster decisions with the Webcoin Labs network.
+                Access Webcoin Labs with email, GitHub, or Google.
               </h1>
               <p className="mt-5 text-lg text-muted-foreground leading-relaxed max-w-xl">
-                Sign in to manage your founder profile, builder collaborations, intros, and product applications in one place.
+                Authentication is now handled by Supabase Auth, while your roles, onboarding progress, premium state, and profile ownership remain in the Webcoin Labs app database.
               </p>
               <div className="mt-8 space-y-3">
                 {[
-                  "Founder and builder identity",
-                  "Application and intro workflow",
-                  "Ecosystem connections and updates",
+                  "Founder, builder, investor, and admin identities stay role-aware",
+                  "New users land in onboarding without losing app-level ownership",
+                  "Wallets remain a secondary identity layer you can link later",
                 ].map((item) => (
                   <div key={item} className="flex items-center gap-2 text-sm text-foreground/90">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -111,122 +229,140 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <h2 className="text-2xl font-semibold text-center mb-1">Sign in</h2>
+                <h2 className="text-2xl font-semibold text-center mb-1">Continue to Webcoin Labs</h2>
                 <p className="text-sm text-muted-foreground text-center mb-6">
-                  Use email/username and password
+                  {isSupabaseAuthEnabled ? "Passwordless email sign-in with GitHub and Google OAuth" : "Legacy auth fallback mode"}
                 </p>
 
-                <form onSubmit={handleSignIn} className="space-y-4 mb-4">
-                  <div>
-                    <label htmlFor="login" className={labelClass}>
-                      Email or username
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <input
-                        id="login"
-                        name="login"
-                        type="text"
-                        autoComplete="username email"
-                        placeholder="you@example.com or your_username"
-                        className={inputClass + " pl-9"}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="signin-password" className={labelClass}>
-                      Password
-                    </label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <input
-                        id="signin-password"
-                        name="password"
-                        type={showPassword ? "text" : "password"}
-                        autoComplete="current-password"
-                        placeholder="********"
-                        className={inputClass + " pl-9 pr-10"}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((v) => !v)}
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                        aria-pressed={showPassword}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/40 rounded-md"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    <p className="mt-1.5 text-right">
-                      <Link
-                        href="/login/forgot-password"
-                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                      >
-                        Forgot password?
-                      </Link>
-                    </p>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Are you new?{" "}
-                      <Link href={createAccountHref} className="text-blue-400 hover:text-blue-300 transition-colors underline">
-                        Create an account to get started
-                      </Link>
-                    </p>
-                  </div>
-                  {error && <p className="text-sm text-destructive">{error}</p>}
-                  <button
-                    type="submit"
-                    disabled={!!loading}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500 transition-colors disabled:opacity-60"
-                  >
-                    {loading === "credentials" ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      "Sign in"
-                    )}
-                  </button>
-                </form>
+                {isSupabaseAuthEnabled ? (
+                  <>
+                    <form onSubmit={handleSupabaseEmail} className="space-y-4 mb-4">
+                      <div>
+                        <label htmlFor="email" className={labelClass}>
+                          Email
+                        </label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            autoComplete="email"
+                            placeholder="you@example.com"
+                            value={email}
+                            onChange={(event) => setEmail(event.target.value)}
+                            className={`${inputClass} pl-9`}
+                          />
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          We&apos;ll email you a secure magic link. No password required.
+                        </p>
+                      </div>
 
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-border" />
-                  </div>
-                  <div className="relative flex justify-center text-xs text-muted-foreground">
-                    <span className="bg-card px-2">or continue with</span>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleOAuth("google")}
-                    disabled={!!loading}
-                    className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-border hover:bg-accent transition-colors text-sm font-medium disabled:opacity-60"
-                  >
-                    {loading === "google" ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <svg className="w-5 h-5" viewBox="0 0 24 24">
-                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                      </svg>
-                    )}
-                    Continue with Google
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleOAuth("github")}
-                    disabled={!!loading}
-                    className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-border hover:bg-accent transition-colors text-sm font-medium disabled:opacity-60"
-                  >
-                    {loading === "github" ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <Github className="w-5 h-5" />
-                    )}
-                    Continue with GitHub
-                  </button>
-                </div>
+                      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                      {message ? (
+                        <p className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+                          <ShieldCheck className="h-4 w-4" />
+                          {message}
+                        </p>
+                      ) : null}
+
+                      <button
+                        type="submit"
+                        disabled={loading !== null}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500 transition-colors disabled:opacity-60"
+                      >
+                        {loading === "email" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                        Continue with Email
+                      </button>
+                    </form>
+
+                    <div className="relative my-6">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-border" />
+                      </div>
+                      <div className="relative flex justify-center text-xs text-muted-foreground">
+                        <span className="bg-card px-2">or</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleSupabaseGithub}
+                      disabled={loading !== null}
+                      className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-border hover:bg-accent transition-colors text-sm font-medium disabled:opacity-60"
+                    >
+                      {loading === "github" ? <Loader2 className="w-5 h-5 animate-spin" /> : <Github className="w-5 h-5" />}
+                      Continue with GitHub
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSupabaseGoogle}
+                      disabled={loading !== null}
+                      className="mt-3 w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-border hover:bg-accent transition-colors text-sm font-medium disabled:opacity-60"
+                    >
+                      {loading === "google" ? <Loader2 className="w-5 h-5 animate-spin" /> : <GoogleMark />}
+                      Continue with Google
+                    </button>
+
+                    <p className="mt-4 text-xs text-center text-muted-foreground">
+                      First-time sign-ins create or sync your internal Webcoin Labs account safely.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <form onSubmit={handleLegacyCredentials} className="space-y-4 mb-4">
+                      <div>
+                        <label htmlFor="login" className={labelClass}>
+                          Email or username
+                        </label>
+                        <input id="login" name="login" type="text" className={inputClass} />
+                      </div>
+                      <div>
+                        <label htmlFor="password" className={labelClass}>
+                          Password
+                        </label>
+                        <input id="password" name="password" type="password" className={inputClass} />
+                      </div>
+                      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                      <button
+                        type="submit"
+                        disabled={loading !== null}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500 transition-colors disabled:opacity-60"
+                      >
+                        {loading === "legacy" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign in"}
+                      </button>
+                    </form>
+
+                    <button
+                      type="button"
+                      onClick={handleLegacyGithub}
+                      disabled={loading !== null}
+                      className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-border hover:bg-accent transition-colors text-sm font-medium disabled:opacity-60"
+                    >
+                      {loading === "github" ? <Loader2 className="w-5 h-5 animate-spin" /> : <Github className="w-5 h-5" />}
+                      Continue with GitHub
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleLegacyGoogle}
+                      disabled={loading !== null}
+                      className="mt-3 w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-border hover:bg-accent transition-colors text-sm font-medium disabled:opacity-60"
+                    >
+                      {loading === "google" ? <Loader2 className="w-5 h-5 animate-spin" /> : <GoogleMark />}
+                      Continue with Google
+                    </button>
+                  </>
+                )}
+
+                <p className="mt-5 text-center text-xs text-muted-foreground">
+                  New here?{" "}
+                  <Link href={createAccountHref} className="text-blue-400 hover:text-blue-300 transition-colors underline">
+                    Start with email
+                  </Link>
+                </p>
 
                 <p className="text-xs text-muted-foreground text-center mt-7 leading-relaxed">
                   By signing in, you agree to our{" "}
@@ -245,4 +381,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

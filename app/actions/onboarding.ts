@@ -1,7 +1,6 @@
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { revalidatePath } from "next/cache";
 
@@ -10,7 +9,7 @@ const roleSchema = ["BUILDER", "FOUNDER", "INVESTOR", "ADMIN"] as const;
 export type OnboardingResult = { success: true } | { success: false; error: string };
 
 export async function completeOnboarding(role: string): Promise<OnboardingResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return { success: false, error: "Not authenticated" };
   if (!roleSchema.includes(role as (typeof roleSchema)[number])) {
     return { success: false, error: "Invalid role" };
@@ -34,3 +33,4 @@ export async function completeOnboarding(role: string): Promise<OnboardingResult
   revalidatePath("/app/onboarding");
   return { success: true };
 }
+

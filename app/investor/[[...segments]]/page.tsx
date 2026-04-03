@@ -1,55 +1,139 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { Building2, Globe2, Wallet } from "lucide-react";
+// Note: InvestorProfile schema does not have geoFocus or isActively fields
+import { getServerSession } from "@/lib/auth";
+import { Building2, FileText, TrendingUp, Users } from "lucide-react";
 import {
   getInvestorByCompanyAndUsername,
   getInvestorCompanyPublic,
   getInvestorPublicByUsername,
 } from "@/lib/public-profiles";
-import { authOptions } from "@/lib/auth";
 import { trackProfileView } from "@/lib/profile-views";
 import { db } from "@/server/db/client";
 import { mapPublicContactMethods } from "@/lib/contact-methods";
 import { PrivateProfileState } from "@/components/profile/PrivateProfileState";
-import { ProfileAvatar } from "@/components/common/ProfileAvatar";
 import { sendConnectionRequest } from "@/app/actions/connections";
+import { PublicProfileHero } from "@/components/public-profile/PublicProfileHero";
+import { PublicProfileTabs } from "@/components/public-profile/PublicProfileTabs";
+import { ContactMethodCard } from "@/components/public-profile/ContactMethodCard";
+import { ConnectRequestCard } from "@/components/public-profile/ConnectRequestCard";
+import { PostCard } from "@/components/public-profile/PostCard";
+import { ProfileEmptyState } from "@/components/public-profile/ProfileEmptyState";
+import Link from "next/link";
 
-function InvestorCard({
-  name,
-  username,
-  roleTitle,
-  investorType,
-  stageFocus,
-  chainFocus,
-  checkRange,
-  thesis,
+// sendConnectionRequest is used by ConnectRequestCard client component
+void sendConnectionRequest;
+
+// ────────── Company page sub-component ──────────
+function InvestorCompanyPage({
+  company,
 }: {
-  name: string;
-  username?: string | null;
-  roleTitle?: string | null;
-  investorType?: string | null;
-  stageFocus?: string[];
-  chainFocus?: string[];
-  checkRange?: string;
-  thesis?: string | null;
+  company: {
+    name: string;
+    description?: string | null;
+    website?: string | null;
+    linkedin?: string | null;
+    twitter?: string | null;
+    location?: string | null;
+    members: Array<{
+      id: string;
+      user: {
+        name?: string | null;
+        username?: string | null;
+        investorProfile?: {
+          roleTitle?: string | null;
+          investorType?: string | null;
+          stageFocus?: string[];
+          chainFocus?: string[];
+          checkSizeMin?: number | null;
+          checkSizeMax?: number | null;
+          investmentThesis?: string | null;
+        } | null;
+      };
+    }>;
+  };
 }) {
   return (
-    <section className="rounded-xl border border-border/60 bg-card p-4">
-      <p className="text-lg font-semibold">{name}</p>
-      {username ? <p className="text-xs text-muted-foreground">@{username}</p> : null}
-      <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-        {investorType ? <span className="rounded-full border border-border px-2 py-1">{investorType}</span> : null}
-        {roleTitle ? <span className="rounded-full border border-border px-2 py-1">{roleTitle}</span> : null}
-        {checkRange ? <span className="rounded-full border border-border px-2 py-1">Check size: {checkRange}</span> : null}
+    <main className="mx-auto max-w-4xl space-y-5 px-4 py-8">
+      {/* Company header */}
+      <div className="overflow-hidden rounded-[20px]" style={{ border: "0.5px solid #1e1e24" }}>
+        <div className="h-28" style={{ background: "linear-gradient(135deg, #04100c 0%, #0b1a14 40%, #0d0d0f 100%)" }}>
+          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+        </div>
+        <div className="p-6 space-y-3" style={{ backgroundColor: "#111114" }}>
+          <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+            style={{ backgroundColor: "rgba(52,211,153,0.08)", border: "0.5px solid rgba(52,211,153,0.2)", color: "#34d399" }}>
+            <Building2 className="h-3.5 w-3.5" />
+            Investor Company
+          </div>
+          <h1 className="text-[22px] font-bold" style={{ color: "#e4e4e7", letterSpacing: "-0.3px" }}>{company.name}</h1>
+          {company.description ? <p className="text-[14px] leading-6" style={{ color: "#a1a1aa" }}>{company.description}</p> : null}
+          <div className="flex flex-wrap gap-3">
+            {company.website ? <a href={company.website} target="_blank" rel="noreferrer" className="text-[13px] transition-opacity hover:opacity-80" style={{ color: "#34d399" }}>↗ Website</a> : null}
+            {company.linkedin ? <a href={company.linkedin} target="_blank" rel="noreferrer" className="text-[13px] transition-opacity hover:opacity-80" style={{ color: "#60a5fa" }}>↗ LinkedIn</a> : null}
+            {company.twitter ? <a href={company.twitter} target="_blank" rel="noreferrer" className="text-[13px] transition-opacity hover:opacity-80" style={{ color: "#e4e4e7" }}>↗ X</a> : null}
+            {company.location ? <span className="text-[13px]" style={{ color: "#52525b" }}>📍 {company.location}</span> : null}
+          </div>
+        </div>
       </div>
-      {stageFocus && stageFocus.length > 0 ? <p className="mt-2 text-xs text-muted-foreground">Stage focus: {stageFocus.join(", ")}</p> : null}
-      {chainFocus && chainFocus.length > 0 ? <p className="text-xs text-muted-foreground">Chain focus: {chainFocus.join(", ")}</p> : null}
-      {thesis ? <p className="mt-2 text-xs text-muted-foreground">{thesis}</p> : null}
-    </section>
+
+      {/* Members */}
+      <div>
+        <p className="mb-3 text-[11px] uppercase tracking-[0.18em]" style={{ color: "#52525b" }}>Affiliated Investors</p>
+        {company.members.length === 0 ? (
+          <ProfileEmptyState icon={Users} title="No public investor members yet" />
+        ) : (
+          <div className="space-y-3">
+            {company.members.map((member) => {
+              const ip = member.user.investorProfile;
+              return (
+                <div key={member.id} className="rounded-[14px] p-4" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[15px] font-semibold" style={{ color: "#e4e4e7" }}>{member.user.name ?? "Investor"}</p>
+                      {member.user.username ? (
+                        <Link href={`/investor/${member.user.username}`} className="text-[12px] transition-opacity hover:opacity-80" style={{ color: "#34d399" }}>
+                          @{member.user.username} →
+                        </Link>
+                      ) : null}
+                    </div>
+                    {ip?.investorType ? (
+                      <span className="rounded-full px-2.5 py-1 text-[11px]" style={{ backgroundColor: "rgba(52,211,153,0.08)", border: "0.5px solid rgba(52,211,153,0.2)", color: "#34d399" }}>
+                        {ip.investorType}
+                      </span>
+                    ) : null}
+                  </div>
+                  {ip ? (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {(ip.stageFocus ?? []).map((s) => (
+                        <span key={s} className="rounded-full px-2 py-0.5 text-[10px]" style={{ backgroundColor: "#1a1a1e", border: "0.5px solid #27272a", color: "#71717a" }}>{s}</span>
+                      ))}
+                      {(ip.chainFocus ?? []).map((c) => (
+                        <span key={c} className="rounded-full px-2 py-0.5 text-[10px]" style={{ backgroundColor: "rgba(52,211,153,0.06)", border: "0.5px solid rgba(52,211,153,0.15)", color: "#34d399" }}>{c}</span>
+                      ))}
+                      {(ip.checkSizeMin ?? ip.checkSizeMax) ? (
+                        <span className="rounded-full px-2 py-0.5 text-[10px]" style={{ backgroundColor: "#1a1a1e", border: "0.5px solid #27272a", color: "#71717a" }}>
+                          ${ip.checkSizeMin ?? 0}–${ip.checkSizeMax ?? 0}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {ip?.investmentThesis ? (
+                    <p className="mt-2 text-[13px] leading-5 line-clamp-2" style={{ color: "#71717a" }}>{ip.investmentThesis}</p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <Link href="/" className="block text-[12px] transition-opacity hover:opacity-80" style={{ color: "#52525b" }}>
+        ← Back to Webcoin Labs
+      </Link>
+    </main>
   );
 }
 
+// ────────── Individual investor page ──────────
 export default async function InvestorPublicPage({
   params,
   searchParams,
@@ -59,14 +143,12 @@ export default async function InvestorPublicPage({
 }) {
   const { segments = [] } = await params;
   const resolvedSearch = (await searchParams) ?? {};
-  const session = await getServerSession(authOptions);
-  const viewer = {
-    userId: session?.user?.id,
-    role: session?.user?.role,
-  };
+  const session = await getServerSession();
+  const viewer = { userId: session?.user?.id, role: session?.user?.role };
 
   if (segments.length === 0) notFound();
 
+  // ── 1-segment: username OR company slug ──
   if (segments.length === 1) {
     const [segment] = segments;
     const [investor, company] = await Promise.all([
@@ -74,55 +156,7 @@ export default async function InvestorPublicPage({
       getInvestorCompanyPublic(segment),
     ]);
 
-    if (company) {
-      return (
-        <main className="mx-auto max-w-4xl space-y-6 px-4 py-10">
-          <section className="rounded-2xl border border-border/60 bg-card p-6">
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[11px] text-cyan-200">
-              <Building2 className="h-3.5 w-3.5" />
-              Investor Company Public Page
-            </div>
-            <h1 className="text-2xl font-semibold">{company.name}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">{company.description ?? "No public description yet."}</p>
-            <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-              {company.website ? <p>Website: {company.website}</p> : null}
-              {company.linkedin ? <p>LinkedIn: {company.linkedin}</p> : null}
-              {company.twitter ? <p>X: {company.twitter}</p> : null}
-              {company.location ? <p>Location: {company.location}</p> : null}
-            </div>
-          </section>
-          <section className="space-y-2">
-            <p className="text-sm font-semibold">Affiliated Investors</p>
-            {company.members.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No public investor members yet.</p>
-            ) : (
-              company.members.map((member) => (
-                <InvestorCard
-                  key={member.id}
-                  name={member.user.name ?? "Investor"}
-                  username={member.user.username}
-                  roleTitle={member.user.investorProfile?.roleTitle}
-                  investorType={member.user.investorProfile?.investorType ?? undefined}
-                  stageFocus={member.user.investorProfile?.stageFocus}
-                  chainFocus={member.user.investorProfile?.chainFocus}
-                  checkRange={
-                    member.user.investorProfile?.checkSizeMin !== null || member.user.investorProfile?.checkSizeMax !== null
-                      ? `${member.user.investorProfile?.checkSizeMin ?? 0} - ${member.user.investorProfile?.checkSizeMax ?? 0}`
-                      : undefined
-                  }
-                  thesis={member.user.investorProfile?.investmentThesis}
-                />
-              ))
-            )}
-          </section>
-          <div className="text-xs text-muted-foreground">
-            <Link href="/" className="text-cyan-300">
-              Back to Webcoin Labs
-            </Link>
-          </div>
-        </main>
-      );
-    }
+    if (company) return <InvestorCompanyPage company={company} />;
 
     if (!investor || !investor.investorProfile) {
       const privateCandidate = await db.user.findFirst({
@@ -148,111 +182,223 @@ export default async function InvestorPublicPage({
       source: "public_profile_investor",
       roleContext: session?.user?.role ?? null,
     });
+
     const openToConnections = investor.publicProfileSettings?.openToConnections ?? true;
     const publicContactMethods = openToConnections ? mapPublicContactMethods(investor.profileContactMethods ?? []) : [];
     const recentPosts = await db.feedPost.findMany({
       where: { authorUserId: investor.id, visibility: "PUBLIC" },
       orderBy: { createdAt: "desc" },
-      take: 5,
+      take: 10,
     });
 
-    return (
-      <main className="mx-auto max-w-4xl space-y-6 px-4 py-10">
-        <section className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/70 p-6">
-          <div className="flex items-center gap-3">
-            <ProfileAvatar
-              src={investor.image}
-              alt={investor.name ?? "Investor"}
-              fallback={(investor.name ?? investor.username ?? "I").charAt(0)}
-              className="h-14 w-14 rounded-xl"
-              fallbackClassName="bg-cyan-500/20 text-cyan-200"
-            />
-            <div>
-              <p className="text-xs text-cyan-300">Investor Public Profile</p>
-              <h1 className="mt-1 text-2xl font-semibold">{investor.name ?? "Investor"}</h1>
-              <p className="text-sm text-muted-foreground">@{investor.username}</p>
+    const ip = investor.investorProfile;
+
+    const contactCards = publicContactMethods.map((m) => ({ type: m.type ?? "WEBSITE", label: m.label, href: m.href }));
+
+    const statusChips: { label: string; color?: "amber" | "green" | "violet" | "cyan" | "default" }[] = [
+      ...(ip.isPublic ? [{ label: "Public Profile", color: "green" as const }] : []),
+      ...(ip.investorType ? [{ label: ip.investorType, color: "default" as const }] : []),
+    ];
+
+    const checkRange =
+      ip.checkSizeMin !== null || ip.checkSizeMax !== null
+        ? `$${ip.checkSizeMin ?? 0}–$${ip.checkSizeMax ?? 0}`
+        : null;
+
+    const tabs = [
+      {
+        key: "overview",
+        label: "Overview",
+        content: (
+          <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
+            <div className="space-y-3">
+              {investor.bio ? (
+                <div className="rounded-[14px] p-4" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+                  <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>About</p>
+                  <p className="mt-2 text-[14px] leading-6" style={{ color: "#a1a1aa" }}>{investor.bio}</p>
+                </div>
+              ) : null}
+              {/* Thesis summary */}
+              {ip.investmentThesis ? (
+                <div className="rounded-[14px] p-4" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+                  <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>Investment Thesis</p>
+                  <p className="mt-2 text-[14px] leading-6" style={{ color: "#a1a1aa" }}>{ip.investmentThesis}</p>
+                </div>
+              ) : null}
+              {/* Focus areas */}
+              {((ip.stageFocus?.length ?? 0) > 0 || (ip.chainFocus?.length ?? 0) > 0 || (ip.sectorFocus?.length ?? 0) > 0) ? (
+                <div className="rounded-[14px] p-4" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+                  <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>Focus Areas</p>
+                  <div className="mt-3 space-y-2">
+                    {(ip.stageFocus ?? []).length > 0 ? (
+                      <div>
+                        <p className="text-[10px]" style={{ color: "#3f3f46" }}>Stage</p>
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {(ip.stageFocus ?? []).map((s) => (
+                            <span key={s} className="rounded-full px-2.5 py-1 text-[11px]" style={{ backgroundColor: "rgba(52,211,153,0.06)", border: "0.5px solid rgba(52,211,153,0.15)", color: "#34d399" }}>{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {(ip.chainFocus ?? []).length > 0 ? (
+                      <div>
+                        <p className="text-[10px]" style={{ color: "#3f3f46" }}>Chain</p>
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {(ip.chainFocus ?? []).map((c) => (
+                            <span key={c} className="rounded-full px-2.5 py-1 text-[11px]" style={{ backgroundColor: "#1a1a1e", border: "0.5px solid #27272a", color: "#71717a" }}>{c}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {(ip.sectorFocus ?? []).length > 0 ? (
+                      <div>
+                        <p className="text-[10px]" style={{ color: "#3f3f46" }}>Sector</p>
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {(ip.sectorFocus ?? []).map((s) => (
+                            <span key={s} className="rounded-full px-2.5 py-1 text-[11px]" style={{ backgroundColor: "rgba(167,139,250,0.06)", border: "0.5px solid rgba(167,139,250,0.15)", color: "#a78bfa" }}>{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            {/* Sidebar */}
+            <div className="space-y-4">
+              <ConnectRequestCard
+                toUserId={investor.id}
+                toUsername={investor.username ?? ""}
+                source={resolvedSearch.source ?? "public-profile-investor"}
+                openToConnections={openToConnections}
+                isLoggedIn={Boolean(session?.user?.id)}
+                isSelf={session?.user?.id === investor.id}
+              />
+              <div className="rounded-[16px] p-4 space-y-2" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+                <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>Quick Facts</p>
+                {ip.firmName ?? ip.company?.name ? (
+                  <p className="text-[13px]" style={{ color: "#a1a1aa" }}>
+                    <span style={{ color: "#3f3f46" }}>Fund / Firm: </span>
+                    {ip.firmName ?? ip.company?.name}
+                  </p>
+                ) : null}
+                {checkRange ? (
+                  <p className="text-[13px]" style={{ color: "#a1a1aa" }}>
+                    <span style={{ color: "#3f3f46" }}>Check size: </span>{checkRange}
+                  </p>
+                ) : null}
+  
+              </div>
             </div>
           </div>
-        </section>
-        {resolvedSearch.connect === "1" ? (
-          <section className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4 text-xs text-cyan-100">
-            {openToConnections
-              ? `Connection context: ${resolvedSearch.viewerRole ?? "Member"} from ${resolvedSearch.source ?? "profile"}.`
-              : "This investor is currently not open to new connection requests."}
-          </section>
-        ) : null}
-        {session?.user?.id && session.user.id !== investor.id && openToConnections ? (
-          <section className="rounded-xl border border-border/60 bg-card p-4">
-            <p className="text-sm font-semibold">Request connection</p>
-            <form action={sendConnectionRequest} className="mt-2 space-y-2">
-              <input type="hidden" name="toUserId" value={investor.id} />
-              <input type="hidden" name="toUsername" value={investor.username ?? ""} />
-              <input type="hidden" name="source" value={resolvedSearch.source ?? "public-profile-investor"} />
-              <textarea name="message" rows={2} placeholder="Short intro message (optional)" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-              <button type="submit" className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-200">
-                Send connection request
-              </button>
-            </form>
-          </section>
-        ) : null}
-        <InvestorCard
-          name={investor.name ?? "Investor"}
-          username={investor.username}
-          roleTitle={investor.investorProfile.roleTitle}
-          investorType={investor.investorProfile.investorType}
-          stageFocus={investor.investorProfile.stageFocus}
-          chainFocus={investor.investorProfile.chainFocus}
-          checkRange={
-            investor.investorProfile.checkSizeMin !== null || investor.investorProfile.checkSizeMax !== null
-              ? `${investor.investorProfile.checkSizeMin ?? 0} - ${investor.investorProfile.checkSizeMax ?? 0}`
-              : undefined
-          }
-          thesis={investor.investorProfile.investmentThesis}
-        />
-        <section className="rounded-xl border border-border/60 bg-card p-4">
-          <p className="text-sm font-semibold">Connect</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {publicContactMethods.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No public contact methods available.</p>
+        ),
+      },
+      {
+        key: "thesis",
+        label: "Thesis",
+        content: (
+          <div className="space-y-4">
+            {ip.investmentThesis ? (
+              <div className="rounded-[16px] p-6" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+                <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>Investment Thesis</p>
+                <p className="mt-3 text-[14px] leading-7" style={{ color: "#a1a1aa" }}>{ip.investmentThesis}</p>
+              </div>
             ) : (
-              publicContactMethods.map((method) => (
-                <a key={`${method.type}-${method.href}`} href={method.href} target="_blank" rel="noreferrer" className="rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground">
-                  {method.label}
-                </a>
+              <ProfileEmptyState icon={TrendingUp} title="No thesis published" description="This investor has not published their investment thesis publicly yet." />
+            )}
+          </div>
+        ),
+      },
+      {
+        key: "posts",
+        label: "Posts",
+        content: (
+          <div className="space-y-3">
+            {recentPosts.length === 0 ? (
+              <ProfileEmptyState icon={FileText} title="No public posts yet" description="Updates shared by this investor will appear here once published." />
+            ) : (
+              recentPosts.map((post) => (
+                <PostCard key={post.id} postType={post.postType} title={post.title}
+                  body={(post as { body?: string | null }).body} createdAt={post.createdAt} />
               ))
             )}
           </div>
-        </section>
-        <section className="rounded-xl border border-border/60 bg-card p-4">
-          <p className="text-sm font-semibold">Recent updates</p>
-          {recentPosts.length === 0 ? (
-            <p className="mt-2 text-xs text-muted-foreground">No public updates yet.</p>
-          ) : (
-            <div className="mt-2 space-y-2">
-              {recentPosts.map((post) => (
-                <p key={post.id} className="rounded-md border border-border/60 px-3 py-2 text-xs text-muted-foreground">
-                  {post.postType} | {post.title}
+        ),
+      },
+      {
+        key: "open-calls",
+        label: "Open Calls",
+        content: (
+          <div className="space-y-3">
+            {ip.isPublic ? (
+              <div className="rounded-[14px] p-4 space-y-3" style={{ backgroundColor: "rgba(52,211,153,0.05)", border: "0.5px solid rgba(52,211,153,0.2)" }}>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" style={{ color: "#34d399" }} />
+                  <p className="text-[13px] font-semibold" style={{ color: "#34d399" }}>Actively Investing</p>
+                </div>
+                <p className="text-[13px] leading-5" style={{ color: "#a1a1aa" }}>
+                  This investor is currently evaluating deals. Use the contact methods to submit your intro or reach out directly.
                 </p>
-              ))}
-            </div>
-          )}
-        </section>
-        <section className="rounded-xl border border-border/60 bg-card p-4 text-xs text-muted-foreground">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-            <Globe2 className="h-4 w-4 text-cyan-300" /> Company/Fund
+                <div className="flex flex-wrap gap-1.5">
+                  {(ip.stageFocus ?? []).map((s) => (
+                    <span key={s} className="rounded-full px-2.5 py-1 text-[11px]" style={{ backgroundColor: "rgba(52,211,153,0.08)", border: "0.5px solid rgba(52,211,153,0.25)", color: "#34d399" }}>{s}</span>
+                  ))}
+                </div>
+                {checkRange ? (
+                  <p className="text-[12px]" style={{ color: "#71717a" }}>Typical check size: {checkRange}</p>
+                ) : null}
+              </div>
+            ) : (
+              <ProfileEmptyState icon={TrendingUp} title="Profile not fully public" description="This investor has not enabled their full public profile yet." />
+            )}
           </div>
-          <p>{investor.investorProfile.company?.name ?? investor.investorProfile.firmName ?? "Independent investor"}</p>
-        </section>
-        <section className="rounded-xl border border-border/60 bg-card p-4 text-xs text-muted-foreground">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-            <Wallet className="h-4 w-4 text-cyan-300" /> Wallet
+        ),
+      },
+      {
+        key: "contact",
+        label: "Contact",
+        content: (
+          <div className="space-y-4">
+            {contactCards.length === 0 ? (
+              <ProfileEmptyState icon={Users} title="No public contact methods"
+                description="This investor has not exposed external contact links publicly. You can still send a connection request." />
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {contactCards.map((m) => (
+                  <ContactMethodCard key={`${m.type}-${m.href}`} type={m.type} label={m.label} href={m.href} />
+                ))}
+              </div>
+            )}
+            <ConnectRequestCard
+              toUserId={investor.id}
+              toUsername={investor.username ?? ""}
+              source={resolvedSearch.source ?? "public-profile-investor"}
+              openToConnections={openToConnections}
+              isLoggedIn={Boolean(session?.user?.id)}
+              isSelf={session?.user?.id === investor.id}
+            />
           </div>
-          {investor.walletConnections.length === 0 ? <p>No public wallet linked.</p> : investor.walletConnections.map((wallet) => <p key={wallet.id}>{wallet.network}: {wallet.address}</p>)}
-        </section>
+        ),
+      },
+    ];
+
+    return (
+      <main className="mx-auto max-w-4xl space-y-5 px-4 py-8">
+        <PublicProfileHero
+          role="investor"
+          name={investor.name ?? "Investor"}
+          username={investor.username ?? ""}
+          image={investor.image}
+          bio={investor.bio}
+          statusChips={statusChips}
+          sharePath={`/investor/${investor.username ?? segment}`}
+        />
+        <PublicProfileTabs tabs={tabs} accent="#34d399" />
       </main>
     );
   }
 
+  // ── 2-segments: company/username ──
   if (segments.length === 2) {
     const [companySlug, username] = segments;
     const investor = await getInvestorByCompanyAndUsername(companySlug, username, viewer);
@@ -280,35 +426,23 @@ export default async function InvestorPublicPage({
       source: "public_profile_investor_company",
       roleContext: session?.user?.role ?? null,
     });
-
+    const ip = investor.investorProfile;
     return (
-      <main className="mx-auto max-w-4xl space-y-6 px-4 py-10">
-        <section className="rounded-2xl border border-border/60 bg-card p-6">
-          <p className="text-xs text-cyan-300">Firm-Affiliated Investor</p>
-          <h1 className="mt-1 text-2xl font-semibold">{investor.name ?? "Investor"}</h1>
-          <p className="text-sm text-muted-foreground">
-            @{investor.username} | {investor.investorProfile.company?.name}
-          </p>
-        </section>
-        <InvestorCard
+      <main className="mx-auto max-w-4xl space-y-5 px-4 py-8">
+        <PublicProfileHero
+          role="investor"
           name={investor.name ?? "Investor"}
-          username={investor.username}
-          roleTitle={investor.investorProfile.roleTitle}
-          investorType={investor.investorProfile.investorType}
-          stageFocus={investor.investorProfile.stageFocus}
-          chainFocus={investor.investorProfile.chainFocus}
-          checkRange={
-            investor.investorProfile.checkSizeMin !== null || investor.investorProfile.checkSizeMax !== null
-              ? `${investor.investorProfile.checkSizeMin ?? 0} - ${investor.investorProfile.checkSizeMax ?? 0}`
-              : undefined
-          }
-          thesis={investor.investorProfile.investmentThesis}
+          username={investor.username ?? ""}
+          image={investor.image}
+          bio={investor.bio}
+          statusChips={ip.investorType ? [{ label: ip.investorType, color: "default" }] : []}
+          sharePath={`/investor/${companySlug}/${investor.username ?? username}`}
         />
-        {resolvedSearch.connect === "1" ? (
-          <section className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4 text-xs text-cyan-100">
-            Connection context: {resolvedSearch.viewerRole ?? "Member"} from {resolvedSearch.source ?? "profile"}.
-          </section>
-        ) : null}
+        <div className="rounded-[14px] p-4" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+          <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>Firm</p>
+          <p className="mt-2 text-[15px] font-semibold" style={{ color: "#e4e4e7" }}>{ip.company?.name ?? ip.firmName ?? "Independent"}</p>
+          {ip.investmentThesis ? <p className="mt-2 text-[13px] leading-5" style={{ color: "#a1a1aa" }}>{ip.investmentThesis}</p> : null}
+        </div>
       </main>
     );
   }

@@ -1,9 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 
 type InviteResult = { success: true; code?: string } | { success: false; error: string };
@@ -30,7 +29,7 @@ function buildCodeToken() {
 }
 
 export async function createInviteOnlyCode(formData: FormData): Promise<InviteResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN" || !session.user.id) return { success: false, error: "Unauthorized." };
 
   const parsed = createCodeSchema.safeParse({
@@ -61,7 +60,7 @@ export async function createInviteOnlyCode(formData: FormData): Promise<InviteRe
 }
 
 export async function redeemInviteOnlyCode(formData: FormData): Promise<InviteResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return { success: false, error: "Unauthorized." };
 
   const parsed = redeemSchema.safeParse({
@@ -101,3 +100,4 @@ export async function redeemInviteOnlyCode(formData: FormData): Promise<InviteRe
   revalidatePath("/app/invite-community");
   return { success: true };
 }
+

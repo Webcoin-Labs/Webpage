@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { upsertBuilderProfile } from "@/app/actions/profile";
 import { Loader2, CheckCircle2, ImagePlus } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface Props {
@@ -57,9 +57,9 @@ export function BuilderProfileForm({ initial }: Props) {
       const result = await upsertBuilderProfile(formData);
       if (result.success) {
         setSuccess(true);
+        router.refresh();
         if (shouldRedirect) {
           router.push("/app");
-          router.refresh();
         }
       } else {
         setError(result.error);
@@ -411,3 +411,4 @@ export function BuilderProfileForm({ initial }: Props) {
     </div>
   );
 }
+

@@ -1,16 +1,27 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { Code2, Github, Linkedin, Mail, MessageCircle, Wallet } from "lucide-react";
+import { getServerSession } from "@/lib/auth";
+import { Code2, FileText, Github, LayoutGrid, Users } from "lucide-react";
 import { getBuilderPublicProfile } from "@/lib/public-profiles";
-import { authOptions } from "@/lib/auth";
-import { canViewerAccessInvestorOnlyContacts, normalizeTelegramUrl, readTelegramFromSocialLinks } from "@/lib/contact-visibility";
+import {
+  canViewerAccessInvestorOnlyContacts,
+  normalizeTelegramUrl,
+  readTelegramFromSocialLinks,
+} from "@/lib/contact-visibility";
 import { trackProfileView } from "@/lib/profile-views";
 import { db } from "@/server/db/client";
 import { mapPublicContactMethods } from "@/lib/contact-methods";
 import { PrivateProfileState } from "@/components/profile/PrivateProfileState";
-import { ProfileAvatar } from "@/components/common/ProfileAvatar";
 import { sendConnectionRequest } from "@/app/actions/connections";
+import { PublicProfileHero } from "@/components/public-profile/PublicProfileHero";
+import { PublicProfileTabs } from "@/components/public-profile/PublicProfileTabs";
+import { ContactMethodCard } from "@/components/public-profile/ContactMethodCard";
+import { ConnectRequestCard } from "@/components/public-profile/ConnectRequestCard";
+import { ProjectCard } from "@/components/public-profile/ProjectCard";
+import { PostCard } from "@/components/public-profile/PostCard";
+import { ProfileEmptyState } from "@/components/public-profile/ProfileEmptyState";
+
+// sendConnectionRequest is used by ConnectRequestCard client component via import
+void sendConnectionRequest;
 
 export default async function BuilderPublicPage({
   params,
@@ -21,7 +32,7 @@ export default async function BuilderPublicPage({
 }) {
   const { username } = await params;
   const resolvedSearch = (await searchParams) ?? {};
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   const viewerIsInvestor = canViewerAccessInvestorOnlyContacts(session?.user?.role);
   const profile = await getBuilderPublicProfile(username, {
     userId: session?.user?.id,
@@ -54,7 +65,7 @@ export default async function BuilderPublicPage({
   const recentPosts = await db.feedPost.findMany({
     where: { authorUserId: profile.id, visibility: "PUBLIC" },
     orderBy: { createdAt: "desc" },
-    take: 5,
+    take: 10,
   });
   const openToConnections = profile.publicProfileSettings?.openToConnections ?? true;
   const publicContactMethods = openToConnections ? mapPublicContactMethods(profile.profileContactMethods ?? []) : [];
@@ -66,206 +77,260 @@ export default async function BuilderPublicPage({
   const founderTelegramValue =
     linkedFounderFromProfileLink?.founderProfile?.telegram ??
     readTelegramFromSocialLinks(profile.socialLinks);
-  const founderAllowsTelegramToInvestors = linkedFounderFromProfileLink?.publicProfileSettings?.showTelegramToInvestors ?? true;
+  const founderAllowsTelegramToInvestors =
+    linkedFounderFromProfileLink?.publicProfileSettings?.showTelegramToInvestors ?? true;
   const showTelegram =
     viewerIsInvestor && founderAllowsTelegramToInvestors && Boolean(founderTelegramValue);
   const showLinkedin =
-    viewerIsInvestor && (profile.publicProfileSettings?.showLinkedinToInvestors ?? true) && Boolean(profile.builderProfile.linkedin);
+    viewerIsInvestor &&
+    (profile.publicProfileSettings?.showLinkedinToInvestors ?? true) &&
+    Boolean(profile.builderProfile.linkedin);
   const showEmail =
-    viewerIsInvestor && (profile.publicProfileSettings?.showEmailToInvestors ?? false) && Boolean(profile.email);
+    viewerIsInvestor &&
+    (profile.publicProfileSettings?.showEmailToInvestors ?? false) &&
+    Boolean(profile.email);
 
-  return (
-    <main className="mx-auto max-w-4xl space-y-6 px-4 py-10">
-      <section className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/70 p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="flex items-center gap-3">
-            <ProfileAvatar
-              src={profile.image}
-              alt={profile.name ?? "Builder"}
-              fallback={(profile.name ?? profile.username ?? "B").charAt(0)}
-              className="h-14 w-14 rounded-xl"
-              fallbackClassName="bg-cyan-500/20 text-cyan-200"
-            />
-            <div>
-              <p className="text-xs text-cyan-300">Builder Public Profile</p>
-              <h1 className="mt-1 text-2xl font-semibold">{profile.name ?? "Builder"}</h1>
-              <p className="text-sm text-muted-foreground">@{profile.username}</p>
-            </div>
-          </div>
-          <div className="rounded-lg border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
-            <p>{profile.builderProfile.title ?? "Builder"}</p>
-            <p>{profile.builderProfile.openToWork ? "Open to work" : "Selective availability"}</p>
-          </div>
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">{profile.builderProfile.headline ?? profile.builderProfile.bio ?? "No headline provided."}</p>
-        <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          {(profile.builderProfile.skills ?? []).slice(0, 10).map((skill) => (
-            <span key={skill} className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-cyan-200">
-              {skill}
-            </span>
-          ))}
-          {linkedFounder?.username ? (
-            <Link href={`/founder/${linkedFounder.username}`} className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-cyan-200">
-              Also Founder
-            </Link>
-          ) : null}
-        </div>
-        <div className="mt-4 rounded-lg border border-border/60 bg-background/50 p-3">
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-cyan-300">Connect</p>
-          <div className="flex items-center gap-2">
-            {showLinkedin ? (
-              <a href={profile.builderProfile.linkedin!} target="_blank" rel="noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:text-cyan-200" aria-label="LinkedIn">
-                <Linkedin className="h-4 w-4" />
-              </a>
-            ) : null}
-            {showEmail ? (
-              <a href={`mailto:${profile.email}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:text-cyan-200" aria-label="Email">
-                <Mail className="h-4 w-4" />
-              </a>
-            ) : null}
-            {showTelegram ? (
-              <a
-                href={normalizeTelegramUrl(founderTelegramValue)!}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:text-cyan-200"
-                aria-label="Telegram"
-              >
-                <MessageCircle className="h-4 w-4" />
-              </a>
-            ) : null}
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {publicContactMethods.length === 0 ? (
-              <span className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground">No additional public methods</span>
-            ) : null}
-            {publicContactMethods.map((method) => (
-              <a key={`${method.type}-${method.href}`} href={method.href} target="_blank" rel="noreferrer" className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground">
-                {method.label}
-              </a>
-            ))}
-          </div>
-        </div>
-      </section>
-      {resolvedSearch.connect === "1" ? (
-        <section className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4 text-xs text-cyan-100">
-          {openToConnections
-            ? `Connection context: ${resolvedSearch.viewerRole ?? "Member"} from ${resolvedSearch.source ?? "profile"}. Use enabled contact methods above.`
-            : "This builder is currently not open to new connection requests."}
-        </section>
-      ) : null}
-      {session?.user?.id && session.user.id !== profile.id && openToConnections ? (
-        <section className="rounded-xl border border-border/60 bg-card p-4">
-          <p className="text-sm font-semibold">Request connection</p>
-          <form action={sendConnectionRequest} className="mt-2 space-y-2">
-            <input type="hidden" name="toUserId" value={profile.id} />
-            <input type="hidden" name="toUsername" value={profile.username ?? ""} />
-            <input type="hidden" name="source" value={resolvedSearch.source ?? "public-profile-builder"} />
-            <textarea name="message" rows={2} placeholder="Short intro message (optional)" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            <button type="submit" className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-200">
-              Send connection request
-            </button>
-          </form>
-        </section>
-      ) : null}
+  const bp = profile.builderProfile;
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <article className="rounded-xl border border-border/60 bg-card p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-            <Code2 className="h-4 w-4 text-cyan-300" />
-            Builder Stack & Intent
-          </div>
-          <p className="text-xs text-muted-foreground">Stack: {profile.builderProfile.stack.join(", ") || "Not specified"}</p>
-          <p className="text-xs text-muted-foreground">Chains: {profile.builderProfile.chainExpertise.join(", ") || profile.builderProfile.preferredChains.join(", ") || "Not specified"}</p>
-          <p className="text-xs text-muted-foreground">Looking for: {profile.builderProfile.lookingForRoles.join(", ") || profile.builderProfile.openTo.join(", ") || "Not specified"}</p>
-          <p className="text-xs text-muted-foreground">Availability: {profile.builderProfile.availability ?? "Not specified"}</p>
-        </article>
-        <article className="rounded-xl border border-border/60 bg-card p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-            <Github className="h-4 w-4 text-cyan-300" />
-            GitHub Proof
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Account: {profile.githubConnection?.username ? `@${profile.githubConnection.username}` : "Not connected"}
-          </p>
-          {profile.builderProfile.github ? (
-            <a href={profile.builderProfile.github} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs text-cyan-300">
-              Open GitHub profile
-            </a>
-          ) : null}
-          {profile.builderProfile.openSourceContributions ? (
-            <p className="mt-2 text-xs text-muted-foreground">{profile.builderProfile.openSourceContributions}</p>
-          ) : null}
-        </article>
-      </section>
+  const contactCards: { type: string; label: string; href: string }[] = [
+    ...(showTelegram && founderTelegramValue
+      ? [{ type: "TELEGRAM", label: "Telegram", href: normalizeTelegramUrl(founderTelegramValue) ?? "#" }]
+      : []),
+    ...(showLinkedin && bp.linkedin
+      ? [{ type: "LINKEDIN", label: "LinkedIn", href: bp.linkedin }]
+      : []),
+    ...(showEmail && profile.email
+      ? [{ type: "EMAIL", label: "Email", href: `mailto:${profile.email}` }]
+      : []),
+    ...(bp.github ? [{ type: "GITHUB", label: "GitHub", href: bp.github }] : []),
+    ...publicContactMethods.map((m) => ({ type: m.type ?? "WEBSITE", label: m.label, href: m.href })),
+  ];
 
-      <section className="rounded-xl border border-border/60 bg-card p-4">
-        <p className="mb-2 text-sm font-semibold">Projects</p>
-        {profile.builderProjects.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No public projects yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {profile.builderProjects.map((project) => (
-              <article key={project.id} className="rounded-md border border-border/60 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium">{project.title}</p>
-                  {project.githubUrl ? (
-                    <a href={project.githubUrl} target="_blank" rel="noreferrer" className="text-xs text-cyan-300">
-                      GitHub
-                    </a>
-                  ) : null}
-                </div>
-                {project.tagline ? <p className="mt-1 text-xs text-muted-foreground">{project.tagline}</p> : null}
-                <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
-                  {project.techStack.slice(0, 8).map((item) => (
-                    <span key={item} className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
-                      {item}
+  const statusChips: { label: string; color?: "amber" | "green" | "violet" | "cyan" | "default" }[] = [
+    ...(bp.openToWork ? [{ label: "Open to work", color: "green" as const }] : []),
+    ...((bp.openTo ?? []).slice(0, 3).map((ot) => ({ label: ot, color: "cyan" as const }))),
+  ];
+
+  const tabs = [
+    {
+      key: "overview",
+      label: "Overview",
+      content: (
+        <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
+          <div className="space-y-3">
+            {/* About */}
+            {(bp.headline ?? bp.bio ?? profile.bio) ? (
+              <div className="rounded-[14px] p-4" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+                <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: "#52525b" }}>About</p>
+                <p className="mt-1.5 text-[13px] leading-[1.6]" style={{ color: "#a1a1aa" }}>
+                  {bp.headline ?? bp.bio ?? profile.bio}
+                </p>
+              </div>
+            ) : null}
+            {/* Stack and skills */}
+            {(bp.skills?.length || bp.stack?.length) ? (
+              <div className="rounded-[14px] p-4" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+                <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: "#52525b" }}>Skills & Stack</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {(bp.skills ?? []).slice(0, 12).map((s) => (
+                    <span key={s} className="rounded-full px-2.5 py-1 text-[11px]"
+                      style={{ backgroundColor: "rgba(34,211,238,0.06)", border: "0.5px solid rgba(34,211,238,0.15)", color: "#22d3ee" }}>
+                      {s}
+                    </span>
+                  ))}
+                  {(bp.stack ?? []).slice(0, 8).map((s) => (
+                    <span key={s} className="rounded-full px-2.5 py-1 text-[11px]"
+                      style={{ backgroundColor: "#1a1a1e", border: "0.5px solid #27272a", color: "#71717a" }}>
+                      {s}
                     </span>
                   ))}
                 </div>
-              </article>
-            ))}
+              </div>
+            ) : null}
+            {/* Chains */}
+            {(bp.chainExpertise?.length ?? 0) > 0 || (bp.preferredChains?.length ?? 0) > 0 ? (
+              <div className="rounded-[14px] p-4" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+                <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: "#52525b" }}>Chain Expertise</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {[...(bp.chainExpertise ?? []), ...(bp.preferredChains ?? [])].slice(0, 10).map((c) => (
+                    <span key={c} className="rounded-full px-2.5 py-1 text-[11px]"
+                      style={{ backgroundColor: "rgba(167,139,250,0.06)", border: "0.5px solid rgba(167,139,250,0.15)", color: "#a78bfa" }}>
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
-        )}
-      </section>
-
-      <section className="rounded-xl border border-border/60 bg-card p-4">
-        <p className="mb-2 text-sm font-semibold">Recent updates</p>
-        {recentPosts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No public updates yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {recentPosts.map((post) => (
-              <p key={post.id} className="rounded-md border border-border/60 px-3 py-2 text-xs text-muted-foreground">
-                {post.postType} | {post.title}
-              </p>
-            ))}
+          {/* Sidebar */}
+          <div className="space-y-3">
+            <ConnectRequestCard
+              toUserId={profile.id}
+              toUsername={profile.username ?? ""}
+              source={resolvedSearch.source ?? "public-profile-builder"}
+              openToConnections={openToConnections}
+              isLoggedIn={Boolean(session?.user?.id)}
+              isSelf={session?.user?.id === profile.id}
+            />
+            {/* GitHub */}
+            <div className="rounded-[16px] p-4 space-y-2" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+              <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>GitHub</p>
+              {profile.githubConnection?.username ? (
+                <p className="text-[13px]" style={{ color: "#a1a1aa" }}>
+                  @{profile.githubConnection.username}
+                </p>
+              ) : null}
+              {bp.github ? (
+                <a href={bp.github} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[13px] transition-opacity hover:opacity-80" style={{ color: "#22d3ee" }}>
+                  <Github className="h-3.5 w-3.5" />
+                  Open GitHub profile
+                </a>
+              ) : (
+                <p className="text-[12px]" style={{ color: "#3f3f46" }}>No GitHub linked.</p>
+              )}
+            </div>
           </div>
-        )}
-      </section>
-
-      <section className="rounded-xl border border-border/60 bg-card p-4">
-        <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-          <Wallet className="h-4 w-4 text-cyan-300" /> Wallet Identity
         </div>
-        {profile.walletConnections.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No wallet linked publicly.</p>
-        ) : (
-          <div className="space-y-1 text-xs text-muted-foreground">
-            {profile.walletConnections.map((wallet) => (
-              <p key={wallet.id}>
-                {wallet.network}: {wallet.address}
+      ),
+    },
+    {
+      key: "projects",
+      label: "Projects",
+      content: (
+        <div className="space-y-3">
+          {profile.builderProjects.length === 0 ? (
+            <ProfileEmptyState
+              icon={LayoutGrid}
+              title="No public projects yet"
+              description="Projects added by this builder will appear here once published."
+            />
+          ) : (
+            profile.builderProjects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                title={project.title}
+                tagline={project.tagline}
+                techStack={project.techStack}
+                githubUrl={project.githubUrl}
+                liveUrl={(project as { liveUrl?: string | null }).liveUrl}
+              />
+            ))
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "posts",
+      label: "Posts",
+      content: (
+        <div className="space-y-3">
+          {recentPosts.length === 0 ? (
+            <ProfileEmptyState
+              icon={FileText}
+              title="No public posts yet"
+              description="Updates shared by this builder will appear here once published."
+            />
+          ) : (
+            recentPosts.map((post) => (
+              <PostCard
+                key={post.id}
+                postType={post.postType}
+                title={post.title}
+                body={(post as { body?: string | null }).body}
+                createdAt={post.createdAt}
+              />
+            ))
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "availability",
+      label: "Availability",
+      content: (
+        <div className="space-y-3">
+          <div className="rounded-[16px] p-5" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+            <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>Status</p>
+            <div className="mt-2 flex items-center gap-2">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: bp.openToWork ? "#34d399" : "#52525b" }}
+              />
+              <p className="text-[14px] font-medium" style={{ color: "#d4d4d8" }}>
+                {bp.openToWork ? "Open to work" : "Not currently available"}
               </p>
-            ))}
+            </div>
+            {bp.availability ? (
+              <p className="mt-2 text-[13px]" style={{ color: "#71717a" }}>{bp.availability}</p>
+            ) : null}
           </div>
-        )}
-      </section>
+          {(bp.lookingForRoles?.length ?? 0) > 0 || (bp.openTo?.length ?? 0) > 0 ? (
+            <div className="rounded-[16px] p-5" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+              <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>Open to</p>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {[...(bp.lookingForRoles ?? []), ...(bp.openTo ?? [])].map((r) => (
+                  <span key={r} className="rounded-full px-2.5 py-1 text-[11px]"
+                    style={{ backgroundColor: "rgba(34,211,238,0.06)", border: "0.5px solid rgba(34,211,238,0.15)", color: "#22d3ee" }}>
+                    {r}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {bp.openSourceContributions ? (
+            <div className="rounded-[16px] p-5" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+              <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "#52525b" }}>Open Source</p>
+              <p className="mt-2 text-[13px] leading-5" style={{ color: "#a1a1aa" }}>{bp.openSourceContributions}</p>
+            </div>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: "contact",
+      label: "Contact",
+      content: (
+        <div className="space-y-4">
+          {contactCards.length === 0 ? (
+            <ProfileEmptyState
+              icon={Users}
+              title="No public contact methods"
+              description="This builder has not exposed external contact links publicly. You can still send a connection request."
+            />
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {contactCards.map((m) => (
+                <ContactMethodCard key={`${m.type}-${m.href}`} type={m.type} label={m.label} href={m.href} />
+              ))}
+            </div>
+          )}
+          <ConnectRequestCard
+            toUserId={profile.id}
+            toUsername={profile.username ?? ""}
+            source={resolvedSearch.source ?? "public-profile-builder"}
+            openToConnections={openToConnections}
+            isLoggedIn={Boolean(session?.user?.id)}
+            isSelf={session?.user?.id === profile.id}
+          />
+        </div>
+      ),
+    },
+  ];
 
-      <div className="text-xs text-muted-foreground">
-        <Link href="/" className="text-cyan-300">
-          Back to Webcoin Labs
-        </Link>
-      </div>
+  return (
+    <main className="mx-auto max-w-4xl space-y-5 px-4 py-8">
+      <PublicProfileHero
+        role="builder"
+        name={profile.name ?? "Builder"}
+        username={profile.username ?? ""}
+        image={profile.image}
+        bio={bp.headline ?? bp.bio ?? profile.bio}
+        statusChips={statusChips}
+        linkedProfileHref={linkedFounder?.username ? `/founder/${linkedFounder.username}` : undefined}
+        linkedProfileLabel={linkedFounder?.username ? "Founder" : undefined}
+        sharePath={`/builder/${profile.username ?? username}`}
+      />
+      <PublicProfileTabs tabs={tabs} accent="#22d3ee" />
     </main>
   );
 }

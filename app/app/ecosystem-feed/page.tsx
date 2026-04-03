@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { EcosystemFeedPanel } from "@/components/ecosystem/EcosystemFeedPanel";
 
 export const metadata = { title: "Ecosystem Feed - Webcoin Labs" };
@@ -10,7 +9,7 @@ export default async function EcosystemFeedPage({
 }: {
   searchParams?: Promise<{ search?: string; scope?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
 
   const resolved = await searchParams;
@@ -26,3 +25,4 @@ export default async function EcosystemFeedPage({
     </div>
   );
 }
+

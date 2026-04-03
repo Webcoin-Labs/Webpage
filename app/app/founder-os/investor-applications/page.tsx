@@ -1,8 +1,7 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Crown, Send } from "lucide-react";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { submitInvestorApplication } from "@/app/actions/webcoin-os";
 
@@ -13,7 +12,7 @@ function cycleLabel(start: Date, end: Date) {
 }
 
 export default async function FounderInvestorApplicationsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
   if (!["FOUNDER", "ADMIN"].includes(session.user.role)) redirect("/app");
 
@@ -149,3 +148,4 @@ export default async function FounderInvestorApplicationsPage() {
     </div>
   );
 }
+

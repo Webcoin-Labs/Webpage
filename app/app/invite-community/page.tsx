@@ -1,14 +1,13 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AlertTriangle, Shield } from "lucide-react";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { redeemInviteOnlyCode } from "@/app/actions/invite-community";
 
 export const metadata = { title: "Invite-Only Community - Webcoin Labs" };
 
 export default async function InviteCommunityPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
 
   const membership = await db.inviteOnlyMembership.findUnique({
@@ -77,3 +76,4 @@ export default async function InviteCommunityPage() {
     </div>
   );
 }
+

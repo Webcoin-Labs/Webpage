@@ -1,8 +1,7 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Crown, ArrowRight, Megaphone } from "lucide-react";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 
 export const metadata = { title: "KOL Premium - Webcoin Labs" };
@@ -23,7 +22,7 @@ function asKolPayload(value: unknown): KolPayload {
 }
 
 export default async function KolsPremiumPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
   if (!["FOUNDER", "ADMIN"].includes(session.user.role)) redirect("/app");
   const isAdmin = session.user.role === "ADMIN";
@@ -199,3 +198,4 @@ export default async function KolsPremiumPage() {
     </div>
   );
 }
+

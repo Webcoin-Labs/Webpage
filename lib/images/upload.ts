@@ -42,8 +42,9 @@ function getVariantConfig(variant: UploadVariant) {
 }
 
 function buildStorageKey(variant: UploadVariant, entityId: string): string {
-  if (variant === "avatar") return `avatars/${entityId}`;
-  return `company-logos/${entityId}`;
+  const version = Date.now();
+  if (variant === "avatar") return `avatars/${entityId}-${version}`;
+  return `company-logos/${entityId}-${version}`;
 }
 
 export function validateImageFile(file: File | null): string | null {

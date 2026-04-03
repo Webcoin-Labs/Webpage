@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import Link from "next/link";
 import { Plus, FolderKanban, ArrowRight } from "lucide-react";
@@ -10,7 +9,7 @@ export const metadata = { title: "Projects — Webcoin Labs" };
 const stageMap: Record<string, string> = { IDEA: "Idea", MVP: "MVP", LIVE: "Live" };
 
 export default async function ProjectsPage() {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     const user = session!.user;
     const isFounder = user.role === "FOUNDER" || user.role === "ADMIN";
 
@@ -89,3 +88,4 @@ export default async function ProjectsPage() {
         </div>
     );
 }
+

@@ -1,9 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { HiringInterestStatus } from "@prisma/client";
@@ -21,7 +20,7 @@ const hiringInterestSchema = z.object({
 type HiringResult = { success: true; id: string } | { success: false; error: string };
 
 export async function submitHiringInterest(formData: FormData): Promise<HiringResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return { success: false, error: "Not authenticated" };
   if (!["BUILDER", "ADMIN"].includes(session.user.role)) {
     return { success: false, error: "Only builders can submit hiring interest." };
@@ -97,7 +96,7 @@ export async function submitHiringInterest(formData: FormData): Promise<HiringRe
 }
 
 export async function updateHiringInterestStatus(id: string, status: HiringInterestStatus) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const parsedStatus = z.enum(["NEW", "REVIEWING", "CONTACTED", "ARCHIVED"]).safeParse(status);
@@ -132,3 +131,4 @@ export async function updateHiringInterestStatus(id: string, status: HiringInter
   revalidatePath("/app/admin");
   revalidatePath("/app/admin/hiring-interests");
 }
+

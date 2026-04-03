@@ -1,16 +1,20 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { Globe, GraduationCap, Linkedin, Mail, MessageCircle, Wallet } from "lucide-react";
+import { getServerSession } from "@/lib/auth";
+import { Briefcase, FileText, Globe, Users } from "lucide-react";
 import { getFounderPublicProfile } from "@/lib/public-profiles";
-import { authOptions } from "@/lib/auth";
 import { canViewerAccessInvestorOnlyContacts, normalizeTelegramUrl } from "@/lib/contact-visibility";
 import { trackProfileView } from "@/lib/profile-views";
 import { db } from "@/server/db/client";
 import { mapPublicContactMethods } from "@/lib/contact-methods";
 import { PrivateProfileState } from "@/components/profile/PrivateProfileState";
-import { ProfileAvatar } from "@/components/common/ProfileAvatar";
 import { sendConnectionRequest } from "@/app/actions/connections";
+import { PublicProfileHero } from "@/components/public-profile/PublicProfileHero";
+import { PublicProfileTabs } from "@/components/public-profile/PublicProfileTabs";
+import { ContactMethodCard } from "@/components/public-profile/ContactMethodCard";
+import { ConnectRequestCard } from "@/components/public-profile/ConnectRequestCard";
+import { VentureCard } from "@/components/public-profile/VentureCard";
+import { PostCard } from "@/components/public-profile/PostCard";
+import { ProfileEmptyState } from "@/components/public-profile/ProfileEmptyState";
 
 export default async function FounderPublicPage({
   params,
@@ -21,7 +25,7 @@ export default async function FounderPublicPage({
 }) {
   const { username } = await params;
   const resolvedSearch = (await searchParams) ?? {};
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   const viewerIsInvestor = canViewerAccessInvestorOnlyContacts(session?.user?.role);
   const profile = await getFounderPublicProfile(username, {
     userId: session?.user?.id,
@@ -54,7 +58,7 @@ export default async function FounderPublicPage({
   const recentPosts = await db.feedPost.findMany({
     where: { authorUserId: profile.id, visibility: "PUBLIC" },
     orderBy: { createdAt: "desc" },
-    take: 5,
+    take: 10,
   });
   const openToConnections = profile.publicProfileSettings?.openToConnections ?? true;
   const publicContactMethods = openToConnections ? mapPublicContactMethods(profile.profileContactMethods ?? []) : [];
@@ -69,191 +73,236 @@ export default async function FounderPublicPage({
   const showEmail =
     viewerIsInvestor && (profile.publicProfileSettings?.showEmailToInvestors ?? false) && Boolean(profile.email);
 
-  return (
-    <main className="mx-auto max-w-4xl space-y-6 px-4 py-10">
-      <section className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/70 p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="flex items-center gap-3">
-            <ProfileAvatar
-              src={profile.image}
-              alt={profile.name ?? "Founder"}
-              fallback={(profile.name ?? profile.username ?? "F").charAt(0)}
-              className="h-14 w-14 rounded-xl"
-              fallbackClassName="bg-cyan-500/20 text-cyan-200"
+  // Build contact methods list for the Contact tab
+  const contactCards: { type: string; label: string; href: string }[] = [
+    ...(showTelegram && profile.founderProfile.telegram
+      ? [{ type: "TELEGRAM", label: "Telegram", href: normalizeTelegramUrl(profile.founderProfile.telegram) ?? "#" }]
+      : []),
+    ...(showLinkedin && profile.founderProfile.linkedin
+      ? [{ type: "LINKEDIN", label: "LinkedIn", href: profile.founderProfile.linkedin }]
+      : []),
+    ...(showEmail && profile.email
+      ? [{ type: "EMAIL", label: "Email", href: `mailto:${profile.email}` }]
+      : []),
+    ...publicContactMethods.map((m) => ({ type: m.type ?? "WEBSITE", label: m.label, href: m.href })),
+  ];
+
+  const fp = profile.founderProfile;
+  const statusChips: { label: string; color?: "amber" | "green" | "violet" | "cyan" | "default" }[] = [
+    ...(fp.isHiring ? [{ label: "Hiring", color: "amber" as const }] : []),
+    ...(String(fp.projectStage) === "FUNDRAISING" ? [{ label: "Raising", color: "green" as const }] : []),
+    ...((fp.lookingFor ?? []).map((lf) => ({ label: lf, color: "violet" as const }))),
+  ];
+
+  const tabs = [
+    {
+      key: "overview",
+      label: "Overview",
+      content: (
+        <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
+          <div className="space-y-3">
+            {/* About */}
+            {profile.bio ? (
+              <div className="rounded-[14px] p-4" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+                <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: "#52525b" }}>About</p>
+                <p className="mt-1.5 text-[13px] leading-[1.6]" style={{ color: "#a1a1aa" }}>{profile.bio}</p>
+              </div>
+            ) : null}
+            {/* Venture identity */}
+            {fp.companyDescription || fp.companyName ? (
+              <div className="rounded-[14px] p-4" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+                <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: "#52525b" }}>Venture Identity</p>
+                {fp.companyName ? <p className="mt-1.5 text-[15px] font-semibold" style={{ color: "#e4e4e7" }}>{fp.companyName}</p> : null}
+                {fp.companyDescription ? <p className="mt-1 text-[13px] leading-[1.6]" style={{ color: "#a1a1aa" }}>{fp.companyDescription}</p> : null}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {fp.projectStage ? (
+                    <span className="rounded-full px-2.5 py-1 text-[11px]" style={{ backgroundColor: "rgba(167,139,250,0.08)", border: "0.5px solid rgba(167,139,250,0.2)", color: "#a78bfa" }}>
+                      {fp.projectStage}
+                    </span>
+                  ) : null}
+                  {fp.chainFocus ? (
+                    <span className="rounded-full px-2.5 py-1 text-[11px]" style={{ backgroundColor: "#1a1a1e", border: "0.5px solid #27272a", color: "#71717a" }}>
+                      {fp.chainFocus}
+                    </span>
+                  ) : null}
+                  {fp.website ? (
+                    <a href={fp.website} target="_blank" rel="noreferrer"
+                      className="rounded-full px-2.5 py-1 text-[11px] transition-opacity hover:opacity-80"
+                      style={{ backgroundColor: "rgba(52,211,153,0.06)", border: "0.5px solid rgba(52,211,153,0.2)", color: "#34d399" }}>
+                      ↗ Website
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            {/* Education / background */}
+            {(fp.educationBackground ?? profile.educationBackground) ? (
+              <div className="rounded-[14px] p-4" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+                <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: "#52525b" }}>Background</p>
+                <p className="mt-1.5 text-[13px] leading-[1.6]" style={{ color: "#a1a1aa" }}>
+                  {fp.educationBackground ?? profile.educationBackground}
+                </p>
+              </div>
+            ) : null}
+          </div>
+          {/* Right sidebar */}
+          <div className="space-y-3">
+            <ConnectRequestCard
+              toUserId={profile.id}
+              toUsername={profile.username ?? ""}
+              source={resolvedSearch.source ?? "public-profile-founder"}
+              openToConnections={openToConnections}
+              isLoggedIn={Boolean(session?.user?.id)}
+              isSelf={session?.user?.id === profile.id}
             />
-            <div>
-              <p className="text-xs text-cyan-300">Founder Public Profile</p>
-              <h1 className="mt-1 text-2xl font-semibold">{profile.name ?? "Founder"}</h1>
-              <p className="text-sm text-muted-foreground">@{profile.username}</p>
+            {/* Quick links */}
+            <div className="rounded-[14px] p-3.5 space-y-1.5" style={{ backgroundColor: "#111114", border: "0.5px solid #1e1e24" }}>
+              <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: "#52525b" }}>Links</p>
+              {fp.website ? <a href={fp.website} target="_blank" rel="noreferrer" className="block text-[13px] transition-opacity hover:opacity-80" style={{ color: "#a78bfa" }}>↗ {fp.website.replace(/^https?:\/\//, "")}</a> : null}
+              {fp.linkedin ? <a href={fp.linkedin} target="_blank" rel="noreferrer" className="block text-[13px] transition-opacity hover:opacity-80" style={{ color: "#60a5fa" }}>↗ LinkedIn</a> : null}
+              {fp.twitter ? <a href={fp.twitter} target="_blank" rel="noreferrer" className="block text-[13px] transition-opacity hover:opacity-80" style={{ color: "#e4e4e7" }}>↗ X / Twitter</a> : null}
+              {!fp.website && !fp.linkedin && !fp.twitter ? (
+                <p className="text-[12px]" style={{ color: "#3f3f46" }}>No public links added.</p>
+              ) : null}
             </div>
           </div>
-          <div className="rounded-lg border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
-            <p>{profile.founderProfile.roleTitle ?? "Founder"}</p>
-            <p>{profile.founderProfile.isHiring ? "Hiring active" : "Hiring paused"}</p>
-          </div>
         </div>
-        {profile.bio ? <p className="mt-4 text-sm text-muted-foreground">{profile.bio}</p> : null}
-        <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full border border-border px-2 py-1">{profile.founderProfile.companyName ?? "Company not added"}</span>
-          <span className="rounded-full border border-border px-2 py-1">{profile.founderProfile.projectStage ?? "Stage not set"}</span>
-          <span className="rounded-full border border-border px-2 py-1">{profile.founderProfile.chainFocus ?? "Chain not set"}</span>
-          {linkedBuilder?.username ? (
-            <Link href={`/builder/${linkedBuilder.username}`} className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-cyan-200">
-              Also Builder
-            </Link>
-          ) : null}
+      ),
+    },
+    {
+      key: "ventures",
+      label: "Ventures",
+      content: (
+        <div className="space-y-3">
+          {profile.ownedVentures.length === 0 ? (
+            <ProfileEmptyState
+              icon={Globe}
+              title="No public ventures yet"
+              description="Ventures added by this founder will appear here once made public."
+            />
+          ) : (
+            profile.ownedVentures.map((venture) => (
+              <VentureCard
+                key={venture.id}
+                name={venture.name}
+                description={venture.description ?? undefined}
+                stage={venture.stage ?? undefined}
+                chain={venture.chainEcosystem ?? undefined}
+                website={venture.website ?? undefined}
+                isHiring={fp.isHiring}
+              />
+            ))
+          )}
         </div>
-        <div className="mt-4 rounded-lg border border-border/60 bg-background/50 p-3">
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-cyan-300">Connect</p>
-          <div className="flex items-center gap-2">
-            {showTelegram ? (
-              <a
-                href={normalizeTelegramUrl(profile.founderProfile.telegram)!}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:text-cyan-200"
-                aria-label="Telegram"
-              >
-                <MessageCircle className="h-4 w-4" />
-              </a>
-            ) : null}
-            {showLinkedin ? (
-              <a href={profile.founderProfile.linkedin!} target="_blank" rel="noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:text-cyan-200" aria-label="LinkedIn">
-                <Linkedin className="h-4 w-4" />
-              </a>
-            ) : null}
-            {showEmail ? (
-              <a href={`mailto:${profile.email}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:text-cyan-200" aria-label="Email">
-                <Mail className="h-4 w-4" />
-              </a>
-            ) : null}
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {publicContactMethods.length === 0 ? (
-              <span className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground">No additional public methods</span>
-            ) : null}
-            {publicContactMethods.map((method) => (
-              <a key={`${method.type}-${method.href}`} href={method.href} target="_blank" rel="noreferrer" className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground">
-                {method.label}
-              </a>
-            ))}
-          </div>
+      ),
+    },
+    {
+      key: "posts",
+      label: "Posts",
+      content: (
+        <div className="space-y-3">
+          {recentPosts.length === 0 ? (
+            <ProfileEmptyState
+              icon={FileText}
+              title="No public posts yet"
+              description="Updates shared by this founder will appear here once published."
+            />
+          ) : (
+            recentPosts.map((post) => (
+              <PostCard
+                key={post.id}
+                postType={post.postType}
+                title={post.title}
+                body={(post as { body?: string | null }).body}
+                createdAt={post.createdAt}
+              />
+            ))
+          )}
         </div>
-      </section>
-      {resolvedSearch.connect === "1" ? (
-        <section className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4 text-xs text-cyan-100">
-          {openToConnections
-            ? `Connection context: ${resolvedSearch.viewerRole ?? "Member"} from ${resolvedSearch.source ?? "profile"}. Use enabled contact methods above.`
-            : "This founder is currently not open to new connection requests."}
-        </section>
-      ) : null}
-      {session?.user?.id && session.user.id !== profile.id && openToConnections ? (
-        <section className="rounded-xl border border-border/60 bg-card p-4">
-          <p className="text-sm font-semibold">Request connection</p>
-          <form action={sendConnectionRequest} className="mt-2 space-y-2">
-            <input type="hidden" name="toUserId" value={profile.id} />
-            <input type="hidden" name="toUsername" value={profile.username ?? ""} />
-            <input type="hidden" name="source" value={resolvedSearch.source ?? "public-profile-founder"} />
-            <textarea name="message" rows={2} placeholder="Short intro message (optional)" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            <button type="submit" className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-200">
-              Send connection request
-            </button>
-          </form>
-        </section>
-      ) : null}
-
-      <section className="grid gap-4 md:grid-cols-2">
-        <article className="rounded-xl border border-border/60 bg-card p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-            <Globe className="h-4 w-4 text-cyan-300" /> Venture Identity
-          </div>
-          <p className="text-sm text-muted-foreground">{profile.founderProfile.companyDescription ?? "No company description provided yet."}</p>
-          <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-            {profile.founderProfile.website ? <p>Website: {profile.founderProfile.website}</p> : null}
-            {profile.founderProfile.linkedin ? <p>LinkedIn: {profile.founderProfile.linkedin}</p> : null}
-            {profile.founderProfile.twitter ? <p>X: {profile.founderProfile.twitter}</p> : null}
-          </div>
-        </article>
-        <article className="rounded-xl border border-border/60 bg-card p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-            <GraduationCap className="h-4 w-4 text-cyan-300" /> Founder Background
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {profile.founderProfile.educationBackground ?? profile.educationBackground ?? "Education background not published yet."}
-          </p>
-          {profile.founderProfile.lookingFor.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-2 text-xs">
-              {profile.founderProfile.lookingFor.map((item) => (
-                <span key={item} className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-cyan-200">
-                  {item}
-                </span>
+      ),
+    },
+    {
+      key: "jobs",
+      label: "Jobs",
+      content: (
+        <div className="space-y-3">
+          {fp.isHiring ? (
+            <div className="rounded-[16px] p-5 space-y-2" style={{ backgroundColor: "rgba(251,191,36,0.05)", border: "0.5px solid rgba(251,191,36,0.2)" }}>
+              <div className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4" style={{ color: "#fbbf24" }} />
+                <p className="text-[13px] font-semibold" style={{ color: "#fbbf24" }}>Actively Hiring</p>
+              </div>
+              <p className="text-[13px] leading-5" style={{ color: "#a1a1aa" }}>
+                This founder is currently looking to hire. Use the contact methods to reach out with your intro.
+              </p>
+              {(fp.lookingFor ?? []).length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {(fp.lookingFor ?? []).map((role) => (
+                    <span key={role} className="rounded-full px-2.5 py-1 text-[11px]" style={{ backgroundColor: "rgba(251,191,36,0.08)", border: "0.5px solid rgba(251,191,36,0.25)", color: "#fbbf24" }}>
+                      {role}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <ProfileEmptyState
+              icon={Briefcase}
+              title="Not actively hiring"
+              description="This founder is not currently advertising open roles."
+            />
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "contact",
+      label: "Contact",
+      content: (
+        <div className="space-y-4">
+          {contactCards.length === 0 ? (
+            <ProfileEmptyState
+              icon={Users}
+              title="No public contact methods"
+              description="This founder has not exposed external contact links publicly. You can still send a connection request."
+            />
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {contactCards.map((m) => (
+                <ContactMethodCard key={`${m.type}-${m.href}`} type={m.type} label={m.label} href={m.href} />
               ))}
             </div>
-          ) : null}
-        </article>
-      </section>
-
-      <section className="rounded-xl border border-border/60 bg-card p-4">
-        <p className="mb-2 text-sm font-semibold">Ventures</p>
-        {profile.ownedVentures.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No public ventures yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {profile.ownedVentures.map((venture) => (
-              <article key={venture.id} className="rounded-md border border-border/60 p-3">
-                <p className="text-sm font-medium">{venture.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {venture.stage ?? "Stage not set"} | {venture.chainEcosystem ?? "Chain not set"}
-                </p>
-                {venture.description ? <p className="mt-1 text-xs text-muted-foreground">{venture.description}</p> : null}
-                {venture.website ? (
-                  <a href={venture.website} className="mt-2 inline-flex text-xs text-cyan-300" target="_blank" rel="noreferrer">
-                    Open project website
-                  </a>
-                ) : null}
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="rounded-xl border border-border/60 bg-card p-4">
-        <p className="mb-2 text-sm font-semibold">Recent updates</p>
-        {recentPosts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No public updates yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {recentPosts.map((post) => (
-              <p key={post.id} className="rounded-md border border-border/60 px-3 py-2 text-xs text-muted-foreground">
-                {post.postType} | {post.title}
-              </p>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="rounded-xl border border-border/60 bg-card p-4">
-        <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-          <Wallet className="h-4 w-4 text-cyan-300" /> Wallet Verification
+          )}
+          <ConnectRequestCard
+            toUserId={profile.id}
+            toUsername={profile.username ?? ""}
+            source={resolvedSearch.source ?? "public-profile-founder"}
+            openToConnections={openToConnections}
+            isLoggedIn={Boolean(session?.user?.id)}
+            isSelf={session?.user?.id === profile.id}
+          />
         </div>
-        {profile.walletConnections.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No wallet linked publicly.</p>
-        ) : (
-          <div className="space-y-1 text-xs text-muted-foreground">
-            {profile.walletConnections.map((wallet) => (
-              <p key={wallet.id}>
-                {wallet.network}: {wallet.address}
-              </p>
-            ))}
-          </div>
-        )}
-      </section>
+      ),
+    },
+  ];
 
-      <div className="text-xs text-muted-foreground">
-        <Link href="/" className="text-cyan-300">
-          Back to Webcoin Labs
-        </Link>
-      </div>
+  return (
+    <main className="mx-auto max-w-4xl space-y-5 px-4 py-8">
+      <PublicProfileHero
+        role="founder"
+        name={profile.name ?? "Founder"}
+        username={profile.username ?? ""}
+        image={profile.image}
+        bio={profile.bio}
+        headline={fp.companyName ? `Building ${fp.companyName}` : undefined}
+        statusChips={statusChips}
+        websiteUrl={fp.website}
+        linkedProfileHref={linkedBuilder?.username ? `/builder/${linkedBuilder.username}` : undefined}
+        linkedProfileLabel={linkedBuilder?.username ? "Builder" : undefined}
+        sharePath={`/founder/${profile.username ?? username}`}
+      />
+      <PublicProfileTabs tabs={tabs} accent="#a78bfa" />
     </main>
   );
 }
+

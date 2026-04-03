@@ -42,7 +42,7 @@ flowchart LR
 ```mermaid
 flowchart TB
     U[Users] --> FE[Next.js Web App]
-    FE --> AUTH[NextAuth]
+    FE --> AUTH[Supabase Auth]
     FE --> API[Server Actions / API Routes]
     API --> DB[(PostgreSQL + Prisma)]
     API --> AI[Gemini Analysis Services]
@@ -138,6 +138,15 @@ Minimum required values are validated in `lib/env.ts`.
 - `lib/` - shared runtime, auth, storage, AI, utilities
 - `prisma/` - schema and migrations
 - `server/` - services, selectors, and policy layer
+
+## Documentation
+
+- Architecture index: `docs/README.md`
+- System design: `docs/architecture/system-design.md`
+- Deployment architecture: `docs/architecture/deployment-architecture.md`
+- Folder structure: `docs/architecture/folder-structure.md`
+- Request/data flows: `docs/architecture/request-flows.md`
+- Integrations setup: `docs/operations/integrations-setup.md`
 
 ## Contact
 

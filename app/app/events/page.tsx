@@ -1,8 +1,7 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CalendarClock, Users } from "lucide-react";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 
 export const metadata = {
@@ -11,7 +10,7 @@ export const metadata = {
 };
 
 export default async function EventsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
 
   const [upcomingEvents, myRsvps] = await Promise.all([
@@ -97,4 +96,5 @@ export default async function EventsPage() {
     </div>
   );
 }
+
 

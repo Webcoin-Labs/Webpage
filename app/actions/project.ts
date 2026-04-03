@@ -1,8 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { revalidatePath } from "next/cache";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
@@ -21,7 +20,7 @@ const projectSchema = z.object({
 type ProjectResult = { success: true; id: string } | { success: false; error: string };
 
 export async function createProject(formData: FormData): Promise<ProjectResult> {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user) return { success: false, error: "Not authenticated" };
     if (session.user.role !== "FOUNDER" && session.user.role !== "ADMIN") {
         return { success: false, error: "Only founders can create projects" };
@@ -65,3 +64,4 @@ export async function createProject(formData: FormData): Promise<ProjectResult> 
     revalidatePath("/app/projects");
     return { success: true, id: project.id };
 }
+

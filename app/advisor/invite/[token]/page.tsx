@@ -1,14 +1,13 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { redeemProjectAdvisorInvite } from "@/app/actions/advisor";
 
 export const metadata = { title: "Advisor Invite - Webcoin Labs" };
 
 export default async function AdvisorInvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect(`/login?callbackUrl=${encodeURIComponent(`/advisor/invite/${token}`)}`);
 
   const redeemAction = async (formData: FormData) => {

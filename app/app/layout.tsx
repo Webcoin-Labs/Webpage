@@ -1,10 +1,9 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { BellRing, Command, Plus, Search, Wifi } from "lucide-react";
-import { authOptions } from "@/lib/auth";
 import { AppMobileNav, AppSidebar } from "@/components/app/AppSidebar";
 import { OnboardingGuard } from "@/components/app/OnboardingGuard";
 import { AppHelpWidgetClient } from "@/components/app/AppHelpWidgetClient";
@@ -94,7 +93,7 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session) redirect("/login");
 
   const onboardingComplete = (session.user as { onboardingComplete?: boolean }).onboardingComplete !== false;
@@ -236,3 +235,5 @@ export default async function AppLayout({
     </div>
   );
 }
+
+

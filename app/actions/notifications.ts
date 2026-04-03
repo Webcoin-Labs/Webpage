@@ -1,10 +1,9 @@
 "use server";
 
 import { z } from "zod";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { Role } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 
 const roleValues = ["BUILDER", "FOUNDER", "INVESTOR", "ADMIN"] as const;
@@ -19,7 +18,7 @@ const createNotificationSchema = z.object({
 type NotificationResult = { success: true } | { success: false; error: string };
 
 export async function createBroadcastNotification(formData: FormData): Promise<NotificationResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN" || !session.user.id) return { success: false, error: "Unauthorized." };
 
   const parsed = createNotificationSchema.safeParse({
@@ -51,7 +50,7 @@ export async function createBroadcastNotification(formData: FormData): Promise<N
 }
 
 export async function markNotificationRead(notificationId: string): Promise<NotificationResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return { success: false, error: "Unauthorized." };
 
   const notification = await db.notification.findUnique({
@@ -82,7 +81,7 @@ export async function markNotificationRead(notificationId: string): Promise<Noti
 }
 
 export async function markAllNotificationsRead(): Promise<NotificationResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return { success: false, error: "Unauthorized." };
 
   const notifications = await db.notification.findMany({
@@ -109,3 +108,4 @@ export async function markAllNotificationsRead(): Promise<NotificationResult> {
   revalidatePath("/app/notifications");
   return { success: true };
 }
+

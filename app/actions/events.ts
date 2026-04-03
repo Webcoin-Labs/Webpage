@@ -1,7 +1,6 @@
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -43,7 +42,7 @@ function slugify(s: string): string {
 }
 
 export async function createEvent(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
   const rl = await rateLimitAsync(rateLimitKey(session.user.id, "admin-event-create"), 30, 60_000);
   if (!rl.ok) throw new Error("Too many event changes. Please wait a minute and try again.");
@@ -96,7 +95,7 @@ export async function createEvent(formData: FormData) {
 }
 
 export async function updateEvent(id: string, formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
   const rl = await rateLimitAsync(rateLimitKey(session.user.id, "admin-event-update"), 60, 60_000);
   if (!rl.ok) throw new Error("Too many event changes. Please wait a minute and try again.");
@@ -144,7 +143,7 @@ export async function updateEvent(id: string, formData: FormData) {
 }
 
 export async function deleteEvent(id: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
   const rl = await rateLimitAsync(rateLimitKey(session.user.id, "admin-event-delete"), 20, 60_000);
   if (!rl.ok) throw new Error("Too many event changes. Please wait a minute and try again.");
@@ -154,7 +153,7 @@ export async function deleteEvent(id: string) {
 }
 
 export async function rsvpEvent(eventId: string, status: RsvpStatus) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) throw new Error("Sign in to RSVP");
   const rl = await rateLimitAsync(rateLimitKey(session.user.id, "event-rsvp"), 10, 60_000);
   if (!rl.ok) throw new Error("Too many RSVP attempts. Please wait a minute and try again.");
@@ -172,7 +171,7 @@ export async function rsvpEvent(eventId: string, status: RsvpStatus) {
 }
 
 export async function cancelRsvp(eventId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const rl = await rateLimitAsync(rateLimitKey(session.user.id, "event-cancel-rsvp"), 20, 60_000);
   if (!rl.ok) throw new Error("Too many requests. Please wait a minute and try again.");
@@ -185,7 +184,7 @@ export async function cancelRsvp(eventId: string) {
 }
 
 export async function checkInAttendee(rsvpId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
   const rl = await rateLimitAsync(rateLimitKey(session.user.id, "admin-event-checkin"), 120, 60_000);
   if (!rl.ok) throw new Error("Too many requests. Please wait a minute and try again.");
@@ -197,7 +196,7 @@ export async function checkInAttendee(rsvpId: string) {
 }
 
 export async function setEventReminder(eventId: string, remindAt: Date) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const rl = await rateLimitAsync(rateLimitKey(session.user.id, "event-reminder"), 10, 60_000);
   if (!rl.ok) throw new Error("Too many reminder changes. Please wait a minute and try again.");
@@ -210,7 +209,7 @@ export async function setEventReminder(eventId: string, remindAt: Date) {
 }
 
 export async function sendRemindersForEvent(eventId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
   const rl = await rateLimitAsync(rateLimitKey(session.user.id, "admin-event-reminders"), 30, 60_000);
   if (!rl.ok) throw new Error("Too many requests. Please wait a minute and try again.");
@@ -265,7 +264,7 @@ export async function sendRemindersForEvent(eventId: string) {
 }
 
 export async function processDueEventReminders(limit = 200) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") throw new Error("Unauthorized");
   const rl = await rateLimitAsync(rateLimitKey(session.user.id, "admin-event-reminder-drain"), 20, 60_000);
   if (!rl.ok) throw new Error("Too many reminder jobs. Please retry in a minute.");
@@ -325,3 +324,4 @@ export async function processDueEventRemindersBySystem(limit = 200) {
   revalidatePath("/app/admin/events");
   return { scanned: dueReminders.length, delivered, failed };
 }
+

@@ -42,6 +42,110 @@ function currentRoleProfileField(role: Role): "builderProfileLive" | "founderPro
   return "builderProfileLive";
 }
 
+const MIN_PROFILE_COMPLETION_FOR_POSTING = 60;
+
+function completionPercent(fields: Array<unknown>) {
+  const total = fields.length || 1;
+  const filled = fields.filter((value) => {
+    if (Array.isArray(value)) return value.length > 0;
+    return Boolean(value);
+  }).length;
+  return Math.round((filled / total) * 100);
+}
+
+async function getUserProfileCompletionForPosting(userId: string, role: Role): Promise<number> {
+  if (role === "FOUNDER") {
+    const [profile, startupCount] = await Promise.all([
+      db.founderProfile.findUnique({
+        where: { userId },
+        select: {
+          companyName: true,
+          companyDescription: true,
+          roleTitle: true,
+          companyLogoUrl: true,
+          chainFocus: true,
+          projectStage: true,
+          currentNeeds: true,
+          website: true,
+          isHiring: true,
+        },
+      }),
+      db.startup.count({ where: { founderId: userId } }),
+    ]);
+    if (!profile) return 0;
+    const base = completionPercent([
+      profile.companyName,
+      profile.companyDescription,
+      profile.roleTitle,
+      profile.companyLogoUrl,
+      profile.chainFocus,
+      profile.projectStage,
+      profile.currentNeeds,
+      profile.website,
+      profile.isHiring !== undefined ? "x" : null,
+    ]);
+    return startupCount > 0 ? base : Math.min(base, 79);
+  }
+
+  if (role === "INVESTOR") {
+    const profile = await db.investorProfile.findUnique({
+      where: { userId },
+      select: {
+        firmName: true,
+        roleTitle: true,
+        focus: true,
+        website: true,
+        ticketSize: true,
+        lookingFor: true,
+        investmentThesis: true,
+      },
+    });
+    if (!profile) return 0;
+    return completionPercent([
+      profile.firmName,
+      profile.roleTitle,
+      profile.focus,
+      profile.website,
+      profile.ticketSize,
+      profile.lookingFor,
+      profile.investmentThesis,
+    ]);
+  }
+
+  const profile = await db.builderProfile.findUnique({
+    where: { userId },
+    select: {
+      title: true,
+      headline: true,
+      skills: true,
+      preferredChains: true,
+      openTo: true,
+      bio: true,
+      achievements: true,
+      openSourceContributions: true,
+      independent: true,
+      openToWork: true,
+      github: true,
+      portfolioUrl: true,
+      resumeUrl: true,
+    },
+  });
+  if (!profile) return 0;
+  return completionPercent([
+    profile.title,
+    profile.headline,
+    profile.skills,
+    profile.preferredChains,
+    profile.openTo,
+    profile.bio,
+    profile.achievements,
+    profile.openSourceContributions,
+    profile.independent,
+    profile.openToWork,
+    profile.github || profile.portfolioUrl || profile.resumeUrl,
+  ]);
+}
+
 export async function createFeedPost(formData: FormData): Promise<ActionResult> {
   const user = await requireSessionUser();
   const parsed = createFeedPostSchema.safeParse({
@@ -54,6 +158,14 @@ export async function createFeedPost(formData: FormData): Promise<ActionResult> 
     metadataJson: String(formData.get("metadataJson") ?? ""),
   });
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? "Invalid post data." };
+
+  const completion = await getUserProfileCompletionForPosting(user.id, user.role);
+  if (completion < MIN_PROFILE_COMPLETION_FOR_POSTING) {
+    return {
+      success: false,
+      error: `Complete your profile to at least ${MIN_PROFILE_COMPLETION_FOR_POSTING}% before posting. Current completion: ${completion}%.`,
+    };
+  }
 
   let metadata: Record<string, unknown> | null = null;
   if (parsed.data.metadataJson) {

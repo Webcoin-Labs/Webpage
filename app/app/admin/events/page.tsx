@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getServerSession, authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { ArrowLeft, Plus } from "lucide-react";
 import { AdminEventsTable } from "@/components/events/AdminEventsTable";
@@ -8,7 +8,7 @@ import { AdminEventsTable } from "@/components/events/AdminEventsTable";
 export const metadata = { title: "Events — Admin | Webcoin Labs" };
 
 export default async function AdminEventsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") redirect("/app");
 
   const events = await db.event.findMany({

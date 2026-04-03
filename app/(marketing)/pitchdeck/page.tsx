@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Pitch Deck Workspace - Webcoin Labs",
@@ -10,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function PitchDeckEntryPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user?.id && ["FOUNDER", "ADMIN"].includes(session.user.role)) {
     redirect("/app/founder-os/pitch-deck");
   }
@@ -37,4 +36,5 @@ export default async function PitchDeckEntryPage() {
     </div>
   );
 }
+
 

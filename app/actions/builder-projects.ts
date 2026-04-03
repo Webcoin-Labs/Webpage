@@ -1,9 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 
 const builderProjectSchema = z.object({
@@ -33,9 +32,24 @@ function splitCsv(value?: string | null) {
 }
 
 export type BuilderProjectResult = { success: true } | { success: false; error: string };
+export type BuilderRepoPreviewResult =
+  | {
+      success: true;
+      data: {
+        title: string;
+        tagline: string;
+        description: string;
+        githubUrl: string;
+        liveUrl: string;
+        techStack: string;
+        achievements: string;
+        openSourceContributions: string;
+      };
+    }
+  | { success: false; error: string };
 
 async function requireBuilder() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return null;
   if (!["BUILDER", "ADMIN"].includes(session.user.role)) return null;
   return session.user;
@@ -114,3 +128,100 @@ export async function deleteBuilderProject(projectId: string): Promise<BuilderPr
   revalidatePath("/app/builder-projects");
   return { success: true };
 }
+
+function parseGithubRepository(url: string) {
+  try {
+    const parsed = new URL(url);
+    if (!/github\.com$/i.test(parsed.hostname)) return null;
+    const [owner, repo] = parsed.pathname.split("/").filter(Boolean);
+    if (!owner || !repo) return null;
+    return {
+      owner,
+      repo: repo.replace(/\.git$/i, ""),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function previewGithubRepository(repoUrl: string): Promise<BuilderRepoPreviewResult> {
+  const user = await requireBuilder();
+  if (!user) return { success: false, error: "Unauthorized." };
+
+  const parsed = parseGithubRepository(repoUrl.trim());
+  if (!parsed) {
+    return { success: false, error: "Enter a valid GitHub repository URL like https://github.com/owner/repo." };
+  }
+
+  try {
+    const response = await fetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}`, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        "User-Agent": "Webcoin-Labs-Builder-Import",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return { success: false, error: "Repository not found. Double-check the repo URL." };
+      }
+      return { success: false, error: "GitHub import failed. Try again in a moment." };
+    }
+
+    const repo = (await response.json()) as {
+      name?: string;
+      full_name?: string;
+      description?: string | null;
+      homepage?: string | null;
+      html_url?: string;
+      language?: string | null;
+      topics?: string[];
+      stargazers_count?: number;
+      forks_count?: number;
+      subscribers_count?: number;
+      open_issues_count?: number;
+      pushed_at?: string | null;
+      visibility?: string;
+      archived?: boolean;
+    };
+
+    const stack = [repo.language, ...(repo.topics ?? [])].filter(Boolean) as string[];
+    const uniqueStack = [...new Set(stack)].slice(0, 8);
+    const achievements = [
+      typeof repo.stargazers_count === "number" ? `${repo.stargazers_count} stars` : null,
+      typeof repo.forks_count === "number" ? `${repo.forks_count} forks` : null,
+      typeof repo.subscribers_count === "number" ? `${repo.subscribers_count} watchers` : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    const contributionBits = [
+      repo.visibility ? `${repo.visibility} repository` : null,
+      typeof repo.open_issues_count === "number" ? `${repo.open_issues_count} open issues` : null,
+      repo.pushed_at ? `Last pushed ${new Date(repo.pushed_at).toLocaleDateString("en-IN")}` : null,
+      repo.archived ? "Repository archived" : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    return {
+      success: true,
+      data: {
+        title: repo.name ?? parsed.repo,
+        tagline: repo.description ?? "",
+        description: repo.description
+          ? `${repo.description}\n\nImported from GitHub. Add your specific role, shipped outcomes, and user impact before saving.`
+          : "",
+        githubUrl: repo.html_url ?? repoUrl.trim(),
+        liveUrl: repo.homepage ?? "",
+        techStack: uniqueStack.join(", "),
+        achievements,
+        openSourceContributions: contributionBits,
+      },
+    };
+  } catch {
+    return { success: false, error: "Could not reach GitHub right now." };
+  }
+}
+

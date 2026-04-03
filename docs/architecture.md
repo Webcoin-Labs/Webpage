@@ -1,5 +1,12 @@
 # Webcoin Labs Architecture
 
+Canonical architecture docs:
+- `docs/README.md`
+- `docs/architecture/system-design.md`
+- `docs/architecture/folder-structure.md`
+- `docs/architecture/deployment-architecture.md`
+- `docs/architecture/request-flows.md`
+
 ## Current Architecture (Phased Compat)
 Webcoin Labs is implemented as a shared-graph Next.js application with role-filtered operating views:
 - Founder OS
@@ -31,4 +38,3 @@ The app currently runs a **phased compatibility** strategy:
 2. Route new mutations through service contracts where introduced.
 3. Move read paths to selectors and service queries.
 4. Remove legacy duplication after parity and migration backfill are complete.
-

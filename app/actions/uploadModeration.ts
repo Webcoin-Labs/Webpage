@@ -1,6 +1,6 @@
 "use server";
 
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import {
@@ -9,7 +9,6 @@ import {
   type Prisma,
   type UploadAsset,
 } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { getFileStorage } from "@/lib/storage";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
@@ -37,7 +36,7 @@ type ModerateParams = {
 };
 
 async function assertAdminSession() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id || session.user.role !== "ADMIN") {
     throw new Error("Unauthorized");
   }
@@ -550,4 +549,5 @@ export async function bulkModerateUploadAssets(input: {
   await revalidateUploadPaths();
   return { success: true, processed, failed };
 }
+
 

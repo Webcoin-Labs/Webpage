@@ -1,8 +1,7 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BellRing, CheckCircle2, MessageSquare, UserPlus } from "lucide-react";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { markAllNotificationsRead, markNotificationRead } from "@/app/actions/notifications";
 import { respondConnectionRequest } from "@/app/actions/connections";
@@ -22,7 +21,7 @@ export default async function NotificationsPage({
 }: {
   searchParams?: Promise<{ tab?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
 
   const params = (await searchParams) ?? {};
@@ -213,3 +212,4 @@ export default async function NotificationsPage({
     </div>
   );
 }
+

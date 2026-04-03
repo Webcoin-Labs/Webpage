@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Building2, Briefcase, Rocket, ArrowRightLeft } from "lucide-react";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { switchWorkspace } from "@/app/actions/webcoin-os";
 
@@ -29,7 +28,7 @@ const workspaceMeta = {
 } as const;
 
 export default async function WorkspacesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
 
   const memberships = await db.userWorkspace.findMany({
@@ -103,3 +102,4 @@ export default async function WorkspacesPage() {
     </div>
   );
 }
+

@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
 const ALGORITHM = "aes-256-gcm";
 
 function getKey() {
-  const raw = env.APP_ENCRYPTION_SECRET || env.NEXTAUTH_SECRET;
+  const raw = env.APP_ENCRYPTION_SECRET || env.NEXTAUTH_SECRET || "webcoinlabs-local-auth-fallback";
   return crypto.createHash("sha256").update(raw).digest();
 }
 

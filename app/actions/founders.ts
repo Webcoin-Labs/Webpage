@@ -1,9 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 
@@ -16,7 +15,7 @@ const startupRatingSchema = z.object({
 export type StartupRatingResult = { success: true } | { success: false; error: string };
 
 export async function rateStartup(formData: FormData): Promise<StartupRatingResult> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) return { success: false, error: "Not authenticated." };
   if (!["FOUNDER", "ADMIN"].includes(session.user.role)) {
     return { success: false, error: "Only founders can rate startups." };
@@ -69,3 +68,4 @@ export async function rateStartup(formData: FormData): Promise<StartupRatingResu
   revalidatePath(`/startups/${startup.slug ?? startup.id}`);
   return { success: true };
 }
+

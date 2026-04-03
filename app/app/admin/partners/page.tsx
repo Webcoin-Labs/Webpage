@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { ArrowLeft } from "lucide-react";
 import { AdminPartnersForm } from "@/components/app/AdminPartnersForm";
@@ -11,7 +10,7 @@ export const metadata = { title: "Partners — Admin | Webcoin Labs" };
 const CATEGORIES = ["VC", "CEX", "LAUNCHPAD", "GUILD", "MEDIA", "PORTFOLIO"] as const;
 
 export default async function AdminPartnersPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (session?.user.role !== "ADMIN") redirect("/app");
 
   const partners = await db.partner.findMany({ orderBy: [{ status: "asc" }, { sortOrder: "asc" }, { name: "asc" }] });
@@ -53,3 +52,4 @@ export default async function AdminPartnersPage() {
     </div>
   );
 }
+

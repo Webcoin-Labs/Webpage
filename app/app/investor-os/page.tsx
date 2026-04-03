@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { osRouteMeta } from "@/lib/os/modules";
 import { OsLauncherGrid, OsWorkspaceShell } from "@/components/os/OsWorkspaceShell";
@@ -15,46 +14,47 @@ function percentage(part: number, total: number) {
 }
 
 export default async function InvestorOsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
   if (!["INVESTOR", "ADMIN"].includes(session.user.role)) redirect("/app");
 
-  const [investorProfile, companyMember, applications, integrations, walletCount, meetings, memos, fitSnapshot] = await Promise.all([
-    db.investorProfile.findUnique({
-      where: { userId: session.user.id },
-      include: { company: true },
-    }),
-    db.investorCompanyMember.findFirst({
-      where: { userId: session.user.id, isPrimary: true },
-      include: { company: true },
-    }),
-    db.investorApplication.findMany({
-      where: session.user.role === "ADMIN" ? undefined : { investorUserId: session.user.id },
-      include: {
-        founder: { select: { id: true, name: true, username: true } },
-        venture: { select: { id: true, name: true, stage: true, chainEcosystem: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 12,
-    }),
-    db.integrationConnection.findMany({ where: { userId: session.user.id, status: "CONNECTED" } }),
-    db.walletConnection.count({ where: { userId: session.user.id } }),
-    db.workspaceMeeting.findMany({
-      where: { hostUserId: session.user.id },
-      orderBy: { scheduledAt: "asc" },
-      take: 5,
-    }),
-    db.diligenceMemo.findMany({
-      where: { authorUserId: session.user.id },
-      include: { venture: { select: { name: true } } },
-      orderBy: { updatedAt: "desc" },
-      take: 5,
-    }),
-    db.scoreSnapshot.findFirst({
-      where: { kind: "INVESTOR_FIT_HELPER", scoredUserId: session.user.id },
-      orderBy: { computedAt: "desc" },
-    }),
-  ]);
+  const [investorProfile, companyMember, applications, integrations, walletCount, meetings, memos, fitSnapshot] =
+    await Promise.all([
+      db.investorProfile.findUnique({
+        where: { userId: session.user.id },
+        include: { company: true },
+      }),
+      db.investorCompanyMember.findFirst({
+        where: { userId: session.user.id, isPrimary: true },
+        include: { company: true },
+      }),
+      db.investorApplication.findMany({
+        where: session.user.role === "ADMIN" ? undefined : { investorUserId: session.user.id },
+        include: {
+          founder: { select: { id: true, name: true, username: true } },
+          venture: { select: { id: true, name: true, stage: true, chainEcosystem: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 12,
+      }),
+      db.integrationConnection.findMany({ where: { userId: session.user.id, status: "CONNECTED" } }),
+      db.walletConnection.count({ where: { userId: session.user.id } }),
+      db.workspaceMeeting.findMany({
+        where: { hostUserId: session.user.id },
+        orderBy: { scheduledAt: "asc" },
+        take: 5,
+      }),
+      db.diligenceMemo.findMany({
+        where: { authorUserId: session.user.id },
+        include: { venture: { select: { name: true } } },
+        orderBy: { updatedAt: "desc" },
+        take: 5,
+      }),
+      db.scoreSnapshot.findFirst({
+        where: { kind: "INVESTOR_FIT_HELPER", scoredUserId: session.user.id },
+        orderBy: { computedAt: "desc" },
+      }),
+    ]);
 
   const thesisCoverage = percentage(
     [
@@ -98,7 +98,10 @@ export default async function InvestorOsPage() {
           <section className="rounded-xl border border-border/60 bg-card p-4">
             <p className="text-xs uppercase tracking-[0.15em] text-cyan-300">Automation health</p>
             <div className="mt-2">
-              <StatusPill label={integrations.length > 0 ? "Sync healthy" : "Needs integrations"} tone={integrations.length > 0 ? "good" : "warn"} />
+              <StatusPill
+                label={integrations.length > 0 ? "Sync healthy" : "Needs integrations"}
+                tone={integrations.length > 0 ? "good" : "warn"}
+              />
             </div>
           </section>
           <ActivityTimeline
@@ -151,13 +154,13 @@ export default async function InvestorOsPage() {
             <div className="mt-2 space-y-2">
               {memos.map((memo) => (
                 <p key={memo.id} className="rounded-md border border-border/50 px-3 py-2 text-sm text-muted-foreground">
-                  {memo.title} · {memo.venture.name} · {memo.status}
+                  {memo.title} - {memo.venture.name} - {memo.status}
                 </p>
               ))}
             </div>
           )}
-          <Link href="/app/investor-os/memos" className="mt-3 inline-flex text-xs text-cyan-300">
-            Open Memos Workspace
+          <Link href="/app/investor-os/diligence" className="mt-3 inline-flex text-xs text-cyan-300">
+            Open Diligence Workspace
           </Link>
         </article>
       </section>
@@ -170,7 +173,7 @@ export default async function InvestorOsPage() {
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {meetings.map((meeting) => (
               <p key={meeting.id} className="rounded-md border border-border/50 px-3 py-2 text-sm text-muted-foreground">
-                {meeting.title} · {new Date(meeting.scheduledAt).toLocaleString()}
+                {meeting.title} - {new Date(meeting.scheduledAt).toLocaleString()}
               </p>
             ))}
           </div>
@@ -179,4 +182,3 @@ export default async function InvestorOsPage() {
     </OsWorkspaceShell>
   );
 }
-

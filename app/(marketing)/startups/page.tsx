@@ -1,40 +1,13 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
-import { db } from "@/server/db/client";
+import { listStartupHubCards } from "@/lib/startup-hub";
 
 export const metadata = {
   title: "Startups - Webcoin Labs",
 };
 
 export default async function StartupsDirectoryPage() {
-  const startups = await db.startup.findMany({
-    where: {
-      founder: {
-        founderProfile: {
-          is: {
-            publicVisible: true,
-          },
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 60,
-      include: {
-        founder: {
-          select: {
-            id: true,
-            name: true,
-            founderProfile: {
-              select: {
-                roleTitle: true,
-                companyName: true,
-              },
-            },
-          },
-        },
-        ratings: { select: { score: true } },
-      },
-  });
+  const startups = await listStartupHubCards({ take: 60 });
 
   return (
     <div className="min-h-screen pt-24">
@@ -49,25 +22,23 @@ export default async function StartupsDirectoryPage() {
           ) : (
             startups.map((startup) => (
               <Link
-                key={startup.id}
-                href={`/startups/${startup.slug ?? startup.id}`}
+                key={startup.startupId}
+                href={`/startups/${startup.slugOrId}`}
                 className="block rounded-lg border border-border/50 bg-card p-4 transition-colors hover:border-cyan-500/40"
               >
                 <p className="font-medium">{startup.name}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {startup.tagline ?? "No tagline"} | {startup.stage} | {startup.chainFocus}
+                  {startup.tagline ?? "No tagline"} | {startup.stage ?? "Stage not set"} | {startup.chain ?? "Chain not set"}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Founder: {startup.founder.name ?? "Founder"} {startup.founder.founderProfile?.roleTitle ? `| ${startup.founder.founderProfile.roleTitle}` : ""}
+                  Founder: {startup.founderName} {startup.founderRoleTitle ? `| ${startup.founderRoleTitle}` : ""}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                  <span>{startup.revenue ? `Raised: ${startup.revenue}` : "Raised: N/A"}</span>
+                  <span>{startup.ventureId ? "Venture-linked" : "Startup-only"}</span>
                   <span>
                     <span className="inline-flex items-center gap-1">
                       <Star className="h-3 w-3 text-amber-300" />
-                      {startup.ratings.length > 0
-                        ? (startup.ratings.reduce((acc, item) => acc + item.score, 0) / startup.ratings.length).toFixed(1)
-                        : "Not rated"}
+                      {startup.ratingAverage !== null ? startup.ratingAverage.toFixed(1) : "Not rated"}
                     </span>
                   </span>
                 </div>

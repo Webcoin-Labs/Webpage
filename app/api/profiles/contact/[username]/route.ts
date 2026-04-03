@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { canViewerAccessInvestorOnlyContacts, normalizeTelegramUrl, readTelegramFromSocialLinks } from "@/lib/contact-visibility";
 
 export async function GET(_: Request, { params }: { params: Promise<{ username: string }> }) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!canViewerAccessInvestorOnlyContacts(session?.user?.role)) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }

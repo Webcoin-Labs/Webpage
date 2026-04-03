@@ -2,11 +2,8 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const getServerSession = vi.fn();
 
-vi.mock("next-auth", () => ({
-  getServerSession,
-}));
-
 vi.mock("@/lib/auth", () => ({
+  getServerSession,
   authOptions: {},
 }));
 

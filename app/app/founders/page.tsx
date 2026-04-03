@@ -1,8 +1,7 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ExternalLink, Linkedin, Twitter } from "lucide-react";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import { CompanyLogo } from "@/components/common/CompanyLogo";
 import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag";
@@ -27,7 +26,7 @@ export default async function FoundersPage({
   searchParams?: Promise<{ stage?: string; chain?: string; hiring?: string }>;
 }) {
   const resolvedSearchParams = await Promise.resolve(searchParams);
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user?.id) redirect("/login");
   const canRateStartups = session.user.role === "FOUNDER" || session.user.role === "ADMIN";
   const stageFilter = resolvedSearchParams?.stage?.trim() || "";
@@ -263,3 +262,4 @@ export default async function FoundersPage({
     </div>
   );
 }
+

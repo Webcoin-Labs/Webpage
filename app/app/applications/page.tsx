@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { db } from "@/server/db/client";
 import Link from "next/link";
 import { FileText, ArrowRight } from "lucide-react";
@@ -14,7 +13,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default async function ApplicationsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   const applications = await db.application.findMany({
     where: { userId: session!.user.id },
     orderBy: { createdAt: "desc" },
@@ -72,3 +71,4 @@ export default async function ApplicationsPage() {
     </div>
   );
 }
+

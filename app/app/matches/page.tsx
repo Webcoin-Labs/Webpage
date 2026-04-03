@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/auth";
 import Link from "next/link";
 import { ArrowRight, Handshake, Sparkles } from "lucide-react";
-import { authOptions } from "@/lib/auth";
 import { getRecommendedBuildersForFounder, getRecommendedProjectsForBuilder } from "@/lib/recommendations";
 import { getBuilderAffiliation, getFounderAffiliation } from "@/lib/affiliation";
 import { ProfileAvatar } from "@/components/common/ProfileAvatar";
@@ -10,7 +9,7 @@ import { ProfileAffiliationTag } from "@/components/common/ProfileAffiliationTag
 export const metadata = { title: "Find Co-founder — Webcoin Labs" };
 
 export default async function MatchesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   const user = session!.user;
   const isFounder = user.role === "FOUNDER" || user.role === "ADMIN";
   const isBuilder = user.role === "BUILDER" || user.role === "ADMIN";
@@ -177,4 +176,5 @@ export default async function MatchesPage() {
     </div>
   );
 }
+
 
