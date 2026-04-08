@@ -1,10 +1,23 @@
 "use server";
 
-import path from "path";
+// ─── Feature-layer imports (Phase 3 extraction) ─────────────────────────────
+import {
+  validateUploadedFile,
+  detectKindFromBuffer,
+  getDeckKind,
+  hasPremiumPitchDeckAccess,
+  ensureDeckOwnership,
+  buildDeckStartupContext,
+  loadPitchDeckWorkspaceData,
+  findLatestDeckForUser,
+  listDecksForFounder,
+} from "@/features/pitch-decks";
+// ────────────────────────────────────────────────────────────────────────────
+
 import { getServerSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { Prisma, SubscriptionTier } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { db } from "@/server/db/client";
 import { rateLimitAsync, rateLimitKey } from "@/lib/rateLimit";
 import { getFileStorage } from "@/lib/storage";
@@ -39,6 +52,12 @@ type DeckWithWorkspace = Prisma.PitchDeckGetPayload<{
   };
 }>;
 
+// ─── Inline helpers replaced by feature-layer imports above ─────────────────
+// getDeckKind, detectKindFromBuffer, validateUploadedFile → features/pitch-decks
+// hasPremiumPitchDeckAccess                               → features/pitch-decks
+// ensureDeckOwnership, buildDeckStartupContext            → features/pitch-decks
+// ────────────────────────────────────────────────────────────────────────────
+
 function isMissingPitchWorkspaceTableError(error: unknown) {
   if (!(error instanceof Error)) return false;
   const message = error.message.toLowerCase();
@@ -52,46 +71,6 @@ function isAsyncAnalysisEnabled() {
   return String(process.env.PITCH_ANALYSIS_QUEUE_MODE ?? "").toLowerCase() === "async";
 }
 
-function getDeckKind(fileName: string, mimeType: string): DeckFileKind | null {
-  const ext = path.extname(fileName || "").toLowerCase();
-  const cleanMime = mimeType.toLowerCase();
-  if (ext === ".pdf" || cleanMime === "application/pdf") return "PDF";
-  if (
-    ext === ".docx" ||
-    cleanMime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-  ) {
-    return "DOCX";
-  }
-  return null;
-}
-
-function detectKindFromBuffer(buffer: Buffer): DeckFileKind | null {
-  if (buffer.length < 4) return null;
-  if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
-    return "PDF";
-  }
-  if (buffer[0] === 0x50 && buffer[1] === 0x4b) {
-    return "DOCX";
-  }
-  return null;
-}
-
-function validateUploadedFile(file: File | null): { kind: DeckFileKind } | { error: string } {
-  if (!file) return { error: "Please upload a PDF or DOCX file." };
-  if (file.size <= 0) return { error: "Uploaded file is empty." };
-  if (file.size > MAX_FILE_BYTES) return { error: "File too large. Maximum is 14MB." };
-
-  const ext = path.extname(file.name || "").toLowerCase();
-  const mime = (file.type || "").toLowerCase();
-  if (!ALLOWED_EXTENSIONS.has(ext) || !ALLOWED_MIME.has(mime)) {
-    return { error: "Only PDF and DOCX files are allowed." };
-  }
-
-  const kind = getDeckKind(file.name, file.type);
-  if (!kind) return { error: "Unsupported document format. Upload PDF or DOCX." };
-  return { kind };
-}
-
 async function assertFounderOrAdmin() {
   const session = await getServerSession();
   if (!session?.user?.id) throw new Error("You must be signed in.");
@@ -101,108 +80,9 @@ async function assertFounderOrAdmin() {
   return session;
 }
 
-async function hasPremiumPitchDeckAccess(userId: string, role: string) {
-  if (role === "ADMIN") return true;
-  const subscription = await db.premiumSubscription.findUnique({
-    where: { userId },
-    select: { tier: true, status: true },
-  });
-  return subscription?.tier === SubscriptionTier.PREMIUM && subscription.status === "ACTIVE";
-}
+// ensureDeckOwnership and buildDeckStartupContext are imported from
+// @/features/pitch-decks — see top-of-file imports.
 
-async function ensureDeckOwnership(deckId: string, actor: { id: string; role: string }) {
-  let deck: DeckWithWorkspace | null = null;
-  try {
-      deck = await db.pitchDeck.findUnique({
-      where: { id: deckId },
-      include: {
-        reports: { orderBy: { createdAt: "desc" }, take: 1 },
-        sections: { orderBy: { sectionOrder: "asc" } },
-        versions: { orderBy: { createdAt: "desc" }, take: 20 },
-      },
-    });
-  } catch (error) {
-    if (!isMissingPitchWorkspaceTableError(error)) throw error;
-    const fallbackDeck = await db.pitchDeck.findUnique({
-      where: { id: deckId },
-      include: {
-        reports: { orderBy: { createdAt: "desc" }, take: 1 },
-      },
-    });
-    if (fallbackDeck) {
-      deck = { ...fallbackDeck, sections: [], versions: [] } as DeckWithWorkspace;
-    }
-  }
-  if (!deck) throw new Error("Pitch deck not found.");
-  if (actor.role !== "ADMIN" && deck.userId !== actor.id) throw new Error("Unauthorized for this pitch deck.");
-  return deck;
-}
-
-async function buildDeckStartupContext(deckId: string, userId: string) {
-  const [deck, founderProfile, startups, ventures, raiseRounds] = await Promise.all([
-    db.pitchDeck.findUnique({
-      where: { id: deckId },
-      select: { projectId: true, founderProfileId: true },
-    }),
-    db.founderProfileExtended.findUnique({
-      where: { userId },
-    }),
-    db.startup.findMany({
-      where: { founderId: userId },
-      orderBy: { updatedAt: "desc" },
-      take: 5,
-    }),
-    db.venture.findMany({
-      where: { ownerUserId: userId },
-      orderBy: { updatedAt: "desc" },
-      take: 5,
-    }),
-    db.raiseRound.findMany({
-      where: { founderUserId: userId, isActive: true },
-      orderBy: { updatedAt: "desc" },
-      take: 3,
-    }),
-  ]);
-
-  const currentProject =
-    deck?.projectId
-      ? await db.project.findUnique({
-          where: { id: deck.projectId },
-          select: { id: true, name: true },
-        })
-      : null;
-
-  return JSON.stringify(
-    {
-      founderProfile: founderProfile ?? null,
-      project: currentProject ?? null,
-      startups: startups.map((s) => ({
-        name: s.name,
-        stage: s.stage,
-        chainFocus: s.chainFocus,
-        problem: s.problem,
-        solution: s.solution,
-        traction: s.traction,
-      })),
-      ventures: ventures.map((v) => ({
-        name: v.name,
-        stage: v.stage,
-        chainEcosystem: v.chainEcosystem,
-        tagline: v.tagline,
-        description: v.description,
-      })),
-      activeRounds: raiseRounds.map((r) => ({
-        roundName: r.roundName,
-        roundType: r.roundType,
-        targetAmount: Number(r.targetAmount),
-        raisedAmount: Number(r.raisedAmount),
-        currency: r.currency,
-      })),
-    },
-    null,
-    2,
-  );
-}
 
 async function processPitchDeck(
   deckId: string,
@@ -574,79 +454,21 @@ export async function retryPitchDeckAnalysis(pitchDeckId: string): Promise<Pitch
 
 export async function getLatestPitchDeckReport() {
   const session = await assertFounderOrAdmin();
-  return db.pitchDeck.findFirst({
-    where: { userId: session.user.id },
-    include: { reports: { orderBy: { createdAt: "desc" }, take: 1 } },
-    orderBy: { createdAt: "desc" },
-  });
+  // Delegated to feature layer
+  return findLatestDeckForUser(session.user.id);
 }
 
 export async function listPitchDecksForFounder(limit = 12) {
   const session = await assertFounderOrAdmin();
-  return db.pitchDeck.findMany({
-    where: { userId: session.user.id },
-    include: { reports: { orderBy: { createdAt: "desc" }, take: 1 }, project: { select: { id: true, name: true } } },
-    orderBy: { createdAt: "desc" },
-    take: Math.min(Math.max(limit, 1), 50),
-  });
+  // Delegated to feature layer
+  return listDecksForFounder(session.user.id, limit);
 }
 
 export async function listPitchDeckWorkspaceData(limit = 20) {
   const session = await assertFounderOrAdmin();
-  const [isPremium, projects, ventures] = await Promise.all([
-    hasPremiumPitchDeckAccess(session.user.id, session.user.role),
-    db.project.findMany({
-      where: { ownerUserId: session.user.id },
-      select: { id: true, name: true },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    }),
-    db.venture.findMany({
-      where: { ownerUserId: session.user.id },
-      select: { id: true, name: true },
-      orderBy: { updatedAt: "desc" },
-      take: 20,
-    }),
-  ]);
-  const takeLimit = Math.min(Math.max(limit, 1), 40);
-  let decks: Array<Record<string, unknown>> = [];
-  try {
-    decks = await db.pitchDeck.findMany({
-      where: { userId: session.user.id },
-      include: {
-        reports: { orderBy: { createdAt: "desc" }, take: 1 },
-        sections: { orderBy: { sectionOrder: "asc" } },
-        versions: { orderBy: { createdAt: "desc" }, take: 25 },
-        project: { select: { id: true, name: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: takeLimit,
-    });
-  } catch (error) {
-    if (!isMissingPitchWorkspaceTableError(error)) throw error;
-    const fallbackDecks = await db.pitchDeck.findMany({
-      where: { userId: session.user.id },
-      include: {
-        reports: { orderBy: { createdAt: "desc" }, take: 1 },
-        project: { select: { id: true, name: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: takeLimit,
-    });
-    decks = fallbackDecks.map((deck) => ({
-      ...deck,
-      sections: [],
-      versions: [],
-    }));
-  }
-
-  return {
-    isPremium,
-    decks,
-    projects,
-    ventures,
-    now: new Date().toISOString(),
-  };
+  const isPremium = await hasPremiumPitchDeckAccess(session.user.id, session.user.role);
+  // Delegated to feature layer
+  return loadPitchDeckWorkspaceData(session.user.id, isPremium, limit);
 }
 
 export async function rewritePitchDeckSectionAction(formData: FormData): Promise<PitchDeckActionResult> {
