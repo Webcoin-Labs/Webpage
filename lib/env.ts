@@ -53,8 +53,21 @@ if (!parsed.success) {
 }
 
 const data = parsed.data;
-const isProdBuild = data.NODE_ENV === "production" && process.env.NEXT_PHASE === "phase-production-build";
-const isProdRuntime = data.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build";
+
+/**
+ * True while Next is producing an optimized production bundle (`next build` / `pnpm build`).
+ * We intentionally use several signals because some hosts/workers do not set `NEXT_PHASE`
+ * consistently; without this, `lib/env.ts` can mis-classify the build as "runtime" and
+ * enforce secrets (e.g. `BLOB_READ_WRITE_TOKEN` with default `STORAGE_PROVIDER=vercel_blob`)
+ * during `next build`, which breaks Vercel/CI.
+ */
+const isProdBuild =
+  data.NODE_ENV === "production" &&
+  (process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.NEXT_PHASE === "phase-production-export" ||
+    process.env.npm_lifecycle_event === "build");
+
+const isProdRuntime = data.NODE_ENV === "production" && !isProdBuild;
 const placeholderEndpointPattern = /<\s*accountid\s*>/i;
 const normalizedR2Endpoint = data.R2_ENDPOINT?.trim()
   ? placeholderEndpointPattern.test(data.R2_ENDPOINT)
@@ -132,7 +145,7 @@ if (hasAnySupabaseConfig && (!data.NEXT_PUBLIC_SUPABASE_URL || !data.NEXT_PUBLIC
   throw new Error("NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must both be set.");
 }
 
-if (!isProdBuild && data.NODE_ENV === "production" && !data.GEMINI_API_KEY) {
+if (isProdRuntime && !data.GEMINI_API_KEY) {
   throw new Error("GEMINI_API_KEY must be set in production for pitch analysis flows.");
 }
 
