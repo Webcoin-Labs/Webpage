@@ -40,6 +40,13 @@ Treat deployment as blocked if `release-gate` is not green.
    - investor-only contact fields hidden for anonymous/public viewers
    - internal/admin data never exposed in public pages
 
+## Vercel / hosted build notes
+
+- `next build` is treated as a **build phase** in `lib/env.ts` (via `NEXT_PHASE` and/or `npm_lifecycle_event=build`), so storage and auth checks that apply to **runtime** should not block compilation.
+- If you use Vercel Blob, set `BLOB_READ_WRITE_TOKEN` (or set `STORAGE_PROVIDER` to `r2` / `local` with the matching variables).
+- Set `DATABASE_URL` for any routes that prerender with Prisma (marketing/directory pages); builds may log Prisma errors during SSG if the DB is unreachable, which can fail the deployment depending on page error handling.
+- Align the deployment Node version with CI (see `package.json` `engines` and optional repo `.nvmrc`).
+
 ## Required environment validation
 
 Production environment must include:
